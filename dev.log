@@ -1,0 +1,201 @@
+
+> parque-automotor@0.1.0 dev
+> next dev --turbopack --hostname 0.0.0.0 --port 3000
+
+   ▲ Next.js 15.4.2 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://0.0.0.0:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1339ms
+ ○ Compiling / ...
+ ✓ Compiled / in 4.1s
+ GET / 200 in 4496ms
+ ✓ Compiled /favicon.ico in 363ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 677ms
+ ○ Compiling /vehiculos ...
+ ✓ Compiled /vehiculos in 841ms
+ GET /vehiculos 200 in 919ms
+ GET / 200 in 154ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 308ms
+ GET /vehiculos 200 in 100ms
+ GET / 200 in 136ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 292ms
+ ○ Compiling /_not-found/page ...
+ ✓ Compiled /_not-found/page in 595ms
+ GET /ordenes-compra 404 in 694ms
+ GET /ordenes-compra 404 in 106ms
+ GET / 200 in 111ms
+ GET /vehiculos 200 in 90ms
+ GET / 200 in 143ms
+ GET /historial 404 in 86ms
+ GET /historial 404 in 78ms
+ GET /?id=716c4c9c-bb28-49aa-88c6-b6a2a61ecdc6&vscodeBrowserReqId=1752957189609 200 in 112ms
+ GET /vehiculos 200 in 72ms
+ GET /?id=716c4c9c-bb28-49aa-88c6-b6a2a61ecdc6&vscodeBrowserReqId=1752957241599 200 in 96ms
+ GET /?id=716c4c9c-bb28-49aa-88c6-b6a2a61ecdc6&vscodeBrowserReqId=1752957242530 200 in 184ms
+ ✓ Compiled in 730ms
+ GET / 200 in 1362ms
+ ✓ Compiled /vehiculos in 73ms
+ GET /vehiculos 200 in 238ms
+ ○ Compiling /vehiculos/busqueda ...
+ ✓ Compiled /vehiculos/busqueda in 1456ms
+ ⨯ ./src/app/vehiculos/busqueda/page.tsx:9:16
+Parsing ecmascript source code failed
+[0m [90m  7 |[39m
+ [90m  8 |[39m [36mexport[39m [36mdefault[39m [36mfunction[39m [33mBusquedaPage[39m() {
+[31m[1m>[22m[39m[90m  9 |[39m   [36mconst[39m [tipoB usqueda[33m,[39m setTipoBusqueda] [33m=[39m useState[33m<[39m[32m'placa'[39m [33m|[39m [32m'interno'[39m[33m>[39m([32m'placa'[39m)
+ [90m    |[39m                [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 10 |[39m   [36mconst[39m [termino[33m,[39m setTermino] [33m=[39m useState([32m''[39m)
+ [90m 11 |[39m   [36mconst[39m [vehiculo[33m,[39m setVehiculo] [33m=[39m useState[33m<[39m[33mVehiculo[39m [33m|[39m [36mnull[39m[33m>[39m([36mnull[39m)
+ [90m 12 |[39m   [36mconst[39m [loading[33m,[39m setLoading] [33m=[39m useState([36mfalse[39m)[0m
+
+Expected ',', got 'usqueda'
+
+
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.6s
+ GET /vehiculos/busqueda 500 in 4308ms
+ ⨯ ./src/app/vehiculos/busqueda/page.tsx:9:16
+Parsing ecmascript source code failed
+[0m [90m  7 |[39m
+ [90m  8 |[39m [36mexport[39m [36mdefault[39m [36mfunction[39m [33mBusquedaPage[39m() {
+[31m[1m>[22m[39m[90m  9 |[39m   [36mconst[39m [tipoB usqueda[33m,[39m setTipoBusqueda] [33m=[39m useState[33m<[39m[32m'placa'[39m [33m|[39m [32m'interno'[39m[33m>[39m([32m'placa'[39m)
+ [90m    |[39m                [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 10 |[39m   [36mconst[39m [termino[33m,[39m setTermino] [33m=[39m useState([32m''[39m)
+ [90m 11 |[39m   [36mconst[39m [vehiculo[33m,[39m setVehiculo] [33m=[39m useState[33m<[39m[33mVehiculo[39m [33m|[39m [36mnull[39m[33m>[39m([36mnull[39m)
+ [90m 12 |[39m   [36mconst[39m [loading[33m,[39m setLoading] [33m=[39m useState([36mfalse[39m)[0m
+
+Expected ',', got 'usqueda'
+
+
+ GET /vehiculos/busqueda 500 in 73ms
+ GET /vehiculos 200 in 178ms
+ GET / 200 in 137ms
+
+Could not open page.tsx in the editor.
+The editor process exited with an error: Terminal editors can only be used on macOS.
+
+To set up the editor integration, add something like REACT_EDITOR=atom to the .env.local file in your project folder and restart the development server.
+
+ ✓ Compiled in 372ms
+ GET / 200 in 87ms
+ GET / 200 in 118ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 334ms
+ GET /vehiculos 200 in 68ms
+ ✓ Compiled /vehiculos/busqueda in 91ms
+ GET /vehiculos/busqueda 200 in 319ms
+ ○ Compiling /vehiculos/mantenimientos ...
+ ✓ Compiled /vehiculos/mantenimientos in 589ms
+ GET /vehiculos/mantenimientos 200 in 659ms
+ ✓ Compiled in 155ms
+ GET /vehiculos/mantenimientos 200 in 197ms
+ GET /vehiculos/mantenimientos 200 in 75ms
+ GET /vehiculos/mantenimientos 200 in 461ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 377ms
+ GET /vehiculos 200 in 167ms
+ GET /vehiculos/busqueda 200 in 136ms
+ GET /vehiculos 200 in 67ms
+ GET / 200 in 146ms
+ GET /vehiculos 200 in 128ms
+ GET /vehiculos/busqueda 200 in 94ms
+ GET /vehiculos 200 in 73ms
+ GET /vehiculos/busqueda 200 in 81ms
+ GET /vehiculos 200 in 77ms
+ GET /vehiculos/mantenimientos 200 in 81ms
+ GET /vehiculos 200 in 76ms
+ GET /vehiculos/mantenimientos 200 in 108ms
+ GET /vehiculos 200 in 67ms
+ GET / 200 in 97ms
+ GET / 200 in 708ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 274ms
+ GET /vehiculos 200 in 112ms
+ GET /vehiculos/mantenimientos 200 in 119ms
+ GET / 200 in 159ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 258ms
+ GET /vehiculos 200 in 79ms
+ GET /vehiculos/mantenimientos 200 in 114ms
+ GET /vehiculos 200 in 79ms
+ GET /vehiculos/busqueda 200 in 104ms
+ GET /vehiculos 200 in 68ms
+ GET / 200 in 103ms
+ GET /vehiculos 200 in 75ms
+ GET /vehiculos/busqueda 200 in 100ms
+ GET /vehiculos 200 in 79ms
+ GET /vehiculos/busqueda 200 in 101ms
+ GET /vehiculos 200 in 70ms
+ GET /vehiculos/mantenimientos 200 in 77ms
+ GET /vehiculos 200 in 58ms
+ GET /vehiculos/mantenimientos 200 in 83ms
+ ✓ Compiled in 237ms
+ ✓ Compiled in 111ms
+ ✓ Compiled in 150ms
+ ✓ Compiled in 244ms
+ ✓ Compiled in 94ms
+ GET /vehiculos/mantenimientos 200 in 1253ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 301ms
+ GET /vehiculos/mantenimientos 200 in 131ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 267ms
+ ✓ Compiled in 149ms
+ ✓ Compiled in 686ms
+ ✓ Compiled in 133ms
+ ✓ Compiled in 58ms
+ GET /vehiculos 200 in 153ms
+ GET / 200 in 553ms
+ GET /vehiculos 200 in 145ms
+ GET /vehiculos/mantenimientos 200 in 743ms
+ GET /vehiculos 200 in 134ms
+ GET /vehiculos/busqueda 200 in 324ms
+ GET /vehiculos 200 in 106ms
+ GET / 200 in 950ms
+ GET / 200 in 1475ms
+ GET / 200 in 561ms
+ GET /vehiculos 200 in 245ms
+ GET / 200 in 134ms
+ GET / 200 in 1164ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 383ms
+ GET /vehiculos 200 in 187ms
+ GET /vehiculos/mantenimientos 200 in 1142ms
+ GET /vehiculos/busqueda 200 in 329ms
+ GET /vehiculos 200 in 125ms
+ GET / 200 in 165ms
+ GET /vehiculos 200 in 106ms
+ GET /vehiculos/busqueda 200 in 131ms
+ ✓ Compiled in 520ms
+ ✓ Compiled in 188ms
+ ✓ Compiled in 770ms
+ ✓ Compiled in 175ms
+ ✓ Compiled in 65ms
+ ✓ Compiled in 80ms
+ ✓ Compiled in 596ms
+ ✓ Compiled in 492ms
+ ✓ Compiled in 344ms
+ ✓ Compiled in 100ms
+ ✓ Compiled in 92ms
+ ✓ Compiled in 90ms
+ GET /vehiculos/busqueda 200 in 1729ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 311ms
+ GET /vehiculos/busqueda 200 in 173ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 272ms
+ GET /vehiculos 200 in 119ms
+ GET /vehiculos/mantenimientos 200 in 93ms
+ GET /vehiculos/mantenimientos 200 in 357ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 283ms
+ GET /vehiculos 200 in 111ms
+ GET /vehiculos/busqueda 200 in 99ms
+ GET /vehiculos 200 in 79ms
+ GET / 200 in 154ms
+ ✓ Compiled in 280ms
+ GET /vehiculos 200 in 105ms
+ GET /vehiculos/busqueda 200 in 74ms
+ GET /vehiculos 200 in 80ms
+ GET /vehiculos/mantenimientos 200 in 82ms
+ GET /vehiculos 200 in 82ms
+ GET / 200 in 145ms
+ GET /ordenes-compra 404 in 169ms
+ GET /ordenes-compra 404 in 81ms
+ GET / 200 in 135ms
+ GET /ordenes-compra 404 in 97ms
+ GET /ordenes-compra 404 in 98ms
+ GET / 200 in 142ms

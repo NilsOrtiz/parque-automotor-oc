@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Forzar modo claro para evitar problemas de contraste */
+body {
+  background: #ffffff;
+  color: #171717;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Solo corregir textos problemáticos, mantener colores de elementos */
+p.text-gray-900,
+span.text-gray-900,
+div.text-gray-900,
+label.text-gray-500 {
+  color: #111827 !important;
+}
+
+p.text-gray-600,
+span.text-gray-600 {
+  color: #4b5563 !important;
+}
+
+p.text-gray-500,
+span.text-gray-500 {
+  color: #6b7280 !important;
+}
+
+/* Asegurar que inputs siempre tengan texto visible */
+input[type="text"],
+input[type="number"],
+input[type="date"] {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
