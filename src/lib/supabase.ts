@@ -5,6 +5,78 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
+// Configuración de Storage para documentos OC
+export const STORAGE_BUCKET = 'oc-documents'
+
+// Helper para subir archivos al storage
+export const uploadOCDocument = async (fileName: string, file: Blob) => {
+  console.log('🔍 Intentando subir archivo:', { fileName, bucket: STORAGE_BUCKET, size: file.size })
+  
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: true
+    })
+
+  if (error) {
+    console.error('❌ Error detallado de Storage:', error)
+    console.error('❌ Error message:', error.message)
+    console.error('❌ Error statusCode:', error.statusCode)
+    console.error('❌ Error name:', error.name)
+    console.error('❌ Bucket:', STORAGE_BUCKET)
+    console.error('❌ FileName:', fileName)
+    console.error('❌ Error completo:', JSON.stringify(error, null, 2))
+    throw error
+  }
+  
+  console.log('✅ Archivo subido exitosamente:', data)
+  return data
+}
+
+// Helper para obtener URL pública del documento
+export const getOCDocumentURL = async (fileName: string) => {
+  const { data } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(fileName)
+
+  return data.publicUrl
+}
+
+// Helper para obtener información de moneda
+export const getMonedaInfo = async (codigo: string) => {
+  const { data, error } = await supabase
+    .from('monedas')
+    .select('*')
+    .eq('codigo', codigo)
+    .eq('activa', true)
+    .single()
+
+  if (error || !data) {
+    // Fallback para códigos comunes
+    const fallbacks: Record<string, { simbolo: string, nombre: string }> = {
+      'ARS': { simbolo: '$', nombre: 'Peso Argentino' },
+      'BRL': { simbolo: 'R$', nombre: 'Real Brasileño' },
+      'USD': { simbolo: 'US$', nombre: 'Dólar Estadounidense' }
+    }
+    return fallbacks[codigo] || { simbolo: '$', nombre: 'Moneda' }
+  }
+
+  return {
+    simbolo: data.simbolo,
+    nombre: data.nombre,
+    pais: data.pais
+  }
+}
+
+// Helper para formatear monto con símbolo correcto
+export const formatearMonto = async (monto: number, codigoMoneda?: string) => {
+  if (!codigoMoneda) return `$${monto.toLocaleString()}`
+  
+  const monedaInfo = await getMonedaInfo(codigoMoneda)
+  return `${monedaInfo.simbolo}${monto.toLocaleString()}`
+}
+
 // Types para las tablas
 export interface Vehiculo {
   id: number
@@ -117,8 +189,9 @@ export interface Vehiculo {
 
 export interface OrdenCompra {
   id: number
-  id_oc: string
+  id_oc?: string
   fecha: string
+  codigo: string
   titular?: string
   cuit?: string
   monto?: number
@@ -127,10 +200,68 @@ export interface OrdenCompra {
   placa?: string
   proveedor?: string
   items?: string
+  adjuntos?: string
   est_compras: boolean
   est_tesoreria: boolean
   est_gerencia: boolean
+  es_emergencia?: boolean
+  moneda?: string
+  pdf_url?: string
   created_at: string
+}
+
+export interface OrdenCompraPorVehiculo {
+  id: number
+  id_oc_original: number
+  codigo_oc: string
+  fecha: string
+  interno: number
+  placa: string
+  modelo?: string
+  titular?: string
+  proveedor?: string
+  items?: string
+  monto_vehiculo?: number
+  version?: string | null
+  es_emergencia?: boolean
+  moneda?: string
+  pdf_url?: string
+  created_at: string
+}
+
+export interface Moneda {
+  id: number
+  codigo: string
+  nombre: string
+  simbolo: string
+  pais: string
+  activa: boolean
+  created_at: string
+}
+
+export interface Proveedor {
+  id: number
+  nombre: string
+  cuit?: string
+  direccion?: string
+  telefono?: string
+  gmail?: string
+  con_iva: string
+  moneda?: string
+  created_at: string
+}
+
+export interface Titular {
+  id: number
+  nombre_titular: string
+  cuit?: string
+}
+
+export interface CorrelativoOC {
+  id: number
+  year: number
+  ultimo_numero: number
+  fecha_actualizacion: string
 }
 
 export interface Historial {
