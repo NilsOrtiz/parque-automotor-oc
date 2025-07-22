@@ -335,7 +335,7 @@ export default function CrearOCPage() {
         alert(`❌ Error directo: ${response.status} - ${result}`)
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Error en prueba directa:', error)
       alert(`❌ Error directo: ${error.message}`)
     }
@@ -386,7 +386,7 @@ export default function CrearOCPage() {
         console.log('🗑️ Archivo de prueba eliminado')
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Error en conexión con Storage:', error)
       alert(`❌ Error de conexión con Storage:\n${error.message}\n\nRevisa:\n1. Que el bucket 'oc-documents' exista\n2. Las políticas RLS\n3. La configuración de autenticación`)
     }
@@ -1171,7 +1171,7 @@ export default function CrearOCPage() {
       
       // Si hay menos de 19 filas (máximo del formato), dibujar filas vacías con bordes
       const maxRows = 19
-      let remainingRows = maxRows - items.length
+      const remainingRows = maxRows - items.length
       for (let i = 0; i < remainingRows && yPosProducts < 566; i++) {
         const rowY = yPosProducts - 10
         
