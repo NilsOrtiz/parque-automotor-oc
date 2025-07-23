@@ -22,7 +22,7 @@ type ResumenVehiculo = {
 export default function OCPorVehiculoPage() {
   const [ordenesDetalle, setOrdenesDetalle] = useState<OrdenCompraPorVehiculo[]>([])
   const [loading, setLoading] = useState(true)
-  const [vistaDetalle, setVistaDetalle] = useState<number | null>(null) // null = vista resumen, number = interno del vehículo
+  const [vistaDetalle, setVistaDetalle] = useState<number | string | null>(null) // null = vista resumen, number = interno del vehículo, 'TALLER' = taller
   const [filtroInterno, setFiltroInterno] = useState('')
   const [monedasSeleccionadas, setMonedasSeleccionadas] = useState<string[]>(['ARS', 'BRL', 'USD'])
   const [simbolosMonedas, setSimbolosMonedas] = useState<Record<string, string>>({})
@@ -115,7 +115,13 @@ export default function OCPorVehiculoPage() {
   
   // Si estamos en vista detalle, obtener las órdenes del vehículo específico
   const ordenesDetalleFiltradas = vistaDetalle 
-    ? resumenVehiculos.find(v => v.interno === vistaDetalle)?.ordenes || []
+    ? resumenVehiculos.find(v => {
+        // Fix especial para TALLER: usar placa en lugar de interno
+        if (vistaDetalle === 'TALLER') {
+          return v.placa === 'TALLER'
+        }
+        return v.interno === vistaDetalle
+      })?.ordenes || []
     : []
 
   if (loading) {
@@ -260,8 +266,10 @@ export default function OCPorVehiculoPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {resumenVehiculos.map((vehiculo) => (
               <div
-                key={vehiculo.interno}
-                onClick={() => setVistaDetalle(vehiculo.interno)}
+                key={vehiculo.placa === 'TALLER' ? 'TALLER' : vehiculo.interno}
+                onClick={() => setVistaDetalle(
+                  vehiculo.placa === 'TALLER' ? 'TALLER' : vehiculo.interno
+                )}
                 className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-blue-500 hover:border-blue-600"
               >
                 <div className="p-6">
@@ -273,7 +281,7 @@ export default function OCPorVehiculoPage() {
                       </div>
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">
-                          Móvil {vehiculo.interno}
+                          {vehiculo.placa === 'TALLER' ? '🔧 TALLER' : `Móvil ${vehiculo.interno}`}
                         </h3>
                         <p className="text-sm text-gray-600">{vehiculo.placa}</p>
                       </div>
@@ -326,7 +334,10 @@ export default function OCPorVehiculoPage() {
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b">
               <h3 className="text-lg font-medium text-gray-900">
-                Órdenes del Vehículo {vistaDetalle} - {resumenVehiculos.find(v => v.interno === vistaDetalle)?.placa}
+                {vistaDetalle === 'TALLER' 
+                  ? '🔧 Órdenes del TALLER'
+                  : `Órdenes del Vehículo ${vistaDetalle} - ${resumenVehiculos.find(v => v.interno === vistaDetalle)?.placa}`
+                }
               </h3>
               <p className="text-sm text-gray-600 mt-1">
                 {ordenesDetalleFiltradas.length} órdenes • Total: ${ordenesDetalleFiltradas.reduce((sum, o) => sum + (o.monto_vehiculo || 0), 0).toLocaleString()}
