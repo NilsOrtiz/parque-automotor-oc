@@ -642,7 +642,10 @@ export default function CrearOCPage() {
 
         const grupo = itemsPorVehiculo.get(interno)!
         grupo.items.push(item)
-        grupo.monto += item.cantidad * item.precio
+        
+        // Calcular monto usando precio sin IVA (para consistencia con subtotal)
+        const precioSinIVA = getPrecioSinIVA(item.precio)
+        grupo.monto += item.cantidad * precioSinIVA
       })
 
       // Crear registros en la tabla de detalle
@@ -652,9 +655,10 @@ export default function CrearOCPage() {
       vehiculos.forEach(([interno, datos], index) => {
         const version = vehiculos.length > 1 ? String.fromCharCode(65 + index) : null // A, B, C... o null
 
-        const itemsTexto = datos.items.map(item => 
-          `${item.descripcion} (${item.cantidad}x$${item.precio.toFixed(2)})`
-        ).join(', ')
+        const itemsTexto = datos.items.map(item => {
+          const precioUnitarioSinIVA = getPrecioSinIVA(item.precio)
+          return `${item.descripcion} (${item.cantidad}x$${precioUnitarioSinIVA.toFixed(2)})`
+        }).join(', ')
 
         registrosDetalle.push({
           id_oc_original: ocPrincipal.id,
@@ -707,7 +711,21 @@ export default function CrearOCPage() {
   }
 
   const calcularSubtotal = () => {
-    return items.reduce((total, item) => total + (item.cantidad * item.precio), 0)
+    if (!proveedorSeleccionado) return 0
+    
+    const conIVA = proveedorSeleccionado.con_iva?.toUpperCase()
+    
+    return items.reduce((total, item) => {
+      const precioItem = item.cantidad * item.precio
+      
+      // Si el proveedor da precios CON IVA, necesitamos mostrar el subtotal SIN IVA
+      if (conIVA === 'SI') {
+        return total + (precioItem / 1.21) // Quitar IVA del precio con IVA
+      }
+      
+      // Para 'NO' y 'NA', usar el precio tal como está
+      return total + precioItem
+    }, 0)
   }
 
   const calcularIVA = (subtotal: number) => {
@@ -725,6 +743,18 @@ export default function CrearOCPage() {
     const iva = calcularIVA(subtotal)
     const gastosTotal = gastosAdicionales.envio + gastosAdicionales.otros
     return subtotal + iva + gastosTotal
+  }
+
+  // Helper para obtener precio unitario sin IVA para el PDF
+  const getPrecioSinIVA = (precio: number) => {
+    if (!proveedorSeleccionado) return precio
+    
+    const conIVA = proveedorSeleccionado.con_iva?.toUpperCase()
+    if (conIVA === 'SI') {
+      return precio / 1.21 // Quitar IVA del precio con IVA
+    }
+    
+    return precio // Para 'NO' y 'NA', usar precio tal como está
   }
 
   // Generar código de OC automático
@@ -831,10 +861,11 @@ export default function CrearOCPage() {
         }
       }
       
-      // Formatear items como string (igual que en el Excel)
-      const itemsTexto = items.map(item => 
-        `${item.descripcion} (${item.cantidad}x$${item.precio.toFixed(2)})`
-      ).join(', ')
+      // Formatear items como string (con precios sin IVA para que sea consistente con el PDF)
+      const itemsTexto = items.map(item => {
+        const precioUnitarioSinIVA = getPrecioSinIVA(item.precio)
+        return `${item.descripcion} (${item.cantidad}x$${precioUnitarioSinIVA.toFixed(2)})`
+      }).join(', ')
       
       const monto = calcularTotal()
       
@@ -1155,16 +1186,19 @@ export default function CrearOCPage() {
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(colors.textoNegro)
         
+        const precioUnitarioSinIVA = getPrecioSinIVA(item.precio)
+        const totalItemSinIVA = item.cantidad * precioUnitarioSinIVA
+        
         doc.text(`${index + 1}`, 50, yPosProducts)
         doc.text(item.descripcion.substring(0, 32), 100, yPosProducts) // Truncar para que quepa
         doc.text(item.cantidad.toString(), 335, yPosProducts, { align: 'center' })
-        doc.text(`$${item.precio.toFixed(2)}`, 385, yPosProducts, { align: 'center' })
+        doc.text(`$${precioUnitarioSinIVA.toFixed(2)}`, 385, yPosProducts, { align: 'center' })
         
         // IVA según el proveedor
         const ivaText = proveedorSeleccionado.con_iva?.toUpperCase() === 'SI' ? 'SI' : 
                        proveedorSeleccionado.con_iva?.toUpperCase() === 'NO' ? 'NO' : 'N/A'
         doc.text(ivaText, 430, yPosProducts, { align: 'center' })
-        doc.text(`$${(item.cantidad * item.precio).toFixed(2)}`, 470, yPosProducts, { align: 'center' })
+        doc.text(`$${totalItemSinIVA.toFixed(2)}`, 470, yPosProducts, { align: 'center' })
         
         yPosProducts += 13
       })
