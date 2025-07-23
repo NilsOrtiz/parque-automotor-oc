@@ -370,6 +370,24 @@ export default function BusquedaPage() {
                   kmField: "filtro_deshumidificador_km",
                   dateField: "filtro_deshumidificador_fecha",
                   modelField: "filtro_deshumidificador_modelo"
+                },
+                {
+                  label: "Filtro Secador",
+                  kmField: "filtro_secador_km",
+                  dateField: "filtro_secador_fecha",
+                  modelField: "filtro_secador_modelo"
+                },
+                {
+                  label: "Filtro de Aire Secundario",
+                  kmField: "filtro_aire_secundario_km",
+                  dateField: "filtro_aire_secundario_fecha",
+                  modelField: "filtro_aire_secundario_modelo"
+                },
+                {
+                  label: "Trampa de Agua",
+                  kmField: "trampa_agua_km",
+                  dateField: "trampa_agua_fecha",
+                  modelField: "trampa_agua_modelo"
                 }
               ]}
               vehiculo={vehiculo}

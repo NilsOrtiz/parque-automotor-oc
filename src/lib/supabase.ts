@@ -185,6 +185,16 @@ export interface Vehiculo {
   escobillas_modelo?: string
   escobillas_fecha?: string
   escobillas_km?: number
+  // Nuevos filtros agregados
+  filtro_secador_fecha?: string
+  filtro_secador_km?: number
+  filtro_secador_modelo?: string
+  filtro_aire_secundario_fecha?: string
+  filtro_aire_secundario_km?: number
+  filtro_aire_secundario_modelo?: string
+  trampa_agua_fecha?: string
+  trampa_agua_km?: number
+  trampa_agua_modelo?: string
 }
 
 export interface OrdenCompra {
