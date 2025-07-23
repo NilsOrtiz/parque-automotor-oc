@@ -2,12 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   eslint: {
-    // Desactivar ESLint durante build para deployment
-    ignoreDuringBuilds: true,
+    // Solo desactivar en producción
+    ignoreDuringBuilds: process.env.NODE_ENV === 'production',
   },
   typescript: {
-    // Desactivar type checking durante build para deployment  
-    ignoreBuildErrors: true,
+    // Solo desactivar en producción
+    ignoreBuildErrors: process.env.NODE_ENV === 'production',
   },
 };
 

@@ -7,9 +7,22 @@ import { ArrowLeft, Car, FileText, DollarSign, Calendar } from 'lucide-react'
 import FiltroMonedas from '@/components/FiltroMonedas'
 import FiltroFechas from '@/components/FiltroFechas'
 
+type ResumenVehiculo = {
+  interno: number
+  placa: string
+  modelo: string
+  titular: string
+  gastoTotal: number
+  cantidadOrdenes: number
+  ultimaOrden: string
+  monedaPrincipal: string
+  ordenes: OrdenCompraPorVehiculo[]
+}
+
 export default function OCPorVehiculoPage() {
   const [ordenesDetalle, setOrdenesDetalle] = useState<OrdenCompraPorVehiculo[]>([])
   const [loading, setLoading] = useState(true)
+  const [vistaDetalle, setVistaDetalle] = useState<number | null>(null) // null = vista resumen, number = interno del vehículo
   const [filtroInterno, setFiltroInterno] = useState('')
   const [monedasSeleccionadas, setMonedasSeleccionadas] = useState<string[]>(['ARS', 'BRL', 'USD'])
   const [simbolosMonedas, setSimbolosMonedas] = useState<Record<string, string>>({})
@@ -55,6 +68,56 @@ export default function OCPorVehiculoPage() {
 
   const totalMonto = ordenesFiltradas.reduce((sum, orden) => sum + (orden.monto_vehiculo || 0), 0)
 
+  // Agrupar órdenes por vehículo para crear resumen
+  const resumenVehiculos: ResumenVehiculo[] = []
+  const vehiculosMap = new Map<number, OrdenCompraPorVehiculo[]>()
+  
+  // Agrupar por interno
+  ordenesFiltradas.forEach(orden => {
+    const interno = orden.interno
+    if (!vehiculosMap.has(interno)) {
+      vehiculosMap.set(interno, [])
+    }
+    vehiculosMap.get(interno)!.push(orden)
+  })
+  
+  // Crear resumen por vehículo
+  vehiculosMap.forEach((ordenes, interno) => {
+    const primeraOrden = ordenes[0]
+    const gastoTotal = ordenes.reduce((sum, orden) => sum + (orden.monto_vehiculo || 0), 0)
+    const fechasOrdenes = ordenes.map(o => new Date(o.fecha)).sort((a, b) => b.getTime() - a.getTime())
+    const ultimaOrden = fechasOrdenes[0]?.toLocaleDateString() || '-'
+    
+    // Moneda más frecuente
+    const monedasCount = ordenes.reduce((acc, orden) => {
+      const moneda = orden.moneda || 'ARS'
+      acc[moneda] = (acc[moneda] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    const monedaPrincipal = Object.entries(monedasCount)
+      .sort(([,a], [,b]) => b - a)[0]?.[0] || 'ARS'
+    
+    resumenVehiculos.push({
+      interno,
+      placa: primeraOrden.placa,
+      modelo: primeraOrden.modelo || 'Sin modelo',
+      titular: primeraOrden.titular || 'Sin titular',
+      gastoTotal,
+      cantidadOrdenes: ordenes.length,
+      ultimaOrden,
+      monedaPrincipal,
+      ordenes
+    })
+  })
+  
+  // Ordenar por gasto total descendente
+  resumenVehiculos.sort((a, b) => b.gastoTotal - a.gastoTotal)
+  
+  // Si estamos en vista detalle, obtener las órdenes del vehículo específico
+  const ordenesDetalleFiltradas = vistaDetalle 
+    ? resumenVehiculos.find(v => v.interno === vistaDetalle)?.ordenes || []
+    : []
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -68,29 +131,51 @@ export default function OCPorVehiculoPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Link 
-            href="/ordenes-compra" 
-            className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver a Órdenes de Compra
-          </Link>
+          <div className="flex items-center gap-2 mb-4">
+            {vistaDetalle ? (
+              <button
+                onClick={() => setVistaDetalle(null)}
+                className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver al Resumen
+              </button>
+            ) : (
+              <Link 
+                href="/ordenes-compra" 
+                className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver a Órdenes de Compra
+              </Link>
+            )}
+          </div>
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">📊 Análisis por Vehículo</h1>
-              <p className="text-gray-600">Detalle granular de gastos por vehículo específico</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {vistaDetalle 
+                  ? `🚗 Detalle Vehículo ${vistaDetalle}` 
+                  : '📊 Dashboard por Vehículo'
+                }
+              </h1>
+              <p className="text-gray-600">
+                {vistaDetalle 
+                  ? 'Órdenes de compra específicas del vehículo'
+                  : 'Resumen de gastos agrupados por vehículo'
+                }
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Resumen */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* Resumen General */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex items-center">
               <FileText className="h-8 w-8 text-blue-600 mr-3" />
               <div>
                 <p className="text-2xl font-bold text-gray-900">{ordenesFiltradas.length}</p>
-                <p className="text-sm text-gray-600">Registros Totales</p>
+                <p className="text-sm text-gray-600">Órdenes Totales</p>
               </div>
             </div>
           </div>
@@ -98,10 +183,8 @@ export default function OCPorVehiculoPage() {
             <div className="flex items-center">
               <Car className="h-8 w-8 text-green-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {new Set(ordenesFiltradas.map(o => o.interno)).size}
-                </p>
-                <p className="text-sm text-gray-600">Vehículos Únicos</p>
+                <p className="text-2xl font-bold text-gray-900">{resumenVehiculos.length}</p>
+                <p className="text-sm text-gray-600">Vehículos</p>
               </div>
             </div>
           </div>
@@ -110,144 +193,236 @@ export default function OCPorVehiculoPage() {
               <DollarSign className="h-8 w-8 text-purple-600 mr-3" />
               <div>
                 <p className="text-2xl font-bold text-gray-900">${totalMonto.toLocaleString()}</p>
-                <p className="text-sm text-gray-600">Monto Total</p>
+                <p className="text-sm text-gray-600">Gasto Total</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="flex items-center">
+              <Calendar className="h-8 w-8 text-orange-600 mr-3" />
+              <div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {resumenVehiculos.length > 0 
+                    ? Math.round(totalMonto / resumenVehiculos.length).toLocaleString()
+                    : '0'
+                  }
+                </p>
+                <p className="text-sm text-gray-600">Promedio/Vehículo</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="space-y-4 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-gray-700">Filtrar por Interno:</label>
-              <input
-                type="text"
-                placeholder="Número interno..."
-                value={filtroInterno}
-                onChange={(e) => setFiltroInterno(e.target.value)}
-                className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
-              />
-              {filtroInterno && (
-                <button
-                  onClick={() => setFiltroInterno('')}
-                  className="text-red-600 hover:text-red-800 text-sm"
-                >
-                  Limpiar
-                </button>
-              )}
+        {/* Filtros - Solo mostrar en vista resumen */}
+        {!vistaDetalle && (
+          <div className="space-y-4 mb-6">
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700">Filtrar por Interno:</label>
+                <input
+                  type="text"
+                  placeholder="Número interno..."
+                  value={filtroInterno}
+                  onChange={(e) => setFiltroInterno(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                />
+                {filtroInterno && (
+                  <button
+                    onClick={() => setFiltroInterno('')}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Filtro de monedas */}
+            <FiltroMonedas
+              monedasSeleccionadas={monedasSeleccionadas}
+              onMonedasChange={setMonedasSeleccionadas}
+            />
+
+            {/* Filtro de fechas */}
+            <FiltroFechas
+              fechaInicio={fechaInicio}
+              fechaFin={fechaFin}
+              onFechasChange={(inicio, fin) => {
+                setFechaInicio(inicio)
+                setFechaFin(fin)
+              }}
+            />
+          </div>
+        )}
+
+        {/* Vista Resumen: Cards por Vehículo */}
+        {!vistaDetalle ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {resumenVehiculos.map((vehiculo) => (
+              <div
+                key={vehiculo.interno}
+                onClick={() => setVistaDetalle(vehiculo.interno)}
+                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-blue-500 hover:border-blue-600"
+              >
+                <div className="p-6">
+                  {/* Header del vehículo */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                        <Car className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">
+                          Móvil {vehiculo.interno}
+                        </h3>
+                        <p className="text-sm text-gray-600">{vehiculo.placa}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-green-600">
+                        ${vehiculo.gastoTotal.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-500">{vehiculo.monedaPrincipal}</div>
+                    </div>
+                  </div>
+
+                  {/* Información adicional */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Modelo:</span>
+                      <span className="font-medium text-gray-900 truncate ml-2" title={vehiculo.modelo}>
+                        {vehiculo.modelo}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Titular:</span>
+                      <span className="font-medium text-gray-900 truncate ml-2" title={vehiculo.titular}>
+                        {vehiculo.titular}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Órdenes:</span>
+                      <span className="font-medium text-blue-600">{vehiculo.cantidadOrdenes}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Última orden:</span>
+                      <span className="font-medium text-gray-900">{vehiculo.ultimaOrden}</span>
+                    </div>
+                  </div>
+
+                  {/* Footer con llamada a la acción */}
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Click para ver detalle</span>
+                      <ArrowLeft className="h-4 w-4 text-gray-400 rotate-180" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Vista Detalle: Tabla de órdenes del vehículo específico */
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-gray-50 px-6 py-4 border-b">
+              <h3 className="text-lg font-medium text-gray-900">
+                Órdenes del Vehículo {vistaDetalle} - {resumenVehiculos.find(v => v.interno === vistaDetalle)?.placa}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {ordenesDetalleFiltradas.length} órdenes • Total: ${ordenesDetalleFiltradas.reduce((sum, o) => sum + (o.monto_vehiculo || 0), 0).toLocaleString()}
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Código OC
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Fecha
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Items
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Monto
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Versión
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      PDF
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {ordenesDetalleFiltradas.map((orden) => (
+                    <tr key={orden.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {orden.codigo_oc}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(orden.fecha).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                        <div className="truncate" title={orden.items || ''}>
+                          {orden.items || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <span className="font-semibold">
+                          ${(orden.monto_vehiculo || 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        {orden.version ? (
+                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                            {orden.version}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        {orden.pdf_url ? (
+                          <a
+                            href={orden.pdf_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                            title="Ver PDF"
+                          >
+                            📄 PDF
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-xs">Sin PDF</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
+        )}
 
-          {/* Filtro de monedas */}
-          <FiltroMonedas
-            monedasSeleccionadas={monedasSeleccionadas}
-            onMonedasChange={setMonedasSeleccionadas}
-          />
-
-          {/* Filtro de fechas */}
-          <FiltroFechas
-            fechaInicio={fechaInicio}
-            fechaFin={fechaFin}
-            onFechasChange={(inicio, fin) => {
-              setFechaInicio(inicio)
-              setFechaFin(fin)
-            }}
-          />
-        </div>
-
-        {/* Tabla */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Código OC
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Vehículo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Items
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Monto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Versión
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    PDF
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {ordenesFiltradas.map((orden) => (
-                  <tr key={orden.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {orden.codigo_oc}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(orden.fecha).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div>
-                        <div className="font-medium">Int. {orden.interno} - {orden.placa}</div>
-                        <div className="text-gray-500 text-xs">{orden.modelo}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                      <div className="truncate" title={orden.items || ''}>
-                        {orden.items || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <span className="font-semibold">
-                        ${(orden.monto_vehiculo || 0).toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                      {orden.version ? (
-                        <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                          {orden.version}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                      {orden.pdf_url ? (
-                        <a
-                          href={orden.pdf_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                          title="Ver PDF"
-                        >
-                          📄 PDF
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 text-xs">Sin PDF</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {ordenesFiltradas.length === 0 && (
+        {/* Mensaje cuando no hay datos */}
+        {!vistaDetalle && resumenVehiculos.length === 0 && (
           <div className="text-center py-12 bg-white rounded-lg shadow-md">
             <Car className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">No hay registros por vehículo</p>
+            <p className="text-gray-500 text-lg">No hay vehículos con órdenes</p>
             <p className="text-gray-400 text-sm mt-2">
-              {filtroInterno ? 'Intenta con otro filtro' : 'Los registros aparecerán aquí al crear OCs'}
+              {filtroInterno ? 'Intenta con otro filtro' : 'Los vehículos aparecerán aquí al crear OCs'}
             </p>
+          </div>
+        )}
+
+        {vistaDetalle && ordenesDetalleFiltradas.length === 0 && (
+          <div className="text-center py-12 bg-white rounded-lg shadow-md">
+            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">No hay órdenes para este vehículo</p>
+            <p className="text-gray-400 text-sm mt-2">Este vehículo no tiene órdenes registradas</p>
           </div>
         )}
       </div>

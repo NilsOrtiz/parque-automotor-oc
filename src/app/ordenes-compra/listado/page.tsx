@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type OrdenCompra, getMonedaInfo } from '@/lib/supabase'
-import { ArrowLeft, CheckCircle, Clock, XCircle, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Clock, XCircle, ArrowUp, ArrowDown, ArrowUpDown, Search } from 'lucide-react'
 import FiltroMonedas from '@/components/FiltroMonedas'
 import FiltroFechas from '@/components/FiltroFechas'
 
@@ -20,6 +20,7 @@ export default function ListadoOCPage() {
   const [simbolosMonedas, setSimbolosMonedas] = useState<Record<string, string>>({})
   const [fechaInicio, setFechaInicio] = useState<string | null>(null)
   const [fechaFin, setFechaFin] = useState<string | null>(null)
+  const [buscarCodigo, setBuscarCodigo] = useState('')
 
   useEffect(() => {
     fetchOrdenes()
@@ -194,6 +195,13 @@ export default function ListadoOCPage() {
       })
     }
 
+    // Aplicar filtro por código de OC
+    if (buscarCodigo.trim()) {
+      filtered = filtered.filter(orden => 
+        orden.codigo.toLowerCase().includes(buscarCodigo.toLowerCase().trim())
+      )
+    }
+
     // Aplicar ordenamiento
     const sorted = [...filtered].sort((a, b) => {
       let aValue: any, bValue: any
@@ -333,6 +341,38 @@ export default function ListadoOCPage() {
                 <option value="pendientes">Pendientes/En Proceso</option>
                 <option value="aprobadas">Aprobadas</option>
               </select>
+            </div>
+          </div>
+
+          {/* Buscador por código de OC */}
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-gray-500" />
+                <label className="text-sm font-medium text-gray-700">Buscar por código:</label>
+              </div>
+              <div className="flex items-center gap-2 flex-1">
+                <input
+                  type="text"
+                  placeholder="Ej: 250713AGT-000017"
+                  value={buscarCodigo}
+                  onChange={(e) => setBuscarCodigo(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-60 flex-1 max-w-80"
+                />
+                {buscarCodigo && (
+                  <button
+                    onClick={() => setBuscarCodigo('')}
+                    className="text-red-600 hover:text-red-800 text-sm px-3 py-1 rounded-md hover:bg-red-50 transition-colors border border-red-200"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+              {buscarCodigo && (
+                <div className="text-sm text-blue-600 font-medium bg-blue-50 px-3 py-1 rounded-full">
+                  {getSortedOrdenes().length} resultado(s)
+                </div>
+              )}
             </div>
           </div>
 
