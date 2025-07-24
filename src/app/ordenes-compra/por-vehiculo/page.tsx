@@ -237,9 +237,12 @@ export default function OCPorVehiculoPage() {
                     .map(([moneda, total]) => {
                       const simbolo = simbolosMonedas[moneda] || '$'
                       return (
-                        <p key={moneda} className="text-lg font-bold text-gray-900">
-                          {simbolo}{total.toLocaleString()} {moneda}
-                        </p>
+                        <div key={moneda} className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-600 min-w-[35px]">{moneda}</span>
+                          <span className="text-lg font-bold text-gray-900">
+                            {simbolo}{total.toLocaleString()}
+                          </span>
+                        </div>
                       )
                     })}
                 </div>
@@ -339,17 +342,19 @@ export default function OCPorVehiculoPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         {Object.entries(vehiculo.gastosPorMoneda)
                           .sort(([,a], [,b]) => b - a)
                           .map(([moneda, total]) => {
                             const simbolo = simbolosMonedas[moneda] || '$'
                             return (
-                              <div key={moneda} className="flex flex-col items-end">
-                                <div className="text-lg font-bold text-green-600">
+                              <div key={moneda} className="flex items-center justify-end gap-2">
+                                <span className="text-xs font-medium text-gray-500 min-w-[30px]">
+                                  {moneda}
+                                </span>
+                                <span className="text-lg font-bold text-green-600">
                                   {simbolo}{total.toLocaleString()}
-                                </div>
-                                <div className="text-xs text-gray-500">{moneda}</div>
+                                </span>
                               </div>
                             )
                           })}
