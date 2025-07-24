@@ -275,15 +275,25 @@ export default function OCPorVehiculoPage() {
                         <Car className="h-6 w-6 text-blue-600" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold text-gray-900">
-                          {vehiculo.placa === 'TALLER' 
-                            ? '🔧 TALLER' 
-                            : vehiculo.interno > 0 
-                              ? `Móvil ${vehiculo.interno}` 
-                              : `🚗 ${vehiculo.placa}`
-                          }
-                        </h3>
-                        <p className="text-sm text-gray-600">{vehiculo.placa}</p>
+                        {vehiculo.placa === 'TALLER' ? (
+                          // Caso especial TALLER
+                          <>
+                            <h3 className="text-lg font-bold text-gray-900">🔧 TALLER</h3>
+                            <p className="text-sm text-gray-600">Gastos internos</p>
+                          </>
+                        ) : vehiculo.interno > 0 ? (
+                          // Vehículo CON interno: Móvil arriba, placa abajo
+                          <>
+                            <h3 className="text-lg font-bold text-gray-900">Móvil {vehiculo.interno}</h3>
+                            <p className="text-sm text-gray-600">{vehiculo.placa}</p>
+                          </>
+                        ) : (
+                          // Vehículo SIN interno: Solo placa arriba
+                          <>
+                            <h3 className="text-lg font-bold text-gray-900">{vehiculo.placa}</h3>
+                            <p className="text-sm text-gray-600">Sin número interno</p>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
