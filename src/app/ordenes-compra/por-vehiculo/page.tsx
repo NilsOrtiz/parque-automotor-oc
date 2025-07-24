@@ -12,7 +12,7 @@ type ResumenVehiculo = {
   placa: string
   modelo: string
   titular: string
-  gastoTotal: number
+  gastosPorMoneda: Record<string, number>
   cantidadOrdenes: number
   ultimaOrden: string
   monedaPrincipal: string
@@ -32,6 +32,30 @@ export default function OCPorVehiculoPage() {
   useEffect(() => {
     fetchOrdenesDetalle()
   }, [])
+
+  useEffect(() => {
+    if (ordenesDetalle.length > 0) {
+      cargarSimbolosMonedas()
+    }
+  }, [ordenesDetalle])
+
+  // Cargar símbolos de monedas para mostrar correctamente
+  async function cargarSimbolosMonedas() {
+    const simbolos: Record<string, string> = {}
+    const monedasUnicas = [...new Set(ordenesDetalle.map(o => o.moneda).filter(Boolean))]
+    
+    for (const codigo of monedasUnicas) {
+      if (codigo) {
+        try {
+          const info = await getMonedaInfo(codigo)
+          simbolos[codigo] = info.simbolo
+        } catch (error) {
+          simbolos[codigo] = '$' // Fallback
+        }
+      }
+    }
+    setSimbolosMonedas(simbolos)
+  }
 
   async function fetchOrdenesDetalle() {
     try {
@@ -66,7 +90,13 @@ export default function OCPorVehiculoPage() {
     return matchesInterno && matchesMoneda && matchesFecha
   })
 
-  const totalMonto = ordenesFiltradas.reduce((sum, orden) => sum + (orden.monto_vehiculo || 0), 0)
+  // Calcular total general agrupado por monedas
+  const totalPorMoneda = ordenesFiltradas.reduce((acc, orden) => {
+    const moneda = orden.moneda || 'ARS'
+    const monto = orden.monto_vehiculo || 0
+    acc[moneda] = (acc[moneda] || 0) + monto
+    return acc
+  }, {} as Record<string, number>)
 
   // Agrupar órdenes por vehículo para crear resumen
   const resumenVehiculos: ResumenVehiculo[] = []
@@ -84,17 +114,19 @@ export default function OCPorVehiculoPage() {
   // Crear resumen por vehículo
   vehiculosMap.forEach((ordenes, placa) => {
     const primeraOrden = ordenes[0]
-    const gastoTotal = ordenes.reduce((sum, orden) => sum + (orden.monto_vehiculo || 0), 0)
     const fechasOrdenes = ordenes.map(o => new Date(o.fecha)).sort((a, b) => b.getTime() - a.getTime())
     const ultimaOrden = fechasOrdenes[0]?.toLocaleDateString() || '-'
     
-    // Moneda más frecuente
-    const monedasCount = ordenes.reduce((acc, orden) => {
+    // Agrupar gastos por moneda
+    const gastosPorMoneda = ordenes.reduce((acc, orden) => {
       const moneda = orden.moneda || 'ARS'
-      acc[moneda] = (acc[moneda] || 0) + 1
+      const monto = orden.monto_vehiculo || 0
+      acc[moneda] = (acc[moneda] || 0) + monto
       return acc
     }, {} as Record<string, number>)
-    const monedaPrincipal = Object.entries(monedasCount)
+    
+    // Moneda con mayor gasto total (no por frecuencia)
+    const monedaPrincipal = Object.entries(gastosPorMoneda)
       .sort(([,a], [,b]) => b - a)[0]?.[0] || 'ARS'
     
     resumenVehiculos.push({
@@ -102,7 +134,7 @@ export default function OCPorVehiculoPage() {
       placa: primeraOrden.placa,
       modelo: primeraOrden.modelo || 'Sin modelo',
       titular: primeraOrden.titular || 'Sin titular',
-      gastoTotal,
+      gastosPorMoneda,
       cantidadOrdenes: ordenes.length,
       ultimaOrden,
       monedaPrincipal,
@@ -110,8 +142,12 @@ export default function OCPorVehiculoPage() {
     })
   })
   
-  // Ordenar por gasto total descendente
-  resumenVehiculos.sort((a, b) => b.gastoTotal - a.gastoTotal)
+  // Ordenar por gasto total descendente (usando moneda principal)
+  resumenVehiculos.sort((a, b) => {
+    const gastoA = a.gastosPorMoneda[a.monedaPrincipal] || 0
+    const gastoB = b.gastosPorMoneda[b.monedaPrincipal] || 0
+    return gastoB - gastoA
+  })
   
   // Si estamos en vista detalle, obtener las órdenes del vehículo específico
   const ordenesDetalleFiltradas = vistaDetalle 
@@ -195,8 +231,19 @@ export default function OCPorVehiculoPage() {
             <div className="flex items-center">
               <DollarSign className="h-8 w-8 text-purple-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">${totalMonto.toLocaleString()}</p>
-                <p className="text-sm text-gray-600">Gasto Total</p>
+                <div className="space-y-1">
+                  {Object.entries(totalPorMoneda)
+                    .sort(([,a], [,b]) => b - a)
+                    .map(([moneda, total]) => {
+                      const simbolo = simbolosMonedas[moneda] || '$'
+                      return (
+                        <p key={moneda} className="text-lg font-bold text-gray-900">
+                          {simbolo}{total.toLocaleString()} {moneda}
+                        </p>
+                      )
+                    })}
+                </div>
+                <p className="text-sm text-gray-600">Gastos Totales</p>
               </div>
             </div>
           </div>
@@ -204,13 +251,8 @@ export default function OCPorVehiculoPage() {
             <div className="flex items-center">
               <Calendar className="h-8 w-8 text-orange-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {resumenVehiculos.length > 0 
-                    ? Math.round(totalMonto / resumenVehiculos.length).toLocaleString()
-                    : '0'
-                  }
-                </p>
-                <p className="text-sm text-gray-600">Promedio/Vehículo</p>
+                <p className="text-2xl font-bold text-gray-900">{resumenVehiculos.length}</p>
+                <p className="text-sm text-gray-600">Vehículos con Gastos</p>
               </div>
             </div>
           </div>
@@ -297,10 +339,21 @@ export default function OCPorVehiculoPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-green-600">
-                        ${vehiculo.gastoTotal.toLocaleString()}
+                      <div className="space-y-1">
+                        {Object.entries(vehiculo.gastosPorMoneda)
+                          .sort(([,a], [,b]) => b - a)
+                          .map(([moneda, total]) => {
+                            const simbolo = simbolosMonedas[moneda] || '$'
+                            return (
+                              <div key={moneda} className="flex flex-col items-end">
+                                <div className="text-lg font-bold text-green-600">
+                                  {simbolo}{total.toLocaleString()}
+                                </div>
+                                <div className="text-xs text-gray-500">{moneda}</div>
+                              </div>
+                            )
+                          })}
                       </div>
-                      <div className="text-xs text-gray-500">{vehiculo.monedaPrincipal}</div>
                     </div>
                   </div>
 
