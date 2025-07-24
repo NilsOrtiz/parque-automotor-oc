@@ -23,7 +23,8 @@ export default function OCPorVehiculoPage() {
   const [ordenesDetalle, setOrdenesDetalle] = useState<OrdenCompraPorVehiculo[]>([])
   const [loading, setLoading] = useState(true)
   const [vistaDetalle, setVistaDetalle] = useState<number | string | null>(null) // null = vista resumen, number = interno del vehículo, 'TALLER' = taller
-  const [filtroInterno, setFiltroInterno] = useState('')
+  const [filtroBusqueda, setFiltroBusqueda] = useState('')
+  const [tipoBusqueda, setTipoBusqueda] = useState<'interno' | 'placa'>('interno')
   const [monedasSeleccionadas, setMonedasSeleccionadas] = useState<string[]>(['ARS', 'BRL', 'USD'])
   const [simbolosMonedas, setSimbolosMonedas] = useState<Record<string, string>>({})
   const [fechaInicio, setFechaInicio] = useState<string | null>(null)
@@ -74,7 +75,21 @@ export default function OCPorVehiculoPage() {
   }
 
   const ordenesFiltradas = ordenesDetalle.filter(orden => {
-    const matchesInterno = filtroInterno === '' || orden.interno.toString().includes(filtroInterno)
+    // Filtro por búsqueda (interno o placa)
+    let matchesBusqueda = true
+    if (filtroBusqueda.trim()) {
+      if (tipoBusqueda === 'interno') {
+        // Buscar por interno - manejar casos null/undefined
+        const interno = orden.interno
+        matchesBusqueda = interno !== null && interno !== undefined && 
+                         interno.toString().toLowerCase().includes(filtroBusqueda.toLowerCase().trim())
+      } else {
+        // Buscar por placa
+        const placa = orden.placa || ''
+        matchesBusqueda = placa.toLowerCase().includes(filtroBusqueda.toLowerCase().trim())
+      }
+    }
+    
     const matchesMoneda = monedasSeleccionadas.length === 0 || !orden.moneda || monedasSeleccionadas.includes(orden.moneda)
     
     // Filtro por fecha
@@ -87,7 +102,7 @@ export default function OCPorVehiculoPage() {
       matchesFecha = fechaOrden >= inicio && fechaOrden <= fin
     }
     
-    return matchesInterno && matchesMoneda && matchesFecha
+    return matchesBusqueda && matchesMoneda && matchesFecha
   })
 
   // Calcular total general agrupado por monedas
@@ -265,22 +280,54 @@ export default function OCPorVehiculoPage() {
         {!vistaDetalle && (
           <div className="space-y-4 mb-6">
             <div className="bg-white p-4 rounded-lg shadow-sm">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-gray-700">Filtrar por Interno:</label>
+              <div className="flex items-center gap-4 flex-wrap">
+                <label className="text-sm font-medium text-gray-700">Buscar vehículo:</label>
+                
+                {/* Interruptor de tipo de búsqueda */}
+                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setTipoBusqueda('interno')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                      tipoBusqueda === 'interno' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    Por Interno
+                  </button>
+                  <button
+                    onClick={() => setTipoBusqueda('placa')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                      tipoBusqueda === 'placa' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    Por Placa
+                  </button>
+                </div>
+
                 <input
                   type="text"
-                  placeholder="Número interno..."
-                  value={filtroInterno}
-                  onChange={(e) => setFiltroInterno(e.target.value)}
-                  className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                  placeholder={tipoBusqueda === 'interno' ? 'Ej: 77, 8, 25...' : 'Ej: AC300JB, TALLER...'}
+                  value={filtroBusqueda}
+                  onChange={(e) => setFiltroBusqueda(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white min-w-48"
                 />
-                {filtroInterno && (
+                
+                {filtroBusqueda && (
                   <button
-                    onClick={() => setFiltroInterno('')}
-                    className="text-red-600 hover:text-red-800 text-sm"
+                    onClick={() => setFiltroBusqueda('')}
+                    className="text-red-600 hover:text-red-800 text-sm px-3 py-1 rounded-md hover:bg-red-50 transition-colors border border-red-200"
                   >
                     Limpiar
                   </button>
+                )}
+                
+                {filtroBusqueda && (
+                  <div className="text-sm text-blue-600 font-medium bg-blue-50 px-3 py-1 rounded-full">
+                    {resumenVehiculos.length} resultado(s)
+                  </div>
                 )}
               </div>
             </div>
@@ -506,7 +553,7 @@ export default function OCPorVehiculoPage() {
             <Car className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">No hay vehículos con órdenes</p>
             <p className="text-gray-400 text-sm mt-2">
-              {filtroInterno ? 'Intenta con otro filtro' : 'Los vehículos aparecerán aquí al crear OCs'}
+              {filtroBusqueda ? 'Intenta con otro criterio de búsqueda' : 'Los vehículos aparecerán aquí al crear OCs'}
             </p>
           </div>
         )}
