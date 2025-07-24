@@ -1293,7 +1293,39 @@ export default function CrearOCPage() {
       
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(colors.textoNegro)
-      doc.text(`${vehiculoSeleccionado.Marca} ${vehiculoSeleccionado.Modelo} ${vehiculoSeleccionado.Placa}`, 50, 595)
+      
+      // Obtener todos los vehículos únicos involucrados en la OC
+      const vehiculosInvolucrados = new Set<string>()
+      
+      // Agregar vehículo principal
+      vehiculosInvolucrados.add(`${vehiculoSeleccionado.Marca} ${vehiculoSeleccionado.Modelo} ${vehiculoSeleccionado.Placa} (Principal)`)
+      
+      // Agregar vehículos de items múltiples si existen
+      if (esOCMultiple) {
+        items.forEach(item => {
+          if (item.vehiculoInfo && item.targetPlaca !== vehiculoSeleccionado.Placa) {
+            vehiculosInvolucrados.add(`${item.vehiculoInfo.Marca} ${item.vehiculoInfo.Modelo} ${item.vehiculoInfo.Placa}`)
+          }
+        })
+      }
+      
+      // Mostrar todos los vehículos con letra más pequeña
+      const vehiculosList = Array.from(vehiculosInvolucrados)
+      doc.setFontSize(8) // Letra más pequeña para que quepan más vehículos
+      
+      if (vehiculosList.length > 1) {
+        doc.text('VEHÍCULOS:', 50, 590)
+        vehiculosList.forEach((vehiculo, index) => {
+          const yPosition = 600 + (index * 10) // Espacio de 10 unidades entre líneas
+          if (yPosition < 635) { // Verificar que no se salga del área disponible
+            doc.text(`• ${vehiculo}`, 55, yPosition) // Bullet point con indentación
+          }
+        })
+      } else {
+        // Si es solo un vehículo, mostrar como antes pero con letra pequeña
+        doc.setFontSize(9) // Ligeramente más grande cuando es solo uno
+        doc.text(`${vehiculoSeleccionado.Marca} ${vehiculoSeleccionado.Modelo} ${vehiculoSeleccionado.Placa}`, 50, 595)
+      }
 
       // TOTALES (coordenadas exactas de la derecha)
       const subtotal = calcularSubtotal()
