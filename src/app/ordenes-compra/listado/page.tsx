@@ -468,7 +468,7 @@ export default function ListadoOCPage() {
                         {orden.codigo}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(orden.fecha).toLocaleDateString()}
+                        {new Date(orden.fecha + 'T12:00:00').toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div>
