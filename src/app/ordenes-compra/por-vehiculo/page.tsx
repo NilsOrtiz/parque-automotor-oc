@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type OrdenCompraPorVehiculo, getMonedaInfo } from '@/lib/supabase'
-import { ArrowLeft, Car, FileText, DollarSign, Calendar } from 'lucide-react'
+import { ArrowLeft, Car, FileText, DollarSign, Calendar, Grid3X3, List } from 'lucide-react'
 import FiltroMonedas from '@/components/FiltroMonedas'
 import FiltroFechas from '@/components/FiltroFechas'
 
@@ -29,6 +29,7 @@ export default function OCPorVehiculoPage() {
   const [simbolosMonedas, setSimbolosMonedas] = useState<Record<string, string>>({})
   const [fechaInicio, setFechaInicio] = useState<string | null>(null)
   const [fechaFin, setFechaFin] = useState<string | null>(null)
+  const [tipoVista, setTipoVista] = useState<'cards' | 'lista'>('cards')
 
   useEffect(() => {
     fetchOrdenesDetalle()
@@ -219,6 +220,34 @@ export default function OCPorVehiculoPage() {
                 }
               </p>
             </div>
+            
+            {/* Interruptor de vista - Solo mostrar en vista resumen */}
+            {!vistaDetalle && (
+              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setTipoVista('cards')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    tipoVista === 'cards' 
+                      ? 'bg-blue-600 text-white shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                  Por Vehículo
+                </button>
+                <button
+                  onClick={() => setTipoVista('lista')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    tipoVista === 'lista' 
+                      ? 'bg-blue-600 text-white shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  <List className="h-4 w-4" />
+                  Lista
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -350,9 +379,10 @@ export default function OCPorVehiculoPage() {
           </div>
         )}
 
-        {/* Vista Resumen: Cards por Vehículo */}
+        {/* Vista Resumen: Cards por Vehículo o Lista */}
         {!vistaDetalle ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          tipoVista === 'cards' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {resumenVehiculos.map((vehiculo) => (
               <div
                 key={vehiculo.placa}
@@ -443,7 +473,114 @@ export default function OCPorVehiculoPage() {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          ) : (
+            /* Vista Lista: Tabla de todas las órdenes por vehículo */
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Código OC
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fecha
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Vehículo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Items
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Monto
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Moneda
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Versión
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        PDF
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {ordenesFiltradas.map((orden) => (
+                      <tr key={orden.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {orden.codigo_oc}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(orden.fecha + 'T12:00:00').toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{orden.placa}</span>
+                              {orden.interno && orden.interno > 0 && (
+                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                                  Int. {orden.interno}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-gray-500 text-xs">{orden.modelo}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                          <div className="truncate" title={orden.items || ''}>
+                            {orden.items || '-'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-semibold">
+                            {simbolosMonedas[orden.moneda || 'ARS'] || '$'}{(orden.monto_vehiculo || 0).toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                          {orden.moneda ? (
+                            <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                              {orden.moneda}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                              ARS
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                          {orden.version ? (
+                            <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                              {orden.version}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                          {orden.pdf_url ? (
+                            <a
+                              href={orden.pdf_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                              title="Ver PDF"
+                            >
+                              📄 PDF
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 text-xs">Sin PDF</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
         ) : (
           /* Vista Detalle: Tabla de órdenes del vehículo específico */
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
