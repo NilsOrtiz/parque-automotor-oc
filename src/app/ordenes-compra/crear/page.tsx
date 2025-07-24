@@ -594,12 +594,17 @@ export default function CrearOCPage() {
     try {
       console.log('📝 Insertando en tabla de detalle por vehículo...')
       
-      // Si es actualización, primero eliminar registros existentes de esta OC
+      // Si es actualización, obtener registros existentes para mantener IDs
+      let registrosExistentes: any[] = []
       if (!esNuevaOC) {
-        await supabase
+        const { data: existentes } = await supabase
           .from('ordenes_de_compra_por_vehiculo')
-          .delete()
+          .select('id, interno, version')
           .eq('codigo_oc', codigoOC)
+          .order('version')
+        
+        registrosExistentes = existentes || []
+        console.log(`📋 Encontrados ${registrosExistentes.length} registros existentes para actualizar`)
       }
 
       // Obtener ID de la OC principal
@@ -648,11 +653,13 @@ export default function CrearOCPage() {
         grupo.monto += item.cantidad * precioSinIVA
       })
 
-      // Crear registros en la tabla de detalle
-      const registrosDetalle: any[] = []
+      // Procesar registros para UPDATE o INSERT
       const vehiculos = Array.from(itemsPorVehiculo.entries())
+      let actualizados = 0
+      let insertados = 0
       
-      vehiculos.forEach(([interno, datos], index) => {
+      for (let index = 0; index < vehiculos.length; index++) {
+        const [interno, datos] = vehiculos[index]
         const version = vehiculos.length > 1 ? String.fromCharCode(65 + index) : null // A, B, C... o null
 
         const itemsTexto = datos.items.map(item => {
@@ -660,7 +667,7 @@ export default function CrearOCPage() {
           return `${item.descripcion} (${item.cantidad}x$${precioUnitarioSinIVA.toFixed(2)})`
         }).join(', ')
 
-        registrosDetalle.push({
+        const registroData = {
           id_oc_original: ocPrincipal.id,
           codigo_oc: codigoOC,
           fecha: new Date().toISOString().split('T')[0],
@@ -672,23 +679,65 @@ export default function CrearOCPage() {
           items: itemsTexto,
           monto_vehiculo: datos.monto,
           version: version,
-          moneda: proveedorSeleccionado?.moneda || 'ARS', // Usar moneda del proveedor
+          moneda: proveedorSeleccionado?.moneda || 'ARS',
           es_emergencia: esEmergencia || false,
           pdf_url: pdfUrl
-        })
-      })
+        }
 
-      // Insertar todos los registros
-      const { error: errorInsert } = await supabase
-        .from('ordenes_de_compra_por_vehiculo')
-        .insert(registrosDetalle)
+        // Buscar si existe un registro para este interno/version
+        const registroExistente = registrosExistentes.find(r => 
+          r.interno === interno && r.version === version
+        )
 
-      if (errorInsert) {
-        console.error('Error insertando en tabla detalle:', errorInsert)
-        throw errorInsert
+        if (registroExistente && !esNuevaOC) {
+          // ACTUALIZAR registro existente manteniendo su ID
+          const { error: errorUpdate } = await supabase
+            .from('ordenes_de_compra_por_vehiculo')
+            .update(registroData)
+            .eq('id', registroExistente.id)
+
+          if (errorUpdate) {
+            console.error('Error actualizando registro:', errorUpdate)
+            throw errorUpdate
+          }
+          actualizados++
+        } else {
+          // INSERTAR nuevo registro
+          const { error: errorInsert } = await supabase
+            .from('ordenes_de_compra_por_vehiculo')
+            .insert(registroData)
+
+          if (errorInsert) {
+            console.error('Error insertando registro:', errorInsert)
+            throw errorInsert
+          }
+          insertados++
+        }
       }
 
-      console.log(`✅ Insertados ${registrosDetalle.length} registros en tabla de detalle por vehículo`)
+      // Eliminar registros que ya no existen (si había más registros antes)
+      if (!esNuevaOC && registrosExistentes.length > vehiculos.length) {
+        const idsAMantener = vehiculos.map((_, index) => {
+          const [interno] = vehiculos[index]
+          const version = vehiculos.length > 1 ? String.fromCharCode(65 + index) : null
+          const existente = registrosExistentes.find(r => r.interno === interno && r.version === version)
+          return existente?.id
+        }).filter(Boolean)
+
+        if (idsAMantener.length > 0) {
+          const { error: errorDelete } = await supabase
+            .from('ordenes_de_compra_por_vehiculo')
+            .delete()
+            .eq('codigo_oc', codigoOC)
+            .not('id', 'in', `(${idsAMantener.join(',')})`)
+
+          if (errorDelete) {
+            console.error('Error eliminando registros obsoletos:', errorDelete)
+          }
+        }
+      }
+
+      console.log(`✅ Procesados ${vehiculos.length} registros: ${actualizados} actualizados, ${insertados} insertados`)
       
     } catch (error) {
       console.error('Error en insertarEnTablaDetallePorVehiculo:', error)
