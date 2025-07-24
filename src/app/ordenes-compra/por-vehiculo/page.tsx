@@ -70,19 +70,19 @@ export default function OCPorVehiculoPage() {
 
   // Agrupar órdenes por vehículo para crear resumen
   const resumenVehiculos: ResumenVehiculo[] = []
-  const vehiculosMap = new Map<number, OrdenCompraPorVehiculo[]>()
+  const vehiculosMap = new Map<string, OrdenCompraPorVehiculo[]>()
   
-  // Agrupar por interno
+  // Agrupar por placa (esto separa correctamente TALLER de vehículos sin interno)
   ordenesFiltradas.forEach(orden => {
-    const interno = orden.interno
-    if (!vehiculosMap.has(interno)) {
-      vehiculosMap.set(interno, [])
+    const clave = orden.placa // Usar placa como clave principal
+    if (!vehiculosMap.has(clave)) {
+      vehiculosMap.set(clave, [])
     }
-    vehiculosMap.get(interno)!.push(orden)
+    vehiculosMap.get(clave)!.push(orden)
   })
   
   // Crear resumen por vehículo
-  vehiculosMap.forEach((ordenes, interno) => {
+  vehiculosMap.forEach((ordenes, placa) => {
     const primeraOrden = ordenes[0]
     const gastoTotal = ordenes.reduce((sum, orden) => sum + (orden.monto_vehiculo || 0), 0)
     const fechasOrdenes = ordenes.map(o => new Date(o.fecha)).sort((a, b) => b.getTime() - a.getTime())
@@ -98,7 +98,7 @@ export default function OCPorVehiculoPage() {
       .sort(([,a], [,b]) => b - a)[0]?.[0] || 'ARS'
     
     resumenVehiculos.push({
-      interno,
+      interno: primeraOrden.interno || 0, // Usar interno del registro o 0 si no tiene
       placa: primeraOrden.placa,
       modelo: primeraOrden.modelo || 'Sin modelo',
       titular: primeraOrden.titular || 'Sin titular',
@@ -116,11 +116,8 @@ export default function OCPorVehiculoPage() {
   // Si estamos en vista detalle, obtener las órdenes del vehículo específico
   const ordenesDetalleFiltradas = vistaDetalle 
     ? resumenVehiculos.find(v => {
-        // Fix especial para TALLER: usar placa en lugar de interno
-        if (vistaDetalle === 'TALLER') {
-          return v.placa === 'TALLER'
-        }
-        return v.interno === vistaDetalle
+        // Ahora usamos placa como identificador principal
+        return v.placa === vistaDetalle
       })?.ordenes || []
     : []
 
@@ -160,7 +157,7 @@ export default function OCPorVehiculoPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {vistaDetalle 
-                  ? `🚗 Detalle Vehículo ${vistaDetalle}` 
+                  ? `🚗 Detalle ${vistaDetalle}` 
                   : '📊 Dashboard por Vehículo'
                 }
               </h1>
@@ -266,10 +263,8 @@ export default function OCPorVehiculoPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {resumenVehiculos.map((vehiculo) => (
               <div
-                key={vehiculo.placa === 'TALLER' ? 'TALLER' : vehiculo.interno}
-                onClick={() => setVistaDetalle(
-                  vehiculo.placa === 'TALLER' ? 'TALLER' : vehiculo.interno
-                )}
+                key={vehiculo.placa}
+                onClick={() => setVistaDetalle(vehiculo.placa)}
                 className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-blue-500 hover:border-blue-600"
               >
                 <div className="p-6">
@@ -336,7 +331,7 @@ export default function OCPorVehiculoPage() {
               <h3 className="text-lg font-medium text-gray-900">
                 {vistaDetalle === 'TALLER' 
                   ? '🔧 Órdenes del TALLER'
-                  : `Órdenes del Vehículo ${vistaDetalle} - ${resumenVehiculos.find(v => v.interno === vistaDetalle)?.placa}`
+                  : `Órdenes del Vehículo ${vistaDetalle} - ${resumenVehiculos.find(v => v.placa === vistaDetalle)?.interno ? 'Int. ' + resumenVehiculos.find(v => v.placa === vistaDetalle)?.interno : 'Sin interno'}`
                 }
               </h3>
               <p className="text-sm text-gray-600 mt-1">
