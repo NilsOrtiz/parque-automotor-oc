@@ -13,6 +13,7 @@ export default function MantenimientosPage() {
   const [loading, setLoading] = useState(true)
   const [sortField, setSortField] = useState<SortField>('interno')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [tipoFlota, setTipoFlota] = useState<'rent-car' | 'ambos' | 'cuenca'>('ambos')
 
   useEffect(() => {
     fetchVehiculos()
@@ -73,7 +74,19 @@ export default function MantenimientosPage() {
   }
 
   function getSortedVehiculos() {
-    const sorted = [...vehiculos].sort((a, b) => {
+    // Primero filtrar por tipo de flota
+    let filtrados = vehiculos
+    
+    if (tipoFlota === 'rent-car') {
+      // Solo vehículos sin interno (Rent Car)
+      filtrados = vehiculos.filter(v => !v.Nro_Interno || v.Nro_Interno === 0)
+    } else if (tipoFlota === 'cuenca') {
+      // Solo vehículos con interno (Cuenca del Plata)
+      filtrados = vehiculos.filter(v => v.Nro_Interno && v.Nro_Interno > 0)
+    }
+    // Si es 'ambos', no filtramos (filtrados = vehiculos)
+    
+    const sorted = [...filtrados].sort((a, b) => {
       let aValue: any, bValue: any
 
       switch (sortField) {
@@ -182,13 +195,52 @@ export default function MantenimientosPage() {
           <p className="text-gray-600">Control de cambios de aceite por vehículo</p>
         </div>
 
+        {/* Interruptor de Flota */}
+        <div className="mb-8 flex justify-center">
+          <div className="bg-white rounded-lg shadow-sm p-1 inline-flex">
+            <button
+              onClick={() => setTipoFlota('rent-car')}
+              className={`px-6 py-3 rounded-md text-sm font-medium transition-colors ${
+                tipoFlota === 'rent-car'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              🚗 Rent Car
+              <div className="text-xs mt-1 opacity-80">Solo Placa</div>
+            </button>
+            <button
+              onClick={() => setTipoFlota('ambos')}
+              className={`px-6 py-3 rounded-md text-sm font-medium transition-colors ${
+                tipoFlota === 'ambos'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              🚛 Ambas Flotas
+              <div className="text-xs mt-1 opacity-80">Todas</div>
+            </button>
+            <button
+              onClick={() => setTipoFlota('cuenca')}
+              className={`px-6 py-3 rounded-md text-sm font-medium transition-colors ${
+                tipoFlota === 'cuenca'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              🚚 Cuenca del Plata
+              <div className="text-xs mt-1 opacity-80">Placa + Interno</div>
+            </button>
+          </div>
+        </div>
+
         {/* Resumen */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <div className="flex items-center">
               <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{vehiculos.filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km) === 'ok').length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km) === 'ok').length}</p>
                 <p className="text-sm text-gray-600">Al día (30-100%)</p>
               </div>
             </div>
@@ -197,7 +249,7 @@ export default function MantenimientosPage() {
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-yellow-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{vehiculos.filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km) === 'atencion').length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km) === 'atencion').length}</p>
                 <p className="text-sm text-gray-600">Atención (10-30%)</p>
               </div>
             </div>
@@ -206,7 +258,7 @@ export default function MantenimientosPage() {
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-red-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{vehiculos.filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km) === 'critico').length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km) === 'critico').length}</p>
                 <p className="text-sm text-gray-600">Crítico (0-10%)</p>
               </div>
             </div>
@@ -215,7 +267,7 @@ export default function MantenimientosPage() {
             <div className="flex items-center">
               <Settings className="h-8 w-8 text-gray-400 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{vehiculos.filter(v => !v.aceite_motor_km || !v.kilometraje_actual).length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => !v.aceite_motor_km || !v.kilometraje_actual).length}</p>
                 <p className="text-sm text-gray-600">Sin datos</p>
               </div>
             </div>
