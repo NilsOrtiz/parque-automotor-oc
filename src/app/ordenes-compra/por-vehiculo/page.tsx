@@ -428,6 +428,9 @@ export default function OCPorVehiculoPage() {
                       Monto
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Moneda
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Versión
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -451,8 +454,19 @@ export default function OCPorVehiculoPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <span className="font-semibold">
-                          ${(orden.monto_vehiculo || 0).toLocaleString()}
+                          {simbolosMonedas[orden.moneda || 'ARS'] || '$'}{(orden.monto_vehiculo || 0).toLocaleString()}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        {orden.moneda ? (
+                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                            {orden.moneda}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                            ARS
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                         {orden.version ? (
