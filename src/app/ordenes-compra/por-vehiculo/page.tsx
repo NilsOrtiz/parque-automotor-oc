@@ -276,7 +276,12 @@ export default function OCPorVehiculoPage() {
                       </div>
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">
-                          {vehiculo.placa === 'TALLER' ? '🔧 TALLER' : `Móvil ${vehiculo.interno}`}
+                          {vehiculo.placa === 'TALLER' 
+                            ? '🔧 TALLER' 
+                            : vehiculo.interno > 0 
+                              ? `Móvil ${vehiculo.interno}` 
+                              : `🚗 ${vehiculo.placa}`
+                          }
                         </h3>
                         <p className="text-sm text-gray-600">{vehiculo.placa}</p>
                       </div>
