@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type OrdenCompraPorVehiculo, getMonedaInfo } from '@/lib/supabase'
-import { ArrowLeft, Car, FileText, DollarSign, Calendar, Grid3X3, List } from 'lucide-react'
+import { ArrowLeft, Car, FileText, DollarSign, Calendar, Grid3X3, List, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import FiltroMonedas from '@/components/FiltroMonedas'
 import FiltroFechas from '@/components/FiltroFechas'
 
@@ -30,6 +30,10 @@ export default function OCPorVehiculoPage() {
   const [fechaInicio, setFechaInicio] = useState<string | null>(null)
   const [fechaFin, setFechaFin] = useState<string | null>(null)
   const [tipoVista, setTipoVista] = useState<'cards' | 'lista'>('cards')
+  
+  // Estados para ordenamiento en vista lista
+  const [sortField, setSortField] = useState<'codigo_oc' | 'fecha' | 'placa' | 'monto_vehiculo' | 'moneda'>('fecha')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   useEffect(() => {
     fetchOrdenesDetalle()
@@ -57,6 +61,68 @@ export default function OCPorVehiculoPage() {
       }
     }
     setSimbolosMonedas(simbolos)
+  }
+
+  // Funciones para ordenamiento en vista lista
+  function handleSort(field: typeof sortField) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  function getSortIcon(field: typeof sortField) {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400" />
+    }
+    return sortDirection === 'asc' ? 
+      <ArrowUp className="h-4 w-4 text-blue-600" /> : 
+      <ArrowDown className="h-4 w-4 text-blue-600" />
+  }
+
+  // Función para ordenar las órdenes en vista lista
+  function getSortedOrdenes() {
+    const sorted = [...ordenesFiltradas].sort((a, b) => {
+      let aValue: any, bValue: any
+
+      switch (sortField) {
+        case 'codigo_oc':
+          aValue = a.codigo_oc || ''
+          bValue = b.codigo_oc || ''
+          break
+        case 'fecha':
+          aValue = new Date(a.fecha)
+          bValue = new Date(b.fecha)
+          break
+        case 'placa':
+          aValue = a.placa || ''
+          bValue = b.placa || ''
+          break
+        case 'monto_vehiculo':
+          aValue = a.monto_vehiculo || 0
+          bValue = b.monto_vehiculo || 0
+          break
+        case 'moneda':
+          aValue = a.moneda || 'ARS'
+          bValue = b.moneda || 'ARS'
+          break
+        default:
+          return 0
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue)
+        return sortDirection === 'asc' ? comparison : -comparison
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return sorted
   }
 
   async function fetchOrdenesDetalle() {
@@ -481,23 +547,53 @@ export default function OCPorVehiculoPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Código OC
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSort('codigo_oc')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Código OC</span>
+                          {getSortIcon('codigo_oc')}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Fecha
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSort('fecha')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Fecha</span>
+                          {getSortIcon('fecha')}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Vehículo
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSort('placa')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Vehículo</span>
+                          {getSortIcon('placa')}
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Items
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Monto
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSort('monto_vehiculo')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Monto</span>
+                          {getSortIcon('monto_vehiculo')}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Moneda
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSort('moneda')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Moneda</span>
+                          {getSortIcon('moneda')}
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Versión
@@ -508,7 +604,7 @@ export default function OCPorVehiculoPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {ordenesFiltradas.map((orden) => (
+                    {getSortedOrdenes().map((orden) => (
                       <tr key={orden.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {orden.codigo_oc}
