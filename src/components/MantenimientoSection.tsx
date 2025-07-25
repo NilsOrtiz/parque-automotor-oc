@@ -41,27 +41,23 @@ export default function MantenimientoSection({
     return modelNotApplicable || dateNotApplicable || kmNotApplicable
   }
 
-  // Función para verificar si hay al menos un campo válido en el grupo
-  const hasValidFields = (field: any) => {
+  // Función para verificar si un campo está específicamente marcado como "No Aplica"
+  const isFieldExplicitlyMarkedNA = (field: any) => {
     const modelValue = vehiculo[field.modelField as keyof Vehiculo] as string
     const dateValue = vehiculo[field.dateField as keyof Vehiculo] as string
     const kmValue = vehiculo[field.kmField as keyof Vehiculo] as number
     
-    const hasValidModel = field.modelField && modelValue && 
-      !(modelValue.toUpperCase() === 'N/A' || modelValue.toUpperCase() === 'NO APLICA')
-    const hasValidDate = field.dateField && dateValue && dateValue !== '1900-01-01'
-    const hasValidKm = field.kmField && kmValue && kmValue !== -1
+    // Solo ocultar si está ESPECÍFICAMENTE marcado como N/A, no si está vacío/null
+    const modelMarkedNA = modelValue && (modelValue.toUpperCase() === 'N/A' || modelValue.toUpperCase() === 'NO APLICA')
+    const dateMarkedNA = dateValue === '1900-01-01'
+    const kmMarkedNA = kmValue === -1
     
-    return hasValidModel || hasValidDate || hasValidKm
+    // Solo ocultar si TODOS los campos principales están marcados como N/A
+    return modelMarkedNA && dateMarkedNA && kmMarkedNA
   }
 
-  // Filtrar campos que tienen al menos un sub-campo válido
-  const fieldsToShow = fields.filter(field => hasValidFields(field))
-  
-  // Si no hay campos válidos para mostrar, ocultar toda la sección
-  if (fieldsToShow.length === 0) {
-    return null
-  }
+  // Mostrar todos los campos por defecto, solo ocultar los explícitamente marcados
+  const fieldsToShow = fields.filter(field => !isFieldExplicitlyMarkedNA(field))
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -73,7 +69,7 @@ export default function MantenimientoSection({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* Kilometraje */}
-              {field.kmField && (vehiculo[field.kmField] as number) !== -1 && (
+              {field.kmField && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Kilometraje</label>
                   {editMode ? (
@@ -86,9 +82,11 @@ export default function MantenimientoSection({
                     />
                   ) : (
                     <p className="text-gray-900 font-medium">
-                      {vehiculo[field.kmField] 
-                        ? (vehiculo[field.kmField] as number).toLocaleString() + ' km' 
-                        : 'No registrado'
+                      {vehiculo[field.kmField] === -1 
+                        ? <span className="text-red-500 italic">No Aplica</span>
+                        : vehiculo[field.kmField] 
+                          ? (vehiculo[field.kmField] as number).toLocaleString() + ' km' 
+                          : 'No registrado'
                       }
                     </p>
                   )}
@@ -96,7 +94,7 @@ export default function MantenimientoSection({
               )}
 
               {/* Fecha */}
-              {field.dateField && (vehiculo[field.dateField] as string) !== '1900-01-01' && (
+              {field.dateField && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Fecha</label>
                   {editMode ? (
@@ -108,9 +106,11 @@ export default function MantenimientoSection({
                     />
                   ) : (
                     <p className="text-gray-900 font-medium">
-                      {vehiculo[field.dateField] 
-                        ? new Date(vehiculo[field.dateField] as string).toLocaleDateString() 
-                        : 'No registrado'
+                      {vehiculo[field.dateField] === '1900-01-01'
+                        ? <span className="text-red-500 italic">No Aplica</span>
+                        : vehiculo[field.dateField] 
+                          ? new Date(vehiculo[field.dateField] as string).toLocaleDateString() 
+                          : 'No registrado'
                       }
                     </p>
                   )}
@@ -118,14 +118,7 @@ export default function MantenimientoSection({
               )}
 
               {/* Modelo */}
-              {field.modelField && (() => {
-                const modelValue = vehiculo[field.modelField] as string
-                const isNotApplicable = modelValue && (
-                  modelValue.toUpperCase() === 'N/A' || 
-                  modelValue.toUpperCase() === 'NO APLICA'
-                )
-                return !isNotApplicable
-              })() && (
+              {field.modelField && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Modelo</label>
                   {editMode ? (
@@ -138,7 +131,13 @@ export default function MantenimientoSection({
                     />
                   ) : (
                     <p className="text-gray-900 font-medium">
-                      {vehiculo[field.modelField] as string || 'No registrado'}
+                      {(() => {
+                        const modelValue = vehiculo[field.modelField] as string
+                        if (modelValue && (modelValue.toUpperCase() === 'N/A' || modelValue.toUpperCase() === 'NO APLICA')) {
+                          return <span className="text-red-500 italic">No Aplica</span>
+                        }
+                        return modelValue || 'No registrado'
+                      })()}
                     </p>
                   )}
                 </div>
