@@ -35,32 +35,41 @@ export default function MantenimientosPage() {
     }
   }
 
-  function getEstadoMantenimiento(kilometrajeActual?: number, aceiteMotorKm?: number) {
+  function getEstadoMantenimiento(kilometrajeActual?: number, aceiteMotorKm?: number, intervaloCambio?: number) {
     if (!kilometrajeActual || !aceiteMotorKm) return 'sin-datos'
     
+    // Usar intervalo personalizado o 10000 km por defecto
+    const intervalo = intervaloCambio || 10000
+    
     const kmRecorridos = kilometrajeActual - aceiteMotorKm
-    const kmFaltantes = 10000 - kmRecorridos
-    const porcentajeRestante = (kmFaltantes / 10000) * 100
+    const kmFaltantes = intervalo - kmRecorridos
+    const porcentajeRestante = (kmFaltantes / intervalo) * 100
     
     if (porcentajeRestante >= 30) return 'ok'
     if (porcentajeRestante >= 10) return 'atencion'
     return 'critico'
   }
 
-  function getKmFaltantes(kilometrajeActual?: number, aceiteMotorKm?: number) {
+  function getKmFaltantes(kilometrajeActual?: number, aceiteMotorKm?: number, intervaloCambio?: number) {
     if (!kilometrajeActual || !aceiteMotorKm) return null
     
+    // Usar intervalo personalizado o 10000 km por defecto
+    const intervalo = intervaloCambio || 10000
+    
     const kmRecorridos = kilometrajeActual - aceiteMotorKm
-    const kmFaltantes = 10000 - kmRecorridos
+    const kmFaltantes = intervalo - kmRecorridos
     return kmFaltantes > 0 ? kmFaltantes : 0
   }
 
-  function getPorcentajeRestante(kilometrajeActual?: number, aceiteMotorKm?: number) {
+  function getPorcentajeRestante(kilometrajeActual?: number, aceiteMotorKm?: number, intervaloCambio?: number) {
     if (!kilometrajeActual || !aceiteMotorKm) return null
     
+    // Usar intervalo personalizado o 10000 km por defecto
+    const intervalo = intervaloCambio || 10000
+    
     const kmRecorridos = kilometrajeActual - aceiteMotorKm
-    const kmFaltantes = 10000 - kmRecorridos
-    const porcentaje = (kmFaltantes / 10000) * 100
+    const kmFaltantes = intervalo - kmRecorridos
+    const porcentaje = (kmFaltantes / intervalo) * 100
     return Math.max(0, Math.min(100, porcentaje))
   }
 
@@ -116,8 +125,8 @@ export default function MantenimientosPage() {
           break
         case 'estado':
           const estadoOrder = { 'critico': 0, 'atencion': 1, 'ok': 2, 'sin-datos': 3 }
-          aValue = estadoOrder[getEstadoMantenimiento(a.kilometraje_actual, a.aceite_motor_km) as keyof typeof estadoOrder]
-          bValue = estadoOrder[getEstadoMantenimiento(b.kilometraje_actual, b.aceite_motor_km) as keyof typeof estadoOrder]
+          aValue = estadoOrder[getEstadoMantenimiento(a.kilometraje_actual, a.aceite_motor_km, a.intervalo_cambio_aceite) as keyof typeof estadoOrder]
+          bValue = estadoOrder[getEstadoMantenimiento(b.kilometraje_actual, b.aceite_motor_km, b.intervalo_cambio_aceite) as keyof typeof estadoOrder]
           break
         default:
           return 0
@@ -240,7 +249,7 @@ export default function MantenimientosPage() {
             <div className="flex items-center">
               <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km) === 'ok').length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km, v.intervalo_cambio_aceite) === 'ok').length}</p>
                 <p className="text-sm text-gray-600">Al día (30-100%)</p>
               </div>
             </div>
@@ -249,7 +258,7 @@ export default function MantenimientosPage() {
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-yellow-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km) === 'atencion').length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km, v.intervalo_cambio_aceite) === 'atencion').length}</p>
                 <p className="text-sm text-gray-600">Atención (10-30%)</p>
               </div>
             </div>
@@ -258,7 +267,7 @@ export default function MantenimientosPage() {
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-red-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km) === 'critico').length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km, v.intervalo_cambio_aceite) === 'critico').length}</p>
                 <p className="text-sm text-gray-600">Crítico (0-10%)</p>
               </div>
             </div>
@@ -320,6 +329,9 @@ export default function MantenimientosPage() {
                       {getSortIcon('km_actual')}
                     </div>
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Intervalo
+                  </th>
                   <th 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                     onClick={() => handleSort('ultimo_cambio')}
@@ -351,9 +363,9 @@ export default function MantenimientosPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {getSortedVehiculos().map((vehiculo) => {
-                  const estado = getEstadoMantenimiento(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km)
-                  const kmFaltantes = getKmFaltantes(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km)
-                  const porcentaje = getPorcentajeRestante(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km)
+                  const estado = getEstadoMantenimiento(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
+                  const kmFaltantes = getKmFaltantes(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
+                  const porcentaje = getPorcentajeRestante(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
                   return (
                     <tr key={vehiculo.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -373,6 +385,11 @@ export default function MantenimientosPage() {
                           ? vehiculo.kilometraje_actual.toLocaleString() + ' km'
                           : 'No registrado'
                         }
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                          {(vehiculo.intervalo_cambio_aceite || 10000).toLocaleString()} km
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {vehiculo.aceite_motor_km 
