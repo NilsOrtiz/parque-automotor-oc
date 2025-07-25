@@ -20,18 +20,18 @@ BEGIN
 END $$;
 
 -- Opcional: Actualizar algunos vehículos con intervalos específicos si ya conoces cuáles necesitan valores diferentes
--- UPDATE vehiculos SET intervalo_cambio_aceite = 15000 WHERE Placa IN ('ABC123', 'DEF456');
--- UPDATE vehiculos SET intervalo_cambio_aceite = 5000 WHERE Placa IN ('GHI789');
+-- UPDATE vehiculos SET intervalo_cambio_aceite = 15000 WHERE "Placa" IN ('ABC123', 'DEF456');
+-- UPDATE vehiculos SET intervalo_cambio_aceite = 5000 WHERE "Placa" IN ('GHI789');
 
 -- Verificar resultado
 SELECT 
-    Placa, 
-    Marca, 
-    Modelo, 
+    "Placa", 
+    "Marca", 
+    "Modelo", 
     intervalo_cambio_aceite,
     CASE 
         WHEN intervalo_cambio_aceite IS NULL THEN 'Sin definir'
         ELSE CONCAT(intervalo_cambio_aceite, ' km')
     END as intervalo_display
 FROM vehiculos 
-ORDER BY Nro_Interno, Placa;
+ORDER BY "Nro_Interno", "Placa";
