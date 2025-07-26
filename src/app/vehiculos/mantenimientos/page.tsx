@@ -151,8 +151,8 @@ export default function MantenimientosPage() {
           break
         case 'estado':
           const estadoOrder = { 'critico': 0, 'atencion': 1, 'ok': 2, 'sin-datos': 3 }
-          aValue = estadoOrder[getEstadoMantenimiento(a.kilometraje_actual, a.aceite_motor_km, a.intervalo_cambio_aceite) as keyof typeof estadoOrder]
-          bValue = estadoOrder[getEstadoMantenimiento(b.kilometraje_actual, b.aceite_motor_km, b.intervalo_cambio_aceite) as keyof typeof estadoOrder]
+          aValue = estadoOrder[getEstadoMantenimiento(a.kilometraje_actual, a.aceite_motor_km, a.intervalo_cambio_aceite, a.hora_actual, a.aceite_motor_hr, a.intervalo_cambio_aceite_hr) as keyof typeof estadoOrder]
+          bValue = estadoOrder[getEstadoMantenimiento(b.kilometraje_actual, b.aceite_motor_km, b.intervalo_cambio_aceite, b.hora_actual, b.aceite_motor_hr, b.intervalo_cambio_aceite_hr) as keyof typeof estadoOrder]
           break
         default:
           return 0
@@ -275,7 +275,7 @@ export default function MantenimientosPage() {
             <div className="flex items-center">
               <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km, v.intervalo_cambio_aceite) === 'ok').length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km, v.intervalo_cambio_aceite, v.hora_actual, v.aceite_motor_hr, v.intervalo_cambio_aceite_hr) === 'ok').length}</p>
                 <p className="text-sm text-gray-600">Al día (30-100%)</p>
               </div>
             </div>
@@ -284,7 +284,7 @@ export default function MantenimientosPage() {
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-yellow-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km, v.intervalo_cambio_aceite) === 'atencion').length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km, v.intervalo_cambio_aceite, v.hora_actual, v.aceite_motor_hr, v.intervalo_cambio_aceite_hr) === 'atencion').length}</p>
                 <p className="text-sm text-gray-600">Atención (10-30%)</p>
               </div>
             </div>
@@ -293,7 +293,7 @@ export default function MantenimientosPage() {
             <div className="flex items-center">
               <AlertTriangle className="h-8 w-8 text-red-600 mr-3" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km, v.intervalo_cambio_aceite) === 'critico').length}</p>
+                <p className="text-2xl font-bold text-gray-900">{getSortedVehiculos().filter(v => getEstadoMantenimiento(v.kilometraje_actual, v.aceite_motor_km, v.intervalo_cambio_aceite, v.hora_actual, v.aceite_motor_hr, v.intervalo_cambio_aceite_hr) === 'critico').length}</p>
                 <p className="text-sm text-gray-600">Crítico (0-10%)</p>
               </div>
             </div>
@@ -389,7 +389,7 @@ export default function MantenimientosPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {getSortedVehiculos().map((vehiculo) => {
-                  const estado = getEstadoMantenimiento(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
+                  const estado = getEstadoMantenimiento(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite, vehiculo.hora_actual, vehiculo.aceite_motor_hr, vehiculo.intervalo_cambio_aceite_hr)
                   const kmFaltantes = getKmFaltantes(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
                   const porcentaje = getPorcentajeRestante(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
                   return (
