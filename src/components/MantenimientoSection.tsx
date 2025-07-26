@@ -69,7 +69,7 @@ export default function MantenimientoSection({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* Kilometraje */}
-              {field.kmField && (
+              {field.kmField && (vehiculo[field.kmField] as number) !== -1 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Kilometraje</label>
                   {editMode ? (
@@ -82,11 +82,9 @@ export default function MantenimientoSection({
                     />
                   ) : (
                     <p className="text-gray-900 font-medium">
-                      {vehiculo[field.kmField] === -1 
-                        ? <span className="text-red-500 italic">No Aplica</span>
-                        : vehiculo[field.kmField] 
-                          ? (vehiculo[field.kmField] as number).toLocaleString() + ' km' 
-                          : 'No registrado'
+                      {vehiculo[field.kmField] 
+                        ? (vehiculo[field.kmField] as number).toLocaleString() + ' km' 
+                        : 'No registrado'
                       }
                     </p>
                   )}
@@ -94,7 +92,7 @@ export default function MantenimientoSection({
               )}
 
               {/* Fecha */}
-              {field.dateField && (
+              {field.dateField && (vehiculo[field.dateField] as string) !== '1900-01-01' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Fecha</label>
                   {editMode ? (
@@ -106,11 +104,9 @@ export default function MantenimientoSection({
                     />
                   ) : (
                     <p className="text-gray-900 font-medium">
-                      {vehiculo[field.dateField] === '1900-01-01'
-                        ? <span className="text-red-500 italic">No Aplica</span>
-                        : vehiculo[field.dateField] 
-                          ? new Date(vehiculo[field.dateField] as string).toLocaleDateString() 
-                          : 'No registrado'
+                      {vehiculo[field.dateField] 
+                        ? new Date(vehiculo[field.dateField] as string).toLocaleDateString() 
+                        : 'No registrado'
                       }
                     </p>
                   )}
@@ -118,7 +114,14 @@ export default function MantenimientoSection({
               )}
 
               {/* Modelo */}
-              {field.modelField && (
+              {field.modelField && (() => {
+                const modelValue = vehiculo[field.modelField] as string
+                const isNotApplicable = modelValue && (
+                  modelValue.toUpperCase() === 'N/A' || 
+                  modelValue.toUpperCase() === 'NO APLICA'
+                )
+                return !isNotApplicable
+              })() && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Modelo</label>
                   {editMode ? (
@@ -131,13 +134,7 @@ export default function MantenimientoSection({
                     />
                   ) : (
                     <p className="text-gray-900 font-medium">
-                      {(() => {
-                        const modelValue = vehiculo[field.modelField] as string
-                        if (modelValue && (modelValue.toUpperCase() === 'N/A' || modelValue.toUpperCase() === 'NO APLICA')) {
-                          return <span className="text-red-500 italic">No Aplica</span>
-                        }
-                        return modelValue || 'No registrado'
-                      })()}
+                      {vehiculo[field.modelField] as string || 'No registrado'}
                     </p>
                   )}
                 </div>
