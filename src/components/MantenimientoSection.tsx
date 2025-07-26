@@ -63,10 +63,28 @@ export default function MantenimientoSection({
     <div className="bg-white rounded-lg shadow-md p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
       <div className="space-y-4">
-        {fieldsToShow.map((field, index) => (
-          <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
-            <h4 className="font-medium text-gray-800 mb-3">{field.label}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {fieldsToShow.map((field, index) => {
+          // Verificar si al menos un sub-campo es visible
+          const hasVisibleSubFields = () => {
+            const kmVisible = !field.kmField || (vehiculo[field.kmField] as number) !== -1
+            const dateVisible = !field.dateField || (vehiculo[field.dateField] as string) !== '1900-01-01'
+            const modelVisible = !field.modelField || (() => {
+              const modelValue = vehiculo[field.modelField] as string
+              return !(modelValue && (modelValue.toUpperCase() === 'N/A' || modelValue.toUpperCase() === 'NO APLICA'))
+            })()
+            
+            return kmVisible || dateVisible || modelVisible
+          }
+
+          // Solo mostrar el grupo si tiene al menos un sub-campo visible
+          if (!hasVisibleSubFields()) {
+            return null
+          }
+
+          return (
+            <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
+              <h4 className="font-medium text-gray-800 mb-3">{field.label}</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* Kilometraje */}
               {field.kmField && (vehiculo[field.kmField] as number) !== -1 && (
@@ -164,8 +182,9 @@ export default function MantenimientoSection({
                 </div>
               )}
             </div>
-          </div>
-        ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
