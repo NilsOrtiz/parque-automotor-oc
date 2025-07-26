@@ -215,7 +215,7 @@ export default function BusquedaPage() {
               </div>
 
               {/* Información básica */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Número Interno</label>
                   {editMode ? (
@@ -267,6 +267,22 @@ export default function BusquedaPage() {
                   ) : (
                     <p className="text-lg text-gray-900">
                       {vehiculo.kilometraje_actual ? vehiculo.kilometraje_actual.toLocaleString() + ' km' : 'No registrado'}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Horas Actuales</label>
+                  {editMode ? (
+                    <input
+                      type="number"
+                      value={editedVehiculo?.hora_actual || ''}
+                      onChange={(e) => setEditedVehiculo(prev => prev ? {...prev, hora_actual: parseInt(e.target.value)} : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Horas de motor"
+                    />
+                  ) : (
+                    <p className="text-lg text-gray-900">
+                      {vehiculo.hora_actual ? vehiculo.hora_actual.toLocaleString() + ' hrs' : 'No registrado'}
                     </p>
                   )}
                 </div>
@@ -341,7 +357,8 @@ export default function BusquedaPage() {
                   kmField: "aceite_motor_km",
                   dateField: "aceite_motor_fecha",
                   modelField: "aceite_motor_modelo",
-                  litersField: "aceite_motor_litros"
+                  litersField: "aceite_motor_litros",
+                  hrField: "aceite_motor_hr"
                 },
                 {
                   label: "Filtro Aceite Motor",

@@ -10,6 +10,7 @@ interface Props {
     dateField?: keyof Vehiculo
     modelField?: keyof Vehiculo
     litersField?: keyof Vehiculo
+    hrField?: keyof Vehiculo
   }>
   vehiculo: Vehiculo
   editedVehiculo: Vehiculo | null
@@ -94,6 +95,14 @@ export default function MantenimientoSection({
               }
             }
             
+            // Verificar Horas
+            if (field.hrField) {
+              totalFields++
+              if ((vehiculo[field.hrField] as number) !== -1) {
+                visibleFields++
+              }
+            }
+            
             // Solo mostrar si hay al menos un campo visible
             return visibleFields > 0
           }
@@ -106,7 +115,7 @@ export default function MantenimientoSection({
           return (
             <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
               <h4 className="font-medium text-gray-800 mb-3">{field.label}</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               
               {/* Kilometraje */}
               {field.kmField && (vehiculo[field.kmField] as number) !== -1 && (
@@ -175,6 +184,29 @@ export default function MantenimientoSection({
                   ) : (
                     <p className="text-gray-900 font-medium">
                       {vehiculo[field.modelField] as string || 'No registrado'}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Horas */}
+              {field.hrField && (vehiculo[field.hrField] as number) !== -1 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Horas</label>
+                  {editMode ? (
+                    <input
+                      type="number"
+                      value={editedVehiculo?.[field.hrField] as number || ''}
+                      onChange={(e) => onUpdate({ [field.hrField!]: parseInt(e.target.value) || null })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                      placeholder="hrs"
+                    />
+                  ) : (
+                    <p className="text-gray-900 font-medium">
+                      {vehiculo[field.hrField] 
+                        ? (vehiculo[field.hrField] as number).toLocaleString() + ' hrs' 
+                        : 'No registrado'
+                      }
                     </p>
                   )}
                 </div>
