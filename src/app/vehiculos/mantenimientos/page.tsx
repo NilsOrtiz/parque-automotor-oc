@@ -100,25 +100,19 @@ export default function MantenimientosPage() {
   }
 
   function getHrFaltantes(horaActual?: number, aceiteMotorHr?: number, intervaloCambioHr?: number) {
-    if (!horaActual || !aceiteMotorHr) return null
-    
-    // Usar intervalo personalizado o 500 hrs por defecto
-    const intervalo = intervaloCambioHr || 500
+    if (!horaActual || !aceiteMotorHr || !intervaloCambioHr) return null
     
     const hrRecorridas = horaActual - aceiteMotorHr
-    const hrFaltantes = intervalo - hrRecorridas
+    const hrFaltantes = intervaloCambioHr - hrRecorridas
     return hrFaltantes > 0 ? hrFaltantes : 0
   }
 
   function getPorcentajeRestanteHoras(horaActual?: number, aceiteMotorHr?: number, intervaloCambioHr?: number) {
-    if (!horaActual || !aceiteMotorHr) return null
-    
-    // Usar intervalo personalizado o 500 hrs por defecto
-    const intervalo = intervaloCambioHr || 500
+    if (!horaActual || !aceiteMotorHr || !intervaloCambioHr) return null
     
     const hrRecorridas = horaActual - aceiteMotorHr
-    const hrFaltantes = intervalo - hrRecorridas
-    const porcentaje = (hrFaltantes / intervalo) * 100
+    const hrFaltantes = intervaloCambioHr - hrRecorridas
+    const porcentaje = (hrFaltantes / intervaloCambioHr) * 100
     return Math.max(0, Math.min(100, porcentaje))
   }
 
