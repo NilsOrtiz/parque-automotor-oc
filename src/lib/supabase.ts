@@ -91,6 +91,9 @@ export interface Vehiculo {
   aceite_motor_fecha?: string
   kilometraje_actual?: number
   intervalo_cambio_aceite?: number
+  hora_actual?: number
+  aceite_motor_hr?: number
+  intervalo_cambio_aceite_hr?: number
   aceite_motor_modelo?: string
   aceite_motor_litros?: number
   filtro_aceite_motor_modelo?: string

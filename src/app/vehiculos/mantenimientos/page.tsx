@@ -35,15 +35,41 @@ export default function MantenimientosPage() {
     }
   }
 
-  function getEstadoMantenimiento(kilometrajeActual?: number, aceiteMotorKm?: number, intervaloCambio?: number) {
-    if (!kilometrajeActual || !aceiteMotorKm) return 'sin-datos'
+  function getEstadoMantenimiento(
+    kilometrajeActual?: number, 
+    aceiteMotorKm?: number, 
+    intervaloCambio?: number,
+    horaActual?: number,
+    aceiteMotorHr?: number,
+    intervaloCambioHr?: number
+  ) {
+    // Verificar datos por kilómetros
+    const tieneKmData = kilometrajeActual && aceiteMotorKm
+    let porcentajeKm = 100
     
-    // Usar intervalo personalizado o 10000 km por defecto
-    const intervalo = intervaloCambio || 10000
+    if (tieneKmData) {
+      const intervalo = intervaloCambio || 10000
+      const kmRecorridos = kilometrajeActual - aceiteMotorKm
+      const kmFaltantes = intervalo - kmRecorridos
+      porcentajeKm = (kmFaltantes / intervalo) * 100
+    }
     
-    const kmRecorridos = kilometrajeActual - aceiteMotorKm
-    const kmFaltantes = intervalo - kmRecorridos
-    const porcentajeRestante = (kmFaltantes / intervalo) * 100
+    // Verificar datos por horas
+    const tieneHrData = horaActual && aceiteMotorHr
+    let porcentajeHr = 100
+    
+    if (tieneHrData) {
+      const intervalo = intervaloCambioHr || 500
+      const hrRecorridas = horaActual - aceiteMotorHr
+      const hrFaltantes = intervalo - hrRecorridas
+      porcentajeHr = (hrFaltantes / intervalo) * 100
+    }
+    
+    // Si no hay datos de ninguno de los dos
+    if (!tieneKmData && !tieneHrData) return 'sin-datos'
+    
+    // Usar el peor caso (menor porcentaje) - lo que esté más cerca del mantenimiento
+    const porcentajeRestante = Math.min(porcentajeKm, porcentajeHr)
     
     if (porcentajeRestante >= 30) return 'ok'
     if (porcentajeRestante >= 10) return 'atencion'
