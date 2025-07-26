@@ -66,14 +66,36 @@ export default function MantenimientoSection({
         {fieldsToShow.map((field, index) => {
           // Verificar si al menos un sub-campo es visible
           const hasVisibleSubFields = () => {
-            const kmVisible = !field.kmField || (vehiculo[field.kmField] as number) !== -1
-            const dateVisible = !field.dateField || (vehiculo[field.dateField] as string) !== '1900-01-01'
-            const modelVisible = !field.modelField || (() => {
-              const modelValue = vehiculo[field.modelField] as string
-              return !(modelValue && (modelValue.toUpperCase() === 'N/A' || modelValue.toUpperCase() === 'NO APLICA'))
-            })()
+            let visibleFields = 0
+            let totalFields = 0
             
-            return kmVisible || dateVisible || modelVisible
+            // Verificar KM
+            if (field.kmField) {
+              totalFields++
+              if ((vehiculo[field.kmField] as number) !== -1) {
+                visibleFields++
+              }
+            }
+            
+            // Verificar Fecha
+            if (field.dateField) {
+              totalFields++
+              if ((vehiculo[field.dateField] as string) !== '1900-01-01') {
+                visibleFields++
+              }
+            }
+            
+            // Verificar Modelo
+            if (field.modelField) {
+              totalFields++
+              const modelValue = vehiculo[field.modelField] as string
+              if (!(modelValue && (modelValue.toUpperCase() === 'N/A' || modelValue.toUpperCase() === 'NO APLICA'))) {
+                visibleFields++
+              }
+            }
+            
+            // Solo mostrar si hay al menos un campo visible
+            return visibleFields > 0
           }
 
           // Solo mostrar el grupo si tiene al menos un sub-campo visible
