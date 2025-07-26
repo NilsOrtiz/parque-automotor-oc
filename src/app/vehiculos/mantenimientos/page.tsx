@@ -99,6 +99,29 @@ export default function MantenimientosPage() {
     return Math.max(0, Math.min(100, porcentaje))
   }
 
+  function getHrFaltantes(horaActual?: number, aceiteMotorHr?: number, intervaloCambioHr?: number) {
+    if (!horaActual || !aceiteMotorHr) return null
+    
+    // Usar intervalo personalizado o 500 hrs por defecto
+    const intervalo = intervaloCambioHr || 500
+    
+    const hrRecorridas = horaActual - aceiteMotorHr
+    const hrFaltantes = intervalo - hrRecorridas
+    return hrFaltantes > 0 ? hrFaltantes : 0
+  }
+
+  function getPorcentajeRestanteHoras(horaActual?: number, aceiteMotorHr?: number, intervaloCambioHr?: number) {
+    if (!horaActual || !aceiteMotorHr) return null
+    
+    // Usar intervalo personalizado o 500 hrs por defecto
+    const intervalo = intervaloCambioHr || 500
+    
+    const hrRecorridas = horaActual - aceiteMotorHr
+    const hrFaltantes = intervalo - hrRecorridas
+    const porcentaje = (hrFaltantes / intervalo) * 100
+    return Math.max(0, Math.min(100, porcentaje))
+  }
+
   function handleSort(field: SortField) {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -392,6 +415,8 @@ export default function MantenimientosPage() {
                   const estado = getEstadoMantenimiento(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite, vehiculo.hora_actual, vehiculo.aceite_motor_hr, vehiculo.intervalo_cambio_aceite_hr)
                   const kmFaltantes = getKmFaltantes(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
                   const porcentaje = getPorcentajeRestante(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
+                  const hrFaltantes = getHrFaltantes(vehiculo.hora_actual, vehiculo.aceite_motor_hr, vehiculo.intervalo_cambio_aceite_hr)
+                  const porcentajeHoras = getPorcentajeRestanteHoras(vehiculo.hora_actual, vehiculo.aceite_motor_hr, vehiculo.intervalo_cambio_aceite_hr)
                   return (
                     <tr key={vehiculo.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -407,38 +432,88 @@ export default function MantenimientosPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {vehiculo.kilometraje_actual 
-                          ? vehiculo.kilometraje_actual.toLocaleString() + ' km'
-                          : 'No registrado'
-                        }
+                        <div className="flex flex-col">
+                          <span className="font-medium">
+                            {vehiculo.kilometraje_actual 
+                              ? vehiculo.kilometraje_actual.toLocaleString() + ' km'
+                              : 'No registrado'
+                            }
+                          </span>
+                          {vehiculo.hora_actual && (
+                            <span className="text-xs text-gray-500 italic">
+                              {vehiculo.hora_actual.toLocaleString()} hrs
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                          {(vehiculo.intervalo_cambio_aceite || 10000).toLocaleString()} km
-                        </span>
+                        <div className="flex flex-col space-y-1">
+                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                            {(vehiculo.intervalo_cambio_aceite || 10000).toLocaleString()} km
+                          </span>
+                          {vehiculo.intervalo_cambio_aceite_hr && (
+                            <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                              {vehiculo.intervalo_cambio_aceite_hr.toLocaleString()} hrs
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {vehiculo.aceite_motor_km 
-                          ? vehiculo.aceite_motor_km.toLocaleString() + ' km'
-                          : 'No registrado'
-                        }
+                        <div className="flex flex-col">
+                          <span className="font-medium">
+                            {vehiculo.aceite_motor_km 
+                              ? vehiculo.aceite_motor_km.toLocaleString() + ' km'
+                              : 'No registrado'
+                            }
+                          </span>
+                          {vehiculo.aceite_motor_hr && (
+                            <span className="text-xs text-gray-500 italic">
+                              {vehiculo.aceite_motor_hr.toLocaleString()} hrs
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {kmFaltantes !== null ? (
-                          <div className="flex flex-col">
-                            <span className="font-medium">{kmFaltantes.toLocaleString()} km</span>
-                            {porcentaje !== null && (
-                              <div className="flex items-center mt-1">
-                                <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                                  <div 
-                                    className={`h-2 rounded-full ${
-                                      porcentaje >= 30 ? 'bg-green-500' :
-                                      porcentaje >= 10 ? 'bg-yellow-500' : 'bg-red-500'
-                                    }`}
-                                    style={{ width: `${porcentaje}%` }}
-                                  ></div>
-                                </div>
-                                <span className="text-xs text-gray-500">{Math.round(porcentaje)}%</span>
+                        {kmFaltantes !== null || hrFaltantes !== null ? (
+                          <div className="flex flex-col space-y-2">
+                            {/* Datos de kilómetros */}
+                            {kmFaltantes !== null && (
+                              <div>
+                                <span className="font-medium">{kmFaltantes.toLocaleString()} km</span>
+                                {porcentaje !== null && (
+                                  <div className="flex items-center mt-1">
+                                    <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                      <div 
+                                        className={`h-2 rounded-full ${
+                                          porcentaje >= 30 ? 'bg-green-500' :
+                                          porcentaje >= 10 ? 'bg-yellow-500' : 'bg-red-500'
+                                        }`}
+                                        style={{ width: `${porcentaje}%` }}
+                                      ></div>
+                                    </div>
+                                    <span className="text-xs text-gray-500">{Math.round(porcentaje)}%</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {/* Datos de horas */}
+                            {hrFaltantes !== null && (
+                              <div>
+                                <span className="text-xs text-gray-500 italic font-medium">{hrFaltantes.toLocaleString()} hrs</span>
+                                {porcentajeHoras !== null && (
+                                  <div className="flex items-center mt-1">
+                                    <div className="w-16 bg-gray-200 rounded-full h-1.5 mr-2">
+                                      <div 
+                                        className={`h-1.5 rounded-full ${
+                                          porcentajeHoras >= 30 ? 'bg-green-400' :
+                                          porcentajeHoras >= 10 ? 'bg-yellow-400' : 'bg-red-400'
+                                        }`}
+                                        style={{ width: `${porcentajeHoras}%` }}
+                                      ></div>
+                                    </div>
+                                    <span className="text-xs text-gray-400">{Math.round(porcentajeHoras)}%</span>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
