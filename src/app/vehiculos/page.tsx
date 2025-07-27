@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, Settings, ArrowRight, BarChart3 } from 'lucide-react'
+import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck } from 'lucide-react'
 
 export default function VehiculosPage() {
   return (
@@ -12,7 +12,7 @@ export default function VehiculosPage() {
           <p className="text-gray-600">Selecciona una opción para continuar</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Búsqueda de Vehículo */}
           <Link href="/vehiculos/busqueda" className="group">
             <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-blue-500 group-hover:border-blue-600">
@@ -113,6 +113,41 @@ export default function VehiculosPage() {
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
                   Comparativas de eficiencia
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Revisión Mensual */}
+          <Link href="/vehiculos/revision-mensual" className="group">
+            <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-purple-500 group-hover:border-purple-600">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="bg-purple-100 p-3 rounded-lg mr-4">
+                    <ClipboardCheck className="h-8 w-8 text-purple-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 group-hover:text-purple-600">
+                      Revisión Mensual
+                    </h2>
+                    <p className="text-gray-500">Control obligatorio de taller</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-6 w-6 text-gray-400 group-hover:text-purple-600 transition-colors" />
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mr-3"></div>
+                  Estado general del vehículo
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mr-3"></div>
+                  Revisión de accesorios
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mr-3"></div>
+                  Control preventivo mensual
                 </div>
               </div>
             </div>
