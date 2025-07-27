@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck } from 'lucide-react'
+import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText } from 'lucide-react'
 
 export default function VehiculosPage() {
   return (
@@ -12,7 +12,7 @@ export default function VehiculosPage() {
           <p className="text-gray-600">Selecciona una opción para continuar</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {/* Búsqueda de Vehículo */}
           <Link href="/vehiculos/busqueda" className="group">
             <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-blue-500 group-hover:border-blue-600">
@@ -148,6 +148,41 @@ export default function VehiculosPage() {
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-purple-400 rounded-full mr-3"></div>
                   Control preventivo mensual
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Registro de Servicio */}
+          <Link href="/vehiculos/registro-servicio" className="group">
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-indigo-500 group-hover:border-indigo-600">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="bg-indigo-100 p-3 rounded-lg mr-4">
+                    <FileText className="h-8 w-8 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 group-hover:text-indigo-600">
+                      Registro de Servicio
+                    </h2>
+                    <p className="text-gray-500">Formulario para técnicos</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-6 w-6 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-indigo-400 rounded-full mr-3"></div>
+                  Registro de intervenciones
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-indigo-400 rounded-full mr-3"></div>
+                  Vinculación con órdenes de compra
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-indigo-400 rounded-full mr-3"></div>
+                  Documentación de trabajos
                 </div>
               </div>
             </div>
