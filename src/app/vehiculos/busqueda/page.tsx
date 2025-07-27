@@ -69,7 +69,34 @@ export default function BusquedaPage() {
         .order('fecha_servicio', { ascending: false })
 
       if (error) throw error
-      setHistorial(data || [])
+      
+      // Procesar cada registro para incluir datos de órdenes de compra
+      const historialConOrdenes = await Promise.all((data || []).map(async (registro) => {
+        let ordenesRelacionadas = []
+        
+        if (registro.ocs_vehiculos) {
+          try {
+            const idsOrdenes = JSON.parse(registro.ocs_vehiculos)
+            if (Array.isArray(idsOrdenes) && idsOrdenes.length > 0) {
+              const { data: ordenes } = await supabase
+                .from('ordenes_de_compra_por_vehiculo')
+                .select('id, codigo_oc, proveedor, items, monto_vehiculo, moneda')
+                .in('id', idsOrdenes)
+              
+              ordenesRelacionadas = ordenes || []
+            }
+          } catch (e) {
+            console.error('Error parseando ocs_vehiculos:', e)
+          }
+        }
+        
+        return {
+          ...registro,
+          ordenes_relacionadas: ordenesRelacionadas
+        }
+      }))
+      
+      setHistorial(historialConOrdenes)
     } catch (error) {
       console.error('Error cargando historial:', error)
       setHistorial([])
@@ -755,6 +782,9 @@ export default function BusquedaPage() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Items
                           </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Órdenes Relacionadas
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -780,6 +810,29 @@ export default function BusquedaPage() {
                               <div className="truncate" title={registro.items}>
                                 {registro.items || '-'}
                               </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              {registro.ordenes_relacionadas && registro.ordenes_relacionadas.length > 0 ? (
+                                <div className="space-y-1">
+                                  {registro.ordenes_relacionadas.map((orden: any) => (
+                                    <div key={orden.id} className="flex items-center gap-2">
+                                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                        {orden.codigo_oc}
+                                      </span>
+                                      <span className="text-xs text-gray-600">
+                                        {orden.proveedor}
+                                      </span>
+                                      {orden.monto_vehiculo && (
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          ${orden.monto_vehiculo.toLocaleString()} {orden.moneda || 'ARS'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-xs">Sin órdenes</span>
+                              )}
                             </td>
                           </tr>
                         ))}
