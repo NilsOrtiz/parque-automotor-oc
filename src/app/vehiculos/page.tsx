@@ -12,10 +12,10 @@ export default function VehiculosPage() {
           <p className="text-gray-600">Selecciona una opción para continuar</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
           {/* Búsqueda de Vehículo */}
           <Link href="/vehiculos/busqueda" className="group">
-            <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-blue-500 group-hover:border-blue-600">
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-blue-500 group-hover:border-blue-600">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
                   <div className="bg-blue-100 p-3 rounded-lg mr-4">
@@ -50,7 +50,7 @@ export default function VehiculosPage() {
 
           {/* Lista de Mantenimientos */}
           <Link href="/vehiculos/mantenimientos" className="group">
-            <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-green-500 group-hover:border-green-600">
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-green-500 group-hover:border-green-600">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
                   <div className="bg-green-100 p-3 rounded-lg mr-4">
@@ -85,7 +85,7 @@ export default function VehiculosPage() {
 
           {/* Análisis de Consumo de Combustible */}
           <Link href="/vehiculos/analisis-combustible" className="group">
-            <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-orange-500 group-hover:border-orange-600">
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-orange-500 group-hover:border-orange-600">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
                   <div className="bg-orange-100 p-3 rounded-lg mr-4">
@@ -120,7 +120,7 @@ export default function VehiculosPage() {
 
           {/* Revisión Mensual */}
           <Link href="/vehiculos/revision-mensual" className="group">
-            <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-purple-500 group-hover:border-purple-600">
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-purple-500 group-hover:border-purple-600">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
                   <div className="bg-purple-100 p-3 rounded-lg mr-4">
