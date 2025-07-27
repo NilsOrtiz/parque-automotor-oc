@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type OrdenCompra, getMonedaInfo } from '@/lib/supabase'
 import { ArrowLeft, CheckCircle, Clock, XCircle, ArrowUp, ArrowDown, ArrowUpDown, Search } from 'lucide-react'
@@ -548,22 +548,64 @@ export default function ListadoOCPage() {
                   </th>
                   </>
                 ) : (
-                  /* Headers Vista Agrupada */
+                  /* Headers Vista Agrupada - Mismos que la individual */
                   <>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Proveedor
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort('codigo')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>ID OC</span>
+                      {getSortIcon('codigo')}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort('fecha')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Fecha</span>
+                      {getSortIcon('fecha')}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort('placa')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Vehículo</span>
+                      {getSortIcon('placa')}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort('proveedor')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Proveedor</span>
+                      {getSortIcon('proveedor')}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort('monto')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Monto</span>
+                      {getSortIcon('monto')}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort('estado')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Estado</span>
+                      {getSortIcon('estado')}
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cantidad OC
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estados
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total a Pagar
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Detalles
+                    PDF
                   </th>
                   </>
                 )}
@@ -644,64 +686,131 @@ export default function ListadoOCPage() {
                   )
                   })
                 ) : (
-                  /* Vista Agrupada */
-                  ordenesAgrupadas.map((grupo) => (
-                    <tr key={grupo.proveedor} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {grupo.proveedor}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{grupo.cantidadOrdenes}</span>
-                          <span className="text-xs text-gray-500">órdenes</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex gap-2">
-                          {grupo.estadosResumen.compras > 0 && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-800 border border-red-300">
-                              {grupo.estadosResumen.compras} Compras
-                            </span>
-                          )}
-                          {grupo.estadosResumen.tesoreria > 0 && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-300">
-                              {grupo.estadosResumen.tesoreria} Tesorería
-                            </span>
-                          )}
-                          {grupo.estadosResumen.completada > 0 && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-800 border border-green-300">
-                              {grupo.estadosResumen.completada} Completadas
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="space-y-1">
-                          {Object.entries(grupo.totalPorMoneda).map(([moneda, total]) => (
-                            <div key={moneda} className="flex items-center gap-2">
-                              <span className="font-bold text-lg">
-                                {simbolosMonedas[moneda] || '$'}{total.toLocaleString()}
+                  /* Vista Agrupada - Mostrar órdenes agrupadas por proveedor */
+                  <>
+                  {ordenesAgrupadas.map((grupo) => (
+                    <React.Fragment key={grupo.proveedor}>
+                      {/* Órdenes individuales del proveedor */}
+                      {grupo.ordenes.map((orden) => {
+                        const estado = getEstadoOrden(orden)
+                        const estadoInfo = getEstadoInfo(estado, orden.es_emergencia)
+                        return (
+                          <tr key={orden.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {orden.codigo}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {new Date(orden.fecha + 'T12:00:00').toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div>
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium">{orden.placa}</span>
+                                  {orden.interno && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                                      Int. {orden.interno}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-gray-500 text-xs">{orden.modelo}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {orden.proveedor}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {orden.monto ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold">
+                                    {simbolosMonedas[orden.moneda || 'ARS'] || '$'}{orden.monto.toLocaleString()}
+                                  </span>
+                                  {orden.moneda && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                      {orden.moneda}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div 
+                                className={`inline-flex items-center px-3 py-1 rounded-lg border text-xs font-medium transition-all ${estadoInfo.color}`}
+                                onClick={() => estadoInfo.clickeable ? cambiarEstadoOC(orden.id, estado) : undefined}
+                                title={estadoInfo.clickeable ? `Click para avanzar con ${estadoInfo.icono}` : ''}
+                              >
+                                <span>{estadoInfo.texto}</span>
+                                {estadoInfo.clickeable && (
+                                  <span className="ml-2 opacity-70">{estadoInfo.icono}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                              {orden.pdf_url ? (
+                                <a
+                                  href={orden.pdf_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                                  title="Ver PDF"
+                                >
+                                  📄 PDF
+                                </a>
+                              ) : (
+                                <span className="text-gray-400 text-xs">Sin PDF</span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                      
+                      {/* Fila de resumen del proveedor */}
+                      <tr className="bg-blue-50 border-t-2 border-blue-200">
+                        <td colSpan={3} className="px-6 py-3 text-sm font-bold text-blue-900">
+                          📊 RESUMEN - {grupo.proveedor}
+                        </td>
+                        <td className="px-6 py-3 text-sm font-medium text-blue-900">
+                          {grupo.cantidadOrdenes} órdenes
+                        </td>
+                        <td className="px-6 py-3 text-sm text-blue-900">
+                          <div className="space-y-1">
+                            {Object.entries(grupo.totalPorMoneda).map(([moneda, total]) => (
+                              <div key={moneda} className="flex items-center gap-2">
+                                <span className="font-bold text-base">
+                                  {simbolosMonedas[moneda] || '$'}{total.toLocaleString()}
+                                </span>
+                                <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">
+                                  {moneda}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-sm text-blue-900">
+                          <div className="flex gap-1 flex-wrap">
+                            {grupo.estadosResumen.compras > 0 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-200 text-red-800">
+                                {grupo.estadosResumen.compras} Compras
                               </span>
-                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                                {moneda}
+                            )}
+                            {grupo.estadosResumen.tesoreria > 0 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-200 text-yellow-800">
+                                {grupo.estadosResumen.tesoreria} Tesorería
                               </span>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                        <button
-                          onClick={() => {
-                            // TODO: Expandir/colapsar detalles
-                            console.log('Mostrar detalles para:', grupo.proveedor)
-                          }}
-                          className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                        >
-                          Ver OCs ({grupo.cantidadOrdenes})
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                            )}
+                            {grupo.estadosResumen.completada > 0 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-200 text-green-800">
+                                {grupo.estadosResumen.completada} Completadas
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-center">
+                          <span className="text-blue-600 font-medium text-xs">TOTAL</span>
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  ))}
+                  </>
                 )}
               </tbody>
             </table>
