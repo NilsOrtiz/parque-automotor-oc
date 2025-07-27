@@ -33,6 +33,7 @@ export default function RegistroServicioPage() {
   // Órdenes de compra disponibles
   const [ordenesDisponibles, setOrdenesDisponibles] = useState<OrdenCompra[]>([])
   const [loadingOrdenes, setLoadingOrdenes] = useState(false)
+  const [totalOrdenes, setTotalOrdenes] = useState(0)
 
   const subclasificaciones = [
     'Motor', 'Transmisión', 'Frenos', 'Suspensión', 'Neumáticos', 
@@ -82,14 +83,45 @@ export default function RegistroServicioPage() {
   async function cargarOrdenesDisponibles(placa: string) {
     setLoadingOrdenes(true)
     try {
-      const { data, error } = await supabase
+      // Obtener todas las órdenes del vehículo
+      const { data: todasLasOrdenes, error: errorOrdenes } = await supabase
         .from('ordenes_de_compra_por_vehiculo')
         .select('id, codigo_oc, proveedor, items, monto_vehiculo, moneda')
         .eq('placa', placa)
         .order('fecha', { ascending: false })
 
-      if (error) throw error
-      setOrdenesDisponibles(data || [])
+      if (errorOrdenes) throw errorOrdenes
+
+      // Obtener órdenes ya utilizadas en el historial
+      const { data: historialConOrdenes, error: errorHistorial } = await supabase
+        .from('historial')
+        .select('ocs_vehiculos')
+        .not('ocs_vehiculos', 'is', null)
+
+      if (errorHistorial) throw errorHistorial
+
+      // Extraer IDs de órdenes ya utilizadas
+      const ordenesUtilizadas = new Set<number>()
+      historialConOrdenes?.forEach(registro => {
+        if (registro.ocs_vehiculos) {
+          try {
+            const ids = JSON.parse(registro.ocs_vehiculos)
+            if (Array.isArray(ids)) {
+              ids.forEach(id => ordenesUtilizadas.add(id))
+            }
+          } catch (e) {
+            console.error('Error parseando ocs_vehiculos:', e)
+          }
+        }
+      })
+
+      // Filtrar órdenes disponibles (excluir las ya utilizadas)
+      const ordenesDisponibles = (todasLasOrdenes || []).filter(orden => 
+        !ordenesUtilizadas.has(orden.id)
+      )
+
+      setOrdenesDisponibles(ordenesDisponibles)
+      setTotalOrdenes((todasLasOrdenes || []).length)
     } catch (error) {
       console.error('Error cargando órdenes:', error)
       setOrdenesDisponibles([])
@@ -318,13 +350,26 @@ export default function RegistroServicioPage() {
               </div>
 
               {/* Órdenes de Compra */}
-              {ordenesDisponibles.length > 0 && (
+              {totalOrdenes > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Órdenes de Compra Relacionadas
-                  </label>
-                  <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-4">
-                    {ordenesDisponibles.map((orden) => (
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Órdenes de Compra Relacionadas
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
+                        {ordenesDisponibles.length} disponibles
+                      </span>
+                      {totalOrdenes > ordenesDisponibles.length && (
+                        <span className="text-sm text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                          {totalOrdenes - ordenesDisponibles.length} ya utilizadas
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {ordenesDisponibles.length > 0 ? (
+                    <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-4">
+                      {ordenesDisponibles.map((orden) => (
                       <div key={orden.id} className="flex items-center">
                         <input
                           type="checkbox"
@@ -346,8 +391,13 @@ export default function RegistroServicioPage() {
                           <div className="text-sm text-gray-600 truncate">{orden.items}</div>
                         </label>
                       </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="border border-gray-200 rounded-lg p-4 text-center text-gray-500">
+                      <p>📋 Todas las órdenes de compra de este vehículo ya han sido utilizadas en servicios anteriores.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
