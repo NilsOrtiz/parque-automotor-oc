@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Car, FileText, ShoppingCart, AlertTriangle } from 'lucide-react'
+import { Car, ShoppingCart, AlertTriangle } from 'lucide-react'
 
 export default function Home() {
   return (
@@ -14,7 +14,7 @@ export default function Home() {
           </p>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Link href="/vehiculos" className="group">
             <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-blue-500">
               <div className="flex items-center mb-4">
@@ -39,20 +39,6 @@ export default function Home() {
               </div>
               <p className="text-gray-600">
                 Gestión de órdenes, aprobaciones y seguimiento de compras
-              </p>
-            </div>
-          </Link>
-
-          <Link href="/historial" className="group">
-            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-purple-500">
-              <div className="flex items-center mb-4">
-                <FileText className="h-8 w-8 text-purple-500 mr-3" />
-                <h2 className="text-xl font-semibold text-gray-900 group-hover:text-purple-600">
-                  Historial
-                </h2>
-              </div>
-              <p className="text-gray-600">
-                Registro histórico de servicios y mantenimientos realizados
               </p>
             </div>
           </Link>
