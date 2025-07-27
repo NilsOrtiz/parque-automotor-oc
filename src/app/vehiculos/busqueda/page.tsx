@@ -15,6 +15,9 @@ export default function BusquedaPage() {
   const [editMode, setEditMode] = useState(false)
   const [editedVehiculo, setEditedVehiculo] = useState<Vehiculo | null>(null)
   const [saving, setSaving] = useState(false)
+  const [vistaActual, setVistaActual] = useState<'datos' | 'historial'>('datos')
+  const [historial, setHistorial] = useState<any[]>([])
+  const [loadingHistorial, setLoadingHistorial] = useState(false)
 
   async function buscarVehiculo() {
     if (!termino.trim()) {
@@ -45,12 +48,33 @@ export default function BusquedaPage() {
       } else {
         setVehiculo(data)
         setEditedVehiculo(data)
+        // Cargar historial automáticamente
+        await cargarHistorial(data.id)
       }
     } catch (error) {
       console.error('Error en búsqueda:', error)
       setError('Error al buscar el vehículo')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function cargarHistorial(vehiculoId: number) {
+    setLoadingHistorial(true)
+    try {
+      const { data, error } = await supabase
+        .from('historial')
+        .select('*')
+        .eq('id', vehiculoId)
+        .order('fecha_servicio', { ascending: false })
+
+      if (error) throw error
+      setHistorial(data || [])
+    } catch (error) {
+      console.error('Error cargando historial:', error)
+      setHistorial([])
+    } finally {
+      setLoadingHistorial(false)
     }
   }
 
@@ -214,6 +238,38 @@ export default function BusquedaPage() {
                 </div>
               </div>
 
+              {/* Toggle Vista */}
+              <div className="mb-6 border-t pt-6">
+                <div className="flex items-center justify-center gap-4">
+                  <span className="text-sm font-medium text-gray-700">Vista:</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm ${vistaActual === 'datos' ? 'font-semibold text-blue-600' : 'text-gray-500'}`}>
+                      Datos del Vehículo
+                    </span>
+                    <button
+                      onClick={() => setVistaActual(vistaActual === 'datos' ? 'historial' : 'datos')}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        vistaActual === 'historial' ? 'bg-blue-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          vistaActual === 'historial' ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-sm ${vistaActual === 'historial' ? 'font-semibold text-blue-600' : 'text-gray-500'}`}>
+                      Historial
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {vistaActual === 'datos' ? (
+              /* Vista de Datos del Vehículo */
+              <>
+              <div className="bg-white rounded-lg shadow-md p-6">
               {/* Información básica */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
@@ -659,6 +715,80 @@ export default function BusquedaPage() {
               editMode={editMode}
               onUpdate={updateVehiculo}
             />
+            </>
+            ) : (
+              /* Vista de Historial */
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Historial de Procedimientos</h3>
+                  <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                    {historial.length} registro(s)
+                  </div>
+                </div>
+
+                {loadingHistorial ? (
+                  <div className="text-center py-8">
+                    <div className="text-lg text-gray-500">Cargando historial...</div>
+                  </div>
+                ) : historial.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 text-lg mb-2">📋</div>
+                    <p className="text-gray-500">No hay registros de historial para este vehículo</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Fecha
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Clasificación
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Subclasificación
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Descripción
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Items
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {historial.map((registro) => (
+                          <tr key={registro.id_historial} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {new Date(registro.fecha_servicio).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-800">
+                                {registro.clasificacion}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {registro.subclasificacion || '-'}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                              <div className="truncate" title={registro.descripcion}>
+                                {registro.descripcion}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                              <div className="truncate" title={registro.items}>
+                                {registro.items || '-'}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
