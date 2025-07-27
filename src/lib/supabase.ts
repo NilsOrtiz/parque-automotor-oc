@@ -199,6 +199,8 @@ export interface Vehiculo {
   trampa_agua_fecha?: string
   trampa_agua_km?: number
   trampa_agua_modelo?: string
+  // Campo para revisiones mensuales
+  fecha_ultima_revision?: string
 }
 
 export interface OrdenCompra {
