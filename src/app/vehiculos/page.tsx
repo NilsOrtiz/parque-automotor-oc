@@ -12,7 +12,7 @@ export default function VehiculosPage() {
           <p className="text-gray-600">Selecciona una opción para continuar</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Búsqueda de Vehículo */}
           <Link href="/vehiculos/busqueda" className="group">
             <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-blue-500 group-hover:border-blue-600">
