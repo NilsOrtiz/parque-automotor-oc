@@ -21,6 +21,7 @@ export default function ListadoOCPage() {
   const [fechaInicio, setFechaInicio] = useState<string | null>(null)
   const [fechaFin, setFechaFin] = useState<string | null>(null)
   const [buscarCodigo, setBuscarCodigo] = useState('')
+  const [vistaAgrupada, setVistaAgrupada] = useState(false)
 
   useEffect(() => {
     fetchOrdenes()
@@ -159,6 +160,55 @@ export default function ListadoOCPage() {
       <ArrowDown className="h-4 w-4 text-blue-600" />
   }
 
+  // Función para agrupar órdenes por proveedor
+  function getOrdenesAgrupadas() {
+    const ordenesFiltradas = getSortedOrdenes()
+    
+    // Agrupar por proveedor
+    const grupos = ordenesFiltradas.reduce((acc, orden) => {
+      const proveedor = orden.proveedor || 'Sin proveedor'
+      
+      if (!acc[proveedor]) {
+        acc[proveedor] = {
+          proveedor,
+          ordenes: [],
+          totalPorMoneda: {} as Record<string, number>,
+          cantidadOrdenes: 0,
+          estadosResumen: { compras: 0, tesoreria: 0, completada: 0 }
+        }
+      }
+      
+      acc[proveedor].ordenes.push(orden)
+      acc[proveedor].cantidadOrdenes++
+      
+      // Sumar por moneda
+      const moneda = orden.moneda || 'ARS'
+      const monto = orden.monto || 0
+      acc[proveedor].totalPorMoneda[moneda] = (acc[proveedor].totalPorMoneda[moneda] || 0) + monto
+      
+      // Contar estados
+      const estado = getEstadoOrden(orden)
+      if (estado === 'compras') acc[proveedor].estadosResumen.compras++
+      else if (estado === 'tesoreria') acc[proveedor].estadosResumen.tesoreria++
+      else if (estado === 'completada') acc[proveedor].estadosResumen.completada++
+      
+      return acc
+    }, {} as Record<string, {
+      proveedor: string
+      ordenes: OrdenCompra[]
+      totalPorMoneda: Record<string, number>
+      cantidadOrdenes: number
+      estadosResumen: { compras: number, tesoreria: number, completada: number }
+    }>)
+    
+    // Convertir a array y ordenar por total (usando ARS como referencia principal)
+    return Object.values(grupos).sort((a, b) => {
+      const totalA = a.totalPorMoneda['ARS'] || 0
+      const totalB = b.totalPorMoneda['ARS'] || 0
+      return totalB - totalA // Mayor a menor
+    })
+  }
+
   function getSortedOrdenes() {
     let filtered = ordenes
 
@@ -258,6 +308,7 @@ export default function ListadoOCPage() {
   }
 
   const sortedOrdenes = getSortedOrdenes()
+  const ordenesAgrupadas = getOrdenesAgrupadas()
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -282,6 +333,42 @@ export default function ListadoOCPage() {
             >
               Nueva OC
             </Link>
+          </div>
+        </div>
+
+        {/* Toggle Vista */}
+        <div className="mb-6">
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-gray-700">Tipo de vista:</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${!vistaAgrupada ? 'font-semibold text-blue-600' : 'text-gray-500'}`}>
+                    Individual
+                  </span>
+                  <button
+                    onClick={() => setVistaAgrupada(!vistaAgrupada)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      vistaAgrupada ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        vistaAgrupada ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                  <span className={`text-sm ${vistaAgrupada ? 'font-semibold text-blue-600' : 'text-gray-500'}`}>
+                    Agrupada por Proveedor
+                  </span>
+                </div>
+              </div>
+              {vistaAgrupada && (
+                <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                  💡 Ideal para calcular pagos de cuenta corriente
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -399,6 +486,9 @@ export default function ListadoOCPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                {!vistaAgrupada ? (
+                  /* Headers Vista Individual */
+                  <>
                   <th 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                     onClick={() => handleSort('codigo')}
@@ -456,10 +546,33 @@ export default function ListadoOCPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     PDF
                   </th>
+                  </>
+                ) : (
+                  /* Headers Vista Agrupada */
+                  <>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Proveedor
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Cantidad OC
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estados
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total a Pagar
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Detalles
+                  </th>
+                  </>
+                )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {sortedOrdenes.map((orden) => {
+                {!vistaAgrupada ? (
+                  /* Vista Individual */
+                  sortedOrdenes.map((orden) => {
                   const estado = getEstadoOrden(orden)
                   const estadoInfo = getEstadoInfo(estado, orden.es_emergencia)
                   return (
@@ -529,13 +642,73 @@ export default function ListadoOCPage() {
                       </td>
                     </tr>
                   )
-                })}
+                  })
+                ) : (
+                  /* Vista Agrupada */
+                  ordenesAgrupadas.map((grupo) => (
+                    <tr key={grupo.proveedor} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {grupo.proveedor}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{grupo.cantidadOrdenes}</span>
+                          <span className="text-xs text-gray-500">órdenes</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex gap-2">
+                          {grupo.estadosResumen.compras > 0 && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-800 border border-red-300">
+                              {grupo.estadosResumen.compras} Compras
+                            </span>
+                          )}
+                          {grupo.estadosResumen.tesoreria > 0 && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-300">
+                              {grupo.estadosResumen.tesoreria} Tesorería
+                            </span>
+                          )}
+                          {grupo.estadosResumen.completada > 0 && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-800 border border-green-300">
+                              {grupo.estadosResumen.completada} Completadas
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="space-y-1">
+                          {Object.entries(grupo.totalPorMoneda).map(([moneda, total]) => (
+                            <div key={moneda} className="flex items-center gap-2">
+                              <span className="font-bold text-lg">
+                                {simbolosMonedas[moneda] || '$'}{total.toLocaleString()}
+                              </span>
+                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                {moneda}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        <button
+                          onClick={() => {
+                            // TODO: Expandir/colapsar detalles
+                            console.log('Mostrar detalles para:', grupo.proveedor)
+                          }}
+                          className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        >
+                          Ver OCs ({grupo.cantidadOrdenes})
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {sortedOrdenes.length === 0 && (
+        {(!vistaAgrupada ? sortedOrdenes.length === 0 : ordenesAgrupadas.length === 0) && (
           <div className="text-center py-12 bg-white rounded-lg shadow-md">
             <XCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">No hay órdenes de compra</p>
