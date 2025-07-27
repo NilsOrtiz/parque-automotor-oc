@@ -15,9 +15,11 @@ export default function BusquedaPage() {
   const [editMode, setEditMode] = useState(false)
   const [editedVehiculo, setEditedVehiculo] = useState<Vehiculo | null>(null)
   const [saving, setSaving] = useState(false)
-  const [vistaActual, setVistaActual] = useState<'datos' | 'historial'>('datos')
+  const [vistaActual, setVistaActual] = useState<'datos' | 'historial' | 'pendientes'>('datos')
   const [historial, setHistorial] = useState<any[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
+  const [pendientes, setPendientes] = useState<any[]>([])
+  const [loadingPendientes, setLoadingPendientes] = useState(false)
 
   async function buscarVehiculo() {
     if (!termino.trim()) {
@@ -48,8 +50,9 @@ export default function BusquedaPage() {
       } else {
         setVehiculo(data)
         setEditedVehiculo(data)
-        // Cargar historial automáticamente
+        // Cargar historial y pendientes automáticamente
         await cargarHistorial(data.id)
+        await cargarPendientes(data.id)
       }
     } catch (error) {
       console.error('Error en búsqueda:', error)
@@ -102,6 +105,25 @@ export default function BusquedaPage() {
       setHistorial([])
     } finally {
       setLoadingHistorial(false)
+    }
+  }
+
+  async function cargarPendientes(vehiculoId: number) {
+    setLoadingPendientes(true)
+    try {
+      const { data, error } = await supabase
+        .from('pendientes_observaciones')
+        .select('*')
+        .eq('id', vehiculoId)
+        .order('fecha_creacion', { ascending: false })
+
+      if (error) throw error
+      setPendientes(data || [])
+    } catch (error) {
+      console.error('Error cargando pendientes:', error)
+      setPendientes([])
+    } finally {
+      setLoadingPendientes(false)
     }
   }
 
@@ -265,29 +287,41 @@ export default function BusquedaPage() {
                 </div>
               </div>
 
-              {/* Toggle Vista */}
+              {/* Toggle Vista de 3 estados */}
               <div className="mb-6 border-t pt-6">
-                <div className="flex items-center justify-center gap-4">
-                  <span className="text-sm font-medium text-gray-700">Vista:</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm ${vistaActual === 'datos' ? 'font-semibold text-blue-600' : 'text-gray-500'}`}>
-                      Datos del Vehículo
-                    </span>
+                <div className="flex items-center justify-center">
+                  <span className="text-sm font-medium text-gray-700 mr-4">Vista:</span>
+                  <div className="bg-gray-100 rounded-lg p-1 inline-flex">
                     <button
-                      onClick={() => setVistaActual(vistaActual === 'datos' ? 'historial' : 'datos')}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        vistaActual === 'historial' ? 'bg-blue-600' : 'bg-gray-200'
+                      onClick={() => setVistaActual('datos')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        vistaActual === 'datos'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                       }`}
                     >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          vistaActual === 'historial' ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
+                      Datos del Vehículo
                     </button>
-                    <span className={`text-sm ${vistaActual === 'historial' ? 'font-semibold text-blue-600' : 'text-gray-500'}`}>
+                    <button
+                      onClick={() => setVistaActual('historial')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        vistaActual === 'historial'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                      }`}
+                    >
                       Historial
-                    </span>
+                    </button>
+                    <button
+                      onClick={() => setVistaActual('pendientes')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        vistaActual === 'pendientes'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                      }`}
+                    >
+                      Pendientes
+                    </button>
                   </div>
                 </div>
               </div>
@@ -743,7 +777,7 @@ export default function BusquedaPage() {
               onUpdate={updateVehiculo}
             />
             </>
-            ) : (
+            ) : vistaActual === 'historial' ? (
               /* Vista de Historial */
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center justify-between mb-6">
@@ -838,6 +872,104 @@ export default function BusquedaPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Vista de Pendientes */
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Problemas y Pendientes</h3>
+                  <div className="text-sm text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                    {pendientes.length} pendiente(s)
+                  </div>
+                </div>
+
+                {loadingPendientes ? (
+                  <div className="text-center py-8">
+                    <div className="text-lg text-gray-500">Cargando pendientes...</div>
+                  </div>
+                ) : pendientes.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 text-lg mb-2">✅</div>
+                    <p className="text-gray-500">No hay problemas pendientes para este vehículo</p>
+                    <p className="text-gray-400 text-sm mt-2">El vehículo está en buen estado</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendientes.map((pendiente) => (
+                      <div key={pendiente.id_pendiente} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium ${
+                              pendiente.criticidad === 'alta' ? 'bg-red-100 text-red-800' :
+                              pendiente.criticidad === 'media' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {pendiente.clasificacion}
+                            </span>
+                            {pendiente.subclasificacion && (
+                              <span className="text-sm text-gray-500">
+                                → {pendiente.subclasificacion}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              pendiente.criticidad === 'alta' ? 'bg-red-100 text-red-800' :
+                              pendiente.criticidad === 'media' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {pendiente.criticidad === 'alta' ? '🔴 Alta' :
+                               pendiente.criticidad === 'media' ? '🟡 Media' :
+                               '🟢 Baja'}
+                            </span>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              pendiente.estado === 'completado' ? 'bg-green-100 text-green-800' :
+                              pendiente.estado === 'en_progreso' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {pendiente.estado === 'completado' ? 'Completado' :
+                               pendiente.estado === 'en_progreso' ? 'En Progreso' :
+                               'Pendiente'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="mb-3">
+                          <h4 className="font-medium text-gray-900 mb-1">Descripción del problema:</h4>
+                          <p className="text-gray-700">{pendiente.descripcion}</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                          <div>
+                            <span className="font-medium">Fecha de creación:</span>
+                            <div>{new Date(pendiente.fecha_creacion).toLocaleDateString()}</div>
+                          </div>
+                          {pendiente.fecha_programada && (
+                            <div>
+                              <span className="font-medium">Fecha programada:</span>
+                              <div>{new Date(pendiente.fecha_programada).toLocaleDateString()}</div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Ejemplo de acciones que podrías agregar */}
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <div className="flex gap-2">
+                            <button className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors">
+                              Ver detalles
+                            </button>
+                            <button className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 transition-colors">
+                              Marcar como resuelto
+                            </button>
+                            <button className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200 transition-colors">
+                              Reprogramar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
