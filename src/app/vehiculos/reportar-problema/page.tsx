@@ -112,10 +112,11 @@ export default function ReportarProblemaPage() {
           clasificacion,
           subclasificacion: subclasificacion || null,
           descripcion,
+          criticidad: prioridad, // Campo legacy - mapear prioridad a criticidad
           prioridad,
           tiempo_estimado: tiempoEstimado || null,
           estado: 'pendiente',
-          fecha_creacion: new Date().toISOString(),
+          fecha_creacion: new Date().toISOString().split('T')[0], // Solo fecha, no timestamp
           created_at: new Date().toISOString()
         })
 
