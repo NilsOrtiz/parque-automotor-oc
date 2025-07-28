@@ -28,6 +28,7 @@ export default function RegistroServicioPage() {
   const [subclasificacion, setSubclasificacion] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [items, setItems] = useState('')
+  const [kilometrajeServicio, setKilometrajeServicio] = useState<number | ''>('')
   const [ordenesSeleccionadas, setOrdenesSeleccionadas] = useState<number[]>([])
   
   // Órdenes de compra disponibles
@@ -173,6 +174,9 @@ export default function RegistroServicioPage() {
         ? JSON.stringify(ordenesSeleccionadas) 
         : null
 
+      // Determinar automáticamente quién reportó el problema
+      const problemaReportadoPor = pendienteSeleccionado ? 'chofer' : 'mecanico'
+
       const { error } = await supabase
         .from('historial')
         .insert({
@@ -181,6 +185,8 @@ export default function RegistroServicioPage() {
           subclasificacion: subclasificacion || null,
           descripcion: descripcion.trim(),
           items: items.trim() || null,
+          kilometraje_al_servicio: kilometrajeServicio || null,
+          problema_reportado_por: problemaReportadoPor,
           ocs_vehiculos: ocsVehiculosJson,
           fecha_servicio: new Date().toISOString().split('T')[0] // Fecha actual
         })
@@ -207,6 +213,7 @@ export default function RegistroServicioPage() {
       setSubclasificacion('')
       setDescripcion('')
       setItems('')
+      setKilometrajeServicio('')
       setOrdenesSeleccionadas([])
       setPendienteSeleccionado(null)
       
@@ -437,6 +444,28 @@ export default function RegistroServicioPage() {
                   )}
                 </div>
               )}
+
+              {/* Kilometraje al Servicio */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kilometraje al Momento del Servicio
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={kilometrajeServicio}
+                    onChange={(e) => setKilometrajeServicio(e.target.value ? parseInt(e.target.value) : '')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder={`Kilometraje actual: ${vehiculo?.kilometraje_actual?.toLocaleString() || 'No registrado'}`}
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">km</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Ingresa el kilometraje actual que muestra el odómetro del vehículo
+                </p>
+              </div>
 
               {/* Descripción */}
               <div>
