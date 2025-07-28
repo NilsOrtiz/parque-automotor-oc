@@ -35,6 +35,11 @@ export default function RegistroServicioPage() {
   const [loadingOrdenes, setLoadingOrdenes] = useState(false)
   const [totalOrdenes, setTotalOrdenes] = useState(0)
 
+  // Pendientes del vehículo
+  const [pendientesDisponibles, setPendientesDisponibles] = useState<any[]>([])
+  const [pendienteSeleccionado, setPendienteSeleccionado] = useState<number | null>(null)
+  const [loadingPendientes, setLoadingPendientes] = useState(false)
+
   const subclasificaciones = [
     'Motor', 'Transmisión', 'Frenos', 'Suspensión', 'Neumáticos', 
     'Eléctrico', 'Electrónico', 'Carrocería', 'Interior', 'Documentación',
@@ -71,6 +76,7 @@ export default function RegistroServicioPage() {
       } else {
         setVehiculo(data)
         await cargarOrdenesDisponibles(data.Placa)
+        await cargarPendientesDisponibles(data.id)
       }
     } catch (error) {
       console.error('Error en búsqueda:', error)
@@ -130,6 +136,26 @@ export default function RegistroServicioPage() {
     }
   }
 
+  async function cargarPendientesDisponibles(vehiculoId: number) {
+    setLoadingPendientes(true)
+    try {
+      const { data, error } = await supabase
+        .from('pendientes_observaciones')
+        .select('*')
+        .eq('id', vehiculoId)
+        .neq('estado', 'completado')
+        .order('fecha_creacion', { ascending: false })
+
+      if (error) throw error
+      setPendientesDisponibles(data || [])
+    } catch (error) {
+      console.error('Error cargando pendientes:', error)
+      setPendientesDisponibles([])
+    } finally {
+      setLoadingPendientes(false)
+    }
+  }
+
   async function guardarServicio() {
     if (!vehiculo) return
 
@@ -161,7 +187,20 @@ export default function RegistroServicioPage() {
 
       if (error) throw error
 
-      setSuccess('Servicio registrado correctamente')
+      // Si se seleccionó un pendiente, marcarlo como resuelto
+      if (pendienteSeleccionado) {
+        const { error: errorPendiente } = await supabase
+          .from('pendientes_observaciones')
+          .delete()
+          .eq('id_pendiente', pendienteSeleccionado)
+
+        if (errorPendiente) {
+          console.error('Error eliminando pendiente:', errorPendiente)
+          // No falla el guardado por esto, solo logueamos el error
+        }
+      }
+
+      setSuccess('Servicio registrado correctamente' + (pendienteSeleccionado ? ' y problema resuelto' : ''))
       
       // Limpiar formulario
       setClasificacion('mantenimiento')
@@ -169,7 +208,12 @@ export default function RegistroServicioPage() {
       setDescripcion('')
       setItems('')
       setOrdenesSeleccionadas([])
+      setPendienteSeleccionado(null)
       
+      // Recargar pendientes para actualizar la lista
+      if (vehiculo) {
+        await cargarPendientesDisponibles(vehiculo.id)
+      }
     } catch (error) {
       console.error('Error guardando servicio:', error)
       setError('Error al guardar el servicio')
@@ -320,6 +364,79 @@ export default function RegistroServicioPage() {
                   ))}
                 </select>
               </div>
+
+              {/* Problemas Reportados */}
+              {pendientesDisponibles.length > 0 && (
+                <div className="border-t pt-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    ¿Este servicio resuelve algún problema reportado? (Opcional)
+                  </label>
+                  
+                  {loadingPendientes ? (
+                    <div className="text-center py-4">
+                      <div className="text-sm text-gray-500">Cargando problemas reportados...</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="sin-pendiente"
+                          name="pendiente"
+                          checked={pendienteSeleccionado === null}
+                          onChange={() => setPendienteSeleccionado(null)}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                        />
+                        <label htmlFor="sin-pendiente" className="ml-2 text-sm text-gray-700">
+                          No resuelve ningún problema reportado
+                        </label>
+                      </div>
+                      
+                      {pendientesDisponibles.map((pendiente) => (
+                        <div key={pendiente.id_pendiente} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                          <input
+                            type="radio"
+                            id={`pendiente-${pendiente.id_pendiente}`}
+                            name="pendiente"
+                            checked={pendienteSeleccionado === pendiente.id_pendiente}
+                            onChange={() => setPendienteSeleccionado(pendiente.id_pendiente)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 mt-1"
+                          />
+                          <label htmlFor={`pendiente-${pendiente.id_pendiente}`} className="flex-1 cursor-pointer">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium ${
+                                pendiente.prioridad === 'critico' ? 'bg-red-100 text-red-800' :
+                                pendiente.prioridad === 'medio' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {pendiente.clasificacion}
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                pendiente.prioridad === 'critico' ? 'bg-red-100 text-red-800' :
+                                pendiente.prioridad === 'medio' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {pendiente.prioridad === 'critico' ? '🔴 Crítico' :
+                                 pendiente.prioridad === 'medio' ? '🟡 Medio' :
+                                 '🟢 Leve'}
+                              </span>
+                              {pendiente.tiempo_estimado && (
+                                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                  ~{pendiente.tiempo_estimado}h
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-900 font-medium">{pendiente.descripcion}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Reportado el {new Date(pendiente.fecha_creacion).toLocaleDateString()}
+                            </p>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Descripción */}
               <div>
