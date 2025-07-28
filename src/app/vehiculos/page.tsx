@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle } from 'lucide-react'
+import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle, List } from 'lucide-react'
 
 export default function VehiculosPage() {
   return (
@@ -218,6 +218,41 @@ export default function VehiculosPage() {
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-red-400 rounded-full mr-3"></div>
                   Gestión de prioridades
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Lista de Pendientes */}
+          <Link href="/vehiculos/lista-pendientes" className="group">
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-orange-500 group-hover:border-orange-600">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="bg-orange-100 p-3 rounded-lg mr-4">
+                    <List className="h-8 w-8 text-orange-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 group-hover:text-orange-600">
+                      Lista de Pendientes
+                    </h2>
+                    <p className="text-gray-500">Control de problemas reportados</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-6 w-6 text-gray-400 group-hover:text-orange-600 transition-colors" />
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
+                  Vista general de todos los problemas
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
+                  Filtros por prioridad y estado
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
+                  Información para operaciones
                 </div>
               </div>
             </div>
