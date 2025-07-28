@@ -297,7 +297,9 @@ export interface PendienteObservacion {
   clasificacion: string
   subclasificacion?: string
   descripcion: string
-  criticidad: string
+  criticidad: string // Campo legacy - usar prioridad
+  prioridad: 'leve' | 'medio' | 'critico'
+  tiempo_estimado?: number // en horas
   estado?: string
   fecha_creacion: string
   fecha_programada?: string
