@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText } from 'lucide-react'
+import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle } from 'lucide-react'
 
 export default function VehiculosPage() {
   return (
@@ -183,6 +183,41 @@ export default function VehiculosPage() {
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-indigo-400 rounded-full mr-3"></div>
                   Documentación de trabajos
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Reportar Problema */}
+          <Link href="/vehiculos/reportar-problema" className="group">
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-red-500 group-hover:border-red-600">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="bg-red-100 p-3 rounded-lg mr-4">
+                    <AlertTriangle className="h-8 w-8 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 group-hover:text-red-600">
+                      Reportar Problema
+                    </h2>
+                    <p className="text-gray-500">Para choferes y mecánicos</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-6 w-6 text-gray-400 group-hover:text-red-600 transition-colors" />
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mr-3"></div>
+                  Reportes de choferes
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mr-3"></div>
+                  Diagnósticos de mecánicos
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mr-3"></div>
+                  Gestión de prioridades
                 </div>
               </div>
             </div>
