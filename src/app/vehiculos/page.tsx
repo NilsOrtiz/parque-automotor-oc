@@ -83,8 +83,9 @@ export default function VehiculosPage() {
             </div>
           </Link>
 
-          {/* Análisis de Consumo de Combustible */}
-          <Link href="/vehiculos/analisis-combustible" className="group">
+          {/* Análisis de Consumo de Combustible - TEMPORALMENTE DESHABILITADO */}
+          {/* <Link href="/vehiculos/analisis-combustible" className="group"> */}
+          <div className="group opacity-50 cursor-not-allowed">
             <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-orange-500 group-hover:border-orange-600">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
@@ -116,7 +117,8 @@ export default function VehiculosPage() {
                 </div>
               </div>
             </div>
-          </Link>
+          </div>
+          {/* </Link> */}
 
           {/* Revisión Mensual */}
           <Link href="/vehiculos/revision-mensual" className="group">

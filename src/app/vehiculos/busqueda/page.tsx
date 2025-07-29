@@ -75,7 +75,7 @@ export default function BusquedaPage() {
       
       // Procesar cada registro para incluir datos de órdenes de compra
       const historialConOrdenes = await Promise.all((data || []).map(async (registro) => {
-        let ordenesRelacionadas = []
+        let ordenesRelacionadas: any[] = []
         
         if (registro.ocs_vehiculos) {
           try {
@@ -902,8 +902,8 @@ export default function BusquedaPage() {
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
                             <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium ${
-                              pendiente.criticidad === 'alta' ? 'bg-red-100 text-red-800' :
-                              pendiente.criticidad === 'media' ? 'bg-yellow-100 text-yellow-800' :
+                              pendiente.prioridad === 'critico' ? 'bg-red-100 text-red-800' :
+                              pendiente.prioridad === 'medio' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-blue-100 text-blue-800'
                             }`}>
                               {pendiente.clasificacion}
@@ -916,13 +916,13 @@ export default function BusquedaPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              pendiente.criticidad === 'alta' ? 'bg-red-100 text-red-800' :
-                              pendiente.criticidad === 'media' ? 'bg-yellow-100 text-yellow-800' :
+                              pendiente.prioridad === 'critico' ? 'bg-red-100 text-red-800' :
+                              pendiente.prioridad === 'medio' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-green-100 text-green-800'
                             }`}>
-                              {pendiente.criticidad === 'alta' ? '🔴 Alta' :
-                               pendiente.criticidad === 'media' ? '🟡 Media' :
-                               '🟢 Baja'}
+                              {pendiente.prioridad === 'critico' ? '🔴 Crítico' :
+                               pendiente.prioridad === 'medio' ? '🟡 Medio' :
+                               '🟢 Leve'}
                             </span>
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                               pendiente.estado === 'completado' ? 'bg-green-100 text-green-800' :
