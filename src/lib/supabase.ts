@@ -201,6 +201,20 @@ export interface Vehiculo {
   trampa_agua_modelo?: string
   // Campo para revisiones mensuales
   fecha_ultima_revision?: string
+  capacidad_tanque_litros?: number
+}
+
+// Interface para cargas de combustible YPF
+export interface CargaCombustibleYPF {
+  id: number
+  fecha_carga: string
+  placa: string
+  odometro?: number
+  litros_cargados: number
+  tipo_combustible?: string
+  monto_total?: number
+  fecha_extraccion?: string
+  created_at?: string
 }
 
 export interface OrdenCompra {

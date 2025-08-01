@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle, List } from 'lucide-react'
+import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle, List, Fuel } from 'lucide-react'
 
 export default function VehiculosPage() {
   return (
@@ -83,14 +83,13 @@ export default function VehiculosPage() {
             </div>
           </Link>
 
-          {/* Análisis de Consumo de Combustible - TEMPORALMENTE DESHABILITADO */}
-          {/* <Link href="/vehiculos/analisis-combustible" className="group"> */}
-          <div className="group opacity-50 cursor-not-allowed">
+          {/* Análisis de Consumo de Combustible */}
+          <Link href="/vehiculos/analisis-combustible" className="group">
             <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-orange-500 group-hover:border-orange-600">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
                   <div className="bg-orange-100 p-3 rounded-lg mr-4">
-                    <BarChart3 className="h-8 w-8 text-orange-600" />
+                    <Fuel className="h-8 w-8 text-orange-600" />
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 group-hover:text-orange-600">
@@ -105,20 +104,19 @@ export default function VehiculosPage() {
               <div className="space-y-3">
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
-                  Consumo por vehículo
+                  Consumo km/litro por vehículo
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
-                  Tendencias mensuales
+                  Gráficas de eficiencia
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
-                  Comparativas de eficiencia
+                  Costo por kilómetro
                 </div>
               </div>
             </div>
-          </div>
-          {/* </Link> */}
+          </Link>
 
           {/* Revisión Mensual */}
           <Link href="/vehiculos/revision-mensual" className="group">
