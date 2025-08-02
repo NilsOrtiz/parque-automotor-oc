@@ -309,113 +309,104 @@ export async function exportarOrdenesCompleto(
       { width: 18 }  // Fecha Creación
     ]
 
-    // Aplicar formato mejorado a los headers
-    const range = XLSX.utils.decode_range(wsPrincipal['!ref'] || 'A1')
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: col })
-      if (!wsPrincipal[cellRef]) continue
-      wsPrincipal[cellRef].s = {
-        font: { bold: true, color: { rgb: "FFFFFF" }, size: 12 },
-        fill: { fgColor: { rgb: "1E40AF" } }, // Azul más oscuro para headers
-        alignment: { horizontal: "center", vertical: "center" },
-        border: {
-          top: { style: "thick", color: { rgb: "000000" } },
-          bottom: { style: "thick", color: { rgb: "000000" } },
-          left: { style: "medium", color: { rgb: "000000" } },
-          right: { style: "medium", color: { rgb: "000000" } }
-        }
-      }
-    }
-
-    // Aplicar formato a todas las filas de datos (no headers)
-    const totalRows = range.e.r
-    for (let row = 1; row <= totalRows; row++) {
-      for (let col = range.s.c; col <= range.e.c; col++) {
-        const cellRef = XLSX.utils.encode_cell({ r: row, c: col })
-        if (!wsPrincipal[cellRef]) {
-          wsPrincipal[cellRef] = { v: '', t: 's' }
-        }
-        
-        // Formato básico para todas las celdas de datos
-        let alignment = "left"
-        // Centrar ciertas columnas para mejor legibilidad
-        if (col === 1 || col === 4 || col === 8 || col === 9 || col === 10 || col === 11) { // Fecha, Interno, Moneda, Estado, Emergencia, PDF
-          alignment = "center"
-        } else if (col === 7) { // Monto
-          alignment = "right"
-        }
-        
-        wsPrincipal[cellRef].s = {
-          font: { size: 10 },
-          alignment: { horizontal: alignment, vertical: "center" },
-          border: {
-            top: { style: "thin", color: { rgb: "E5E7EB" } },
-            bottom: { style: "thin", color: { rgb: "E5E7EB" } },
-            left: { style: "thin", color: { rgb: "E5E7EB" } },
-            right: { style: "thin", color: { rgb: "E5E7EB" } }
-          }
-        }
-      }
-    }
-
-    // Si es vista agrupada, aplicar formato especial a las filas de resumen
+    // Configurar estructura mejorada para el Excel
+    // Agregar espacios y separadores visuales para claridad
     if (options.vistaAgrupada) {
-      let currentRow = 1 // Empezar después del header
+      // Modificar datos agrupados para mejor presentación visual
+      const datosVisualesMejorados: any[] = [headers]
+      
       grupos.forEach((grupo, index) => {
-        // Aplicar formato alternado a las filas de órdenes individuales del proveedor
-        for (let i = 0; i < grupo.ordenes.length; i++) {
-          const rowIndex = currentRow + i
-          const isEvenGroup = index % 2 === 0
-          const backgroundColor = isEvenGroup ? "F9FAFB" : "FFFFFF" // Alternar fondo gris claro
+        // Agregar fila separadora con nombre del proveedor
+        datosVisualesMejorados.push([
+          '═══════════════════════════════════════════════════════════════════════════',
+          '',
+          '',
+          `PROVEEDOR: ${grupo.proveedor.toUpperCase()}`,
+          '',
+          '',
+          `${grupo.cantidadOrdenes} ÓRDENES`,
+          `TOTAL: ${Object.entries(grupo.totalPorMoneda).map(([moneda, total]) => 
+            `${simbolosMonedas[moneda] || '$'}${total.toLocaleString()} ${moneda}`
+          ).join(' + ')}`,
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          ''
+        ])
+        
+        // Agregar órdenes del proveedor
+        grupo.ordenes.forEach(orden => {
+          const estado = getEstadoOrden(orden)
+          const vehiculo = orden.placa && orden.modelo 
+            ? `${orden.placa} • ${orden.modelo}`
+            : (orden.placa || orden.modelo || '-')
           
-          for (let col = range.s.c; col <= range.e.c; col++) {
-            const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: col })
-            if (wsPrincipal[cellRef]) {
-              wsPrincipal[cellRef].s = {
-                ...wsPrincipal[cellRef].s,
-                fill: { fgColor: { rgb: backgroundColor } }
-              }
-            }
-          }
-        }
+          const montoFormateado = orden.monto 
+            ? `${simbolosMonedas[orden.moneda || 'ARS'] || '$'}${orden.monto.toLocaleString()}`
+            : '-'
+
+          datosVisualesMejorados.push([
+            orden.codigo,
+            formatearFecha(orden.fecha),
+            vehiculo,
+            orden.placa || '-',
+            orden.interno || '-',
+            orden.modelo || '-',
+            orden.proveedor || '-',
+            montoFormateado,
+            orden.moneda || 'ARS',
+            getEstadoTexto(estado, orden.es_emergencia),
+            orden.es_emergencia ? '🚨 URGENTE' : 'Normal',
+            orden.pdf_url ? '✅ Disponible' : '❌ Sin PDF',
+            orden.pdf_url ? `${orden.codigo}.pdf` : '-',
+            orden.titular || '-',
+            orden.cuit || '-',
+            orden.items || '-',
+            orden.created_at ? new Date(orden.created_at).toLocaleString('es-ES') : '-'
+          ])
+        })
         
-        // Saltar las filas de órdenes individuales
-        currentRow += grupo.ordenes.length
+        // Agregar fila de resumen del proveedor destacada
+        const totalTextos = Object.entries(grupo.totalPorMoneda).map(([moneda, total]) => 
+          `${simbolosMonedas[moneda] || '$'}${total.toLocaleString()} ${moneda}`
+        ).join(' + ')
+
+        const estadosTexto = []
+        if (grupo.estadosResumen.compras > 0) estadosTexto.push(`${grupo.estadosResumen.compras} Compras`)
+        if (grupo.estadosResumen.tesoreria > 0) estadosTexto.push(`${grupo.estadosResumen.tesoreria} Tesorería`)
+        if (grupo.estadosResumen.completada > 0) estadosTexto.push(`${grupo.estadosResumen.completada} Completadas`)
+
+        datosVisualesMejorados.push([
+          '>>> RESUMEN <<<',
+          '',
+          '',
+          `>>> ${grupo.proveedor} <<<`,
+          '',
+          '',
+          `>>> ${grupo.cantidadOrdenes} órdenes <<<`,
+          `>>> ${totalTextos} <<<`,
+          '',
+          `>>> ${estadosTexto.join(', ')} <<<`,
+          '',
+          '>>> TOTAL <<<',
+          '',
+          '',
+          '',
+          '',
+          ''
+        ])
         
-        // Aplicar formato especial a la fila de resumen
-        for (let col = range.s.c; col <= range.e.c; col++) {
-          const cellRef = XLSX.utils.encode_cell({ r: currentRow, c: col })
-          if (!wsPrincipal[cellRef]) {
-            wsPrincipal[cellRef] = { v: '', t: 's' }
-          }
-          wsPrincipal[cellRef].s = {
-            font: { bold: true, color: { rgb: "FFFFFF" }, size: 11 },
-            fill: { fgColor: { rgb: "2563EB" } }, // Azul vibrante para resumen
-            alignment: { horizontal: "center", vertical: "center" },
-            border: {
-              top: { style: "thick", color: { rgb: "1D4ED8" } },
-              bottom: { style: "thick", color: { rgb: "1D4ED8" } },
-              left: { style: "medium", color: { rgb: "1D4ED8" } },
-              right: { style: "medium", color: { rgb: "1D4ED8" } }
-            }
-          }
-        }
-        currentRow++ // Pasar a la siguiente fila
+        // Agregar fila en blanco entre proveedores
+        datosVisualesMejorados.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
       })
-    } else {
-      // Para vista individual, aplicar formato zebra (filas alternadas)
-      for (let row = 1; row <= totalRows; row++) {
-        const backgroundColor = row % 2 === 0 ? "F9FAFB" : "FFFFFF"
-        for (let col = range.s.c; col <= range.e.c; col++) {
-          const cellRef = XLSX.utils.encode_cell({ r: row, c: col })
-          if (wsPrincipal[cellRef]) {
-            wsPrincipal[cellRef].s = {
-              ...wsPrincipal[cellRef].s,
-              fill: { fgColor: { rgb: backgroundColor } }
-            }
-          }
-        }
-      }
+      
+      // Crear nueva hoja con datos mejorados
+      wsPrincipal = XLSX.utils.aoa_to_sheet(datosVisualesMejorados)
     }
     
     const nombreHoja = options.vistaAgrupada ? 'OC Agrupadas por Proveedor' : 'Órdenes de Compra'
