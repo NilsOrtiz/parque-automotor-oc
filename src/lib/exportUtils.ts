@@ -309,39 +309,113 @@ export async function exportarOrdenesCompleto(
       { width: 18 }  // Fecha Creación
     ]
 
-    // Aplicar formato a los headers
+    // Aplicar formato mejorado a los headers
     const range = XLSX.utils.decode_range(wsPrincipal['!ref'] || 'A1')
     for (let col = range.s.c; col <= range.e.c; col++) {
       const cellRef = XLSX.utils.encode_cell({ r: 0, c: col })
       if (!wsPrincipal[cellRef]) continue
       wsPrincipal[cellRef].s = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "4F46E5" } }, // Color azul como la web
-        alignment: { horizontal: "center", vertical: "center" }
+        font: { bold: true, color: { rgb: "FFFFFF" }, size: 12 },
+        fill: { fgColor: { rgb: "1E40AF" } }, // Azul más oscuro para headers
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thick", color: { rgb: "000000" } },
+          bottom: { style: "thick", color: { rgb: "000000" } },
+          left: { style: "medium", color: { rgb: "000000" } },
+          right: { style: "medium", color: { rgb: "000000" } }
+        }
+      }
+    }
+
+    // Aplicar formato a todas las filas de datos (no headers)
+    const totalRows = range.e.r
+    for (let row = 1; row <= totalRows; row++) {
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: row, c: col })
+        if (!wsPrincipal[cellRef]) {
+          wsPrincipal[cellRef] = { v: '', t: 's' }
+        }
+        
+        // Formato básico para todas las celdas de datos
+        let alignment = "left"
+        // Centrar ciertas columnas para mejor legibilidad
+        if (col === 1 || col === 4 || col === 8 || col === 9 || col === 10 || col === 11) { // Fecha, Interno, Moneda, Estado, Emergencia, PDF
+          alignment = "center"
+        } else if (col === 7) { // Monto
+          alignment = "right"
+        }
+        
+        wsPrincipal[cellRef].s = {
+          font: { size: 10 },
+          alignment: { horizontal: alignment, vertical: "center" },
+          border: {
+            top: { style: "thin", color: { rgb: "E5E7EB" } },
+            bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+            left: { style: "thin", color: { rgb: "E5E7EB" } },
+            right: { style: "thin", color: { rgb: "E5E7EB" } }
+          }
+        }
       }
     }
 
     // Si es vista agrupada, aplicar formato especial a las filas de resumen
     if (options.vistaAgrupada) {
       let currentRow = 1 // Empezar después del header
-      grupos.forEach(grupo => {
+      grupos.forEach((grupo, index) => {
+        // Aplicar formato alternado a las filas de órdenes individuales del proveedor
+        for (let i = 0; i < grupo.ordenes.length; i++) {
+          const rowIndex = currentRow + i
+          const isEvenGroup = index % 2 === 0
+          const backgroundColor = isEvenGroup ? "F9FAFB" : "FFFFFF" // Alternar fondo gris claro
+          
+          for (let col = range.s.c; col <= range.e.c; col++) {
+            const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: col })
+            if (wsPrincipal[cellRef]) {
+              wsPrincipal[cellRef].s = {
+                ...wsPrincipal[cellRef].s,
+                fill: { fgColor: { rgb: backgroundColor } }
+              }
+            }
+          }
+        }
+        
         // Saltar las filas de órdenes individuales
         currentRow += grupo.ordenes.length
         
-        // Aplicar formato azul a la fila de resumen
+        // Aplicar formato especial a la fila de resumen
         for (let col = range.s.c; col <= range.e.c; col++) {
           const cellRef = XLSX.utils.encode_cell({ r: currentRow, c: col })
           if (!wsPrincipal[cellRef]) {
             wsPrincipal[cellRef] = { v: '', t: 's' }
           }
           wsPrincipal[cellRef].s = {
-            font: { bold: true, color: { rgb: "FFFFFF" } },
-            fill: { fgColor: { rgb: "3B82F6" } }, // Azul para resumen (como la web)
-            alignment: { horizontal: "center", vertical: "center" }
+            font: { bold: true, color: { rgb: "FFFFFF" }, size: 11 },
+            fill: { fgColor: { rgb: "2563EB" } }, // Azul vibrante para resumen
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thick", color: { rgb: "1D4ED8" } },
+              bottom: { style: "thick", color: { rgb: "1D4ED8" } },
+              left: { style: "medium", color: { rgb: "1D4ED8" } },
+              right: { style: "medium", color: { rgb: "1D4ED8" } }
+            }
           }
         }
         currentRow++ // Pasar a la siguiente fila
       })
+    } else {
+      // Para vista individual, aplicar formato zebra (filas alternadas)
+      for (let row = 1; row <= totalRows; row++) {
+        const backgroundColor = row % 2 === 0 ? "F9FAFB" : "FFFFFF"
+        for (let col = range.s.c; col <= range.e.c; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: row, c: col })
+          if (wsPrincipal[cellRef]) {
+            wsPrincipal[cellRef].s = {
+              ...wsPrincipal[cellRef].s,
+              fill: { fgColor: { rgb: backgroundColor } }
+            }
+          }
+        }
+      }
     }
     
     const nombreHoja = options.vistaAgrupada ? 'OC Agrupadas por Proveedor' : 'Órdenes de Compra'
