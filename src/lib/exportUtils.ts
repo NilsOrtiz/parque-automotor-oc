@@ -434,6 +434,25 @@ export async function exportarOrdenesCompleto(
       })
     }
 
+    // Proteger la hoja para solo lectura
+    worksheet.protect('', {
+      selectLockedCells: true,      // Permite seleccionar celdas
+      selectUnlockedCells: true,    // Permite seleccionar celdas desbloqueadas
+      formatCells: false,           // No permite cambiar formato
+      formatColumns: false,         // No permite cambiar columnas
+      formatRows: false,            // No permite cambiar filas
+      insertColumns: false,         // No permite insertar columnas
+      insertRows: false,            // No permite insertar filas
+      insertHyperlinks: false,      // No permite insertar enlaces
+      deleteColumns: false,         // No permite eliminar columnas
+      deleteRows: false,            // No permite eliminar filas
+      sort: false,                  // No permite ordenar
+      autoFilter: false,            // No permite filtros automáticos
+      pivotTables: false,           // No permite tablas dinámicas
+      editObjects: false,           // No permite editar objetos
+      editScenarios: false          // No permite editar escenarios
+    })
+
     // Generar buffer del Excel
     const excelBuffer = await workbook.xlsx.writeBuffer()
     
