@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type OrdenCompra, getMonedaInfo } from '@/lib/supabase'
-import { ArrowLeft, CheckCircle, Clock, XCircle, ArrowUp, ArrowDown, ArrowUpDown, Search } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Clock, XCircle, ArrowUp, ArrowDown, ArrowUpDown, Search, Download, FileSpreadsheet, Archive } from 'lucide-react'
 import FiltroMonedas from '@/components/FiltroMonedas'
 import FiltroFechas from '@/components/FiltroFechas'
+import { exportarOrdenesCompleto, exportarSoloExcel } from '@/lib/exportUtils'
 
 type SortField = 'codigo' | 'fecha' | 'proveedor' | 'monto' | 'placa' | 'estado'
 type SortDirection = 'asc' | 'desc'
@@ -22,6 +23,7 @@ export default function ListadoOCPage() {
   const [fechaFin, setFechaFin] = useState<string | null>(null)
   const [buscarCodigo, setBuscarCodigo] = useState('')
   const [vistaAgrupada, setVistaAgrupada] = useState(false)
+  const [exportando, setExportando] = useState(false)
 
   useEffect(() => {
     fetchOrdenes()
@@ -299,6 +301,75 @@ export default function ListadoOCPage() {
     return sorted
   }
 
+  // Funciones de exportación
+  async function manejarExportacion(incluirPDFs: boolean) {
+    try {
+      setExportando(true)
+      
+      const ordenesParaExportar = getSortedOrdenes()
+      const gruposParaExportar = getOrdenesAgrupadas()
+      
+      if (ordenesParaExportar.length === 0) {
+        alert('No hay órdenes para exportar con los filtros actuales')
+        return
+      }
+
+      await exportarOrdenesCompleto(
+        ordenesParaExportar,
+        gruposParaExportar,
+        {
+          vistaAgrupada,
+          simbolosMonedas,
+          incluirPDFs
+        }
+      )
+
+      // Mostrar mensaje de éxito
+      const mensaje = incluirPDFs 
+        ? `Exportación completa iniciada: ${ordenesParaExportar.length} OC + PDFs`
+        : `Excel generado: ${ordenesParaExportar.length} OC`
+      
+      console.log('✅ Exportación exitosa:', mensaje)
+      
+    } catch (error) {
+      console.error('❌ Error en exportación:', error)
+      alert('Error al generar la exportación. Por favor, intenta de nuevo.')
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  async function exportarSoloExcelRapido() {
+    try {
+      setExportando(true)
+      
+      const ordenesParaExportar = getSortedOrdenes()
+      const gruposParaExportar = getOrdenesAgrupadas()
+      
+      if (ordenesParaExportar.length === 0) {
+        alert('No hay órdenes para exportar con los filtros actuales')
+        return
+      }
+
+      await exportarSoloExcel(
+        ordenesParaExportar,
+        gruposParaExportar,
+        {
+          vistaAgrupada,
+          simbolosMonedas
+        }
+      )
+
+      console.log('✅ Excel generado exitosamente:', ordenesParaExportar.length, 'OC')
+      
+    } catch (error) {
+      console.error('❌ Error generando Excel:', error)
+      alert('Error al generar el Excel. Por favor, intenta de nuevo.')
+    } finally {
+      setExportando(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -327,12 +398,14 @@ export default function ListadoOCPage() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Órdenes de Compra Creadas</h1>
               <p className="text-gray-600">Listado y seguimiento de todas las OC</p>
             </div>
-            <Link
-              href="/ordenes-compra/crear"
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-            >
-              Nueva OC
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/ordenes-compra/crear"
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+              >
+                Nueva OC
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -368,6 +441,74 @@ export default function ListadoOCPage() {
                   💡 Ideal para calcular pagos de cuenta corriente
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Botones de Exportación */}
+        <div className="mb-6">
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-gray-700">Exportar datos:</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">
+                    {getSortedOrdenes().length} OC seleccionadas
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {/* Excel solo */}
+                <button
+                  onClick={exportarSoloExcelRapido}
+                  disabled={exportando || getSortedOrdenes().length === 0}
+                  className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    exportando || getSortedOrdenes().length === 0
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-green-100 text-green-700 hover:bg-green-200'
+                  }`}
+                  title="Exportar solo Excel (rápido)"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  {exportando ? 'Generando...' : 'Solo Excel'}
+                </button>
+
+                {/* Excel + PDFs */}
+                <button
+                  onClick={() => manejarExportacion(true)}
+                  disabled={exportando || getSortedOrdenes().length === 0}
+                  className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    exportando || getSortedOrdenes().length === 0
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  }`}
+                  title="Exportar Excel + PDFs en ZIP (completo)"
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  {exportando ? 'Procesando...' : 'Excel + PDFs'}
+                </button>
+              </div>
+            </div>
+            
+            {/* Información adicional */}
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-start gap-4 text-xs text-gray-600">
+                <div className="flex items-center gap-1">
+                  <FileSpreadsheet className="h-3 w-3 text-green-600" />
+                  <span><strong>Solo Excel:</strong> Descarga inmediata, 3 hojas (Resumen, Detalle, PDFs)</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Archive className="h-3 w-3 text-blue-600" />
+                  <span><strong>Excel + PDFs:</strong> Archivo ZIP con Excel + carpeta PDFs</span>
+                </div>
+                {vistaAgrupada && (
+                  <div className="flex items-center gap-1">
+                    <Download className="h-3 w-3 text-purple-600" />
+                    <span><strong>Vista Agrupada:</strong> Incluye hoja de resumen por proveedor</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
