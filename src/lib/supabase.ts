@@ -287,6 +287,163 @@ export interface Titular {
   cuit?: string
 }
 
+// =====================================================
+// INTERFACES PARA SISTEMA DE REVISIONES VEHICULARES
+// =====================================================
+
+export interface RevisionVehicular {
+  id: number
+  vehiculo_id: number
+  fecha_revision: string
+  kilometraje_actual?: number
+  horas_motor_actual?: number
+  tecnico_responsable?: string
+  turno?: 'mañana' | 'tarde' | 'noche'
+  
+  // OCR Information
+  pdf_original_url?: string
+  procesado_con_ia: boolean
+  confianza_ocr?: number
+  
+  // General evaluation
+  evaluacion_general?: 'excelente' | 'bueno' | 'regular' | 'malo' | 'critico'
+  
+  created_at: string
+  updated_at: string
+}
+
+export interface ItemRevision {
+  id: number
+  revision_id: number
+  seccion: string // 'motor', 'filtros', 'frenos', etc.
+  subseccion?: string // 'aceite_motor', 'filtro_aire', etc.
+  item_especifico?: string // 'nivel_adecuado', 'color_normal', etc.
+  
+  // Checkbox state
+  checkbox_marcado?: boolean
+  confianza_checkbox?: number
+  
+  // Measured values
+  valor_numerico?: number
+  unidad_medida?: string // 'km', 'psi', 'mm', 'hr'
+  
+  // OCR coordinates
+  bbox_x1?: number
+  bbox_y1?: number
+  bbox_x2?: number
+  bbox_y2?: number
+  
+  created_at: string
+}
+
+export interface ObservacionRevision {
+  id: number
+  revision_id: number
+  seccion: string
+  
+  // OCR extracted text
+  texto_ocr?: string
+  confianza_texto?: number
+  
+  // Image region for manual review
+  imagen_region_url?: string
+  
+  // Manually corrected text
+  texto_corregido?: string
+  revisado_manualmente: boolean
+  revisado_por?: string
+  fecha_revision_manual?: string
+  
+  // Region coordinates
+  bbox_x1?: number
+  bbox_y1?: number
+  bbox_x2?: number
+  bbox_y2?: number
+  
+  created_at: string
+}
+
+export interface AccionRevision {
+  id: number
+  revision_id: number
+  
+  // Action classification
+  prioridad: 'inmediata' | '7_dias' | '30_dias' | 'proximo_servicio'
+  componente: string
+  descripcion: string
+  
+  // Action status
+  estado: 'pendiente' | 'en_proceso' | 'completada' | 'cancelada'
+  
+  // Estimates
+  costo_estimado?: number
+  tiempo_estimado_horas?: number
+  
+  // Tracking
+  fecha_programada?: string
+  fecha_completada?: string
+  realizada_por?: string
+  observaciones_accion?: string
+  
+  created_at: string
+  updated_at: string
+}
+
+export interface LogProcesamientoOCR {
+  id: number
+  revision_id: number
+  
+  // Processing information
+  servicio_usado: string
+  tiempo_procesamiento_ms?: number
+  costo_procesamiento?: number
+  
+  // Quality metrics
+  total_checkboxes_detectados?: number
+  total_texto_regiones?: number
+  confianza_promedio?: number
+  
+  // Technical information
+  modelo_usado?: string
+  version_api?: string
+  
+  // Raw response for debugging
+  response_crudo?: any
+  
+  created_at: string
+}
+
+// Tipos para vistas
+export interface RevisionResumen {
+  id: number
+  fecha_revision: string
+  placa: string
+  marca: string
+  modelo: string
+  kilometraje_actual?: number
+  tecnico_responsable?: string
+  evaluacion_general?: string
+  acciones_inmediatas: number
+  acciones_7_dias: number
+  acciones_30_dias: number
+  acciones_programadas: number
+  acciones_pendientes: number
+  acciones_completadas: number
+}
+
+export interface ComponenteAtencion {
+  placa: string
+  marca: string
+  modelo: string
+  fecha_revision: string
+  componente: string
+  prioridad: string
+  descripcion: string
+  estado: string
+  fecha_programada?: string
+  costo_estimado?: number
+}
+
 export interface CorrelativoOC {
   id: number
   year: number
