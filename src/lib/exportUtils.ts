@@ -157,6 +157,98 @@ function crearHojaPrincipal(ordenes: OrdenCompra[], simbolosMonedas: Record<stri
   return [headers, ...rows]
 }
 
+// Crear hoja agrupada por proveedor (como se ve en la web)
+function crearHojaAgrupadaPorProveedor(grupos: GrupoProveedor[], simbolosMonedas: Record<string, string>) {
+  const headers = [
+    'ID OC',
+    'Fecha',
+    'Vehículo',
+    'Placa',
+    'Interno',
+    'Modelo',
+    'Proveedor',
+    'Monto',
+    'Moneda',
+    'Estado',
+    'Emergencia',
+    'PDF',
+    'Nombre Archivo',
+    'Titular',
+    'CUIT',
+    'Items/Descripción',
+    'Fecha Creación'
+  ]
+
+  const rows: any[] = []
+  
+  // Por cada grupo de proveedor
+  grupos.forEach(grupo => {
+    // Agregar las órdenes individuales del proveedor
+    grupo.ordenes.forEach(orden => {
+      const estado = getEstadoOrden(orden)
+      const vehiculo = orden.placa && orden.modelo 
+        ? `${orden.placa} • ${orden.modelo}`
+        : (orden.placa || orden.modelo || '-')
+      
+      const montoFormateado = orden.monto 
+        ? `${simbolosMonedas[orden.moneda || 'ARS'] || '$'}${orden.monto.toLocaleString()}`
+        : '-'
+
+      rows.push([
+        orden.codigo,
+        formatearFecha(orden.fecha),
+        vehiculo,
+        orden.placa || '-',
+        orden.interno || '-',
+        orden.modelo || '-',
+        orden.proveedor || '-',
+        montoFormateado,
+        orden.moneda || 'ARS',
+        getEstadoTexto(estado, orden.es_emergencia),
+        orden.es_emergencia ? '🚨 URGENTE' : 'Normal',
+        orden.pdf_url ? '✅ Disponible' : '❌ Sin PDF',
+        orden.pdf_url ? `${orden.codigo}.pdf` : '-',
+        orden.titular || '-',
+        orden.cuit || '-',
+        orden.items || '-',
+        orden.created_at ? new Date(orden.created_at).toLocaleString('es-ES') : '-'
+      ])
+    })
+
+    // Agregar fila de resumen del proveedor (como en la web - fila azul)
+    const totalTextos = Object.entries(grupo.totalPorMoneda).map(([moneda, total]) => 
+      `${simbolosMonedas[moneda] || '$'}${total.toLocaleString()} ${moneda}`
+    ).join(' + ')
+
+    const estadosTexto = []
+    if (grupo.estadosResumen.compras > 0) estadosTexto.push(`${grupo.estadosResumen.compras} Compras`)
+    if (grupo.estadosResumen.tesoreria > 0) estadosTexto.push(`${grupo.estadosResumen.tesoreria} Tesorería`)
+    if (grupo.estadosResumen.completada > 0) estadosTexto.push(`${grupo.estadosResumen.completada} Completadas`)
+
+    rows.push([
+      '', // ID OC vacío
+      '', // Fecha vacía
+      '', // Vehículo vacío
+      `📊 RESUMEN - ${grupo.proveedor}`, // En columna Placa
+      '', // Interno vacío
+      '', // Modelo vacío
+      `${grupo.cantidadOrdenes} órdenes`, // En columna Proveedor
+      totalTextos, // En columna Monto
+      '', // Moneda vacía
+      estadosTexto.join(', '), // En columna Estado
+      '', // Emergencia vacía
+      'TOTAL', // En columna PDF
+      '', // Nombre archivo vacío
+      '', // Titular vacío
+      '', // CUIT vacío
+      '', // Items vacío
+      '' // Fecha creación vacía
+    ])
+  })
+
+  return [headers, ...rows]
+}
+
 // Crear hoja de PDFs incluidos
 function crearHojaPDFsIncluidos(ordenes: OrdenCompra[]) {
   const headers = [
@@ -190,8 +282,10 @@ export async function exportarOrdenesCompleto(
     // Crear workbook de Excel
     const wb = XLSX.utils.book_new()
 
-    // Hoja Principal: Todas las OC (como la tabla web)
-    const datosPrincipal = crearHojaPrincipal(ordenes, options.simbolosMonedas)
+    // Hoja Principal: Según el tipo de vista
+    const datosPrincipal = options.vistaAgrupada 
+      ? crearHojaAgrupadaPorProveedor(grupos, options.simbolosMonedas)
+      : crearHojaPrincipal(ordenes, options.simbolosMonedas)
     const wsPrincipal = XLSX.utils.aoa_to_sheet(datosPrincipal)
     
     // Estilo para hoja principal (optimizado para que se vea como la web)
@@ -226,42 +320,32 @@ export async function exportarOrdenesCompleto(
         alignment: { horizontal: "center", vertical: "center" }
       }
     }
-    
-    XLSX.utils.book_append_sheet(wb, wsPrincipal, 'Órdenes de Compra')
 
-    // Hoja Adicional: Resumen por Proveedor (solo en vista agrupada)
-    if (options.vistaAgrupada && grupos.length > 0) {
-      const datosResumen = crearHojaResumenProveedores(grupos, options.simbolosMonedas)
-      const wsResumen = XLSX.utils.aoa_to_sheet(datosResumen)
-      
-      // Estilo para la hoja resumen
-      wsResumen['!cols'] = [
-        { width: 25 }, // Proveedor
-        { width: 12 }, // Cantidad OC
-        { width: 15 }, // Total ARS
-        { width: 15 }, // Total USD
-        { width: 15 }, // Total BRL
-        { width: 20 }, // Otros Totales
-        { width: 12 }, // Pend. Compras
-        { width: 12 }, // En Tesorería
-        { width: 12 }, // Completadas
-        { width: 30 }  // Estado General
-      ]
-
-      // Aplicar formato a headers del resumen
-      const resumeRange = XLSX.utils.decode_range(wsResumen['!ref'] || 'A1')
-      for (let col = resumeRange.s.c; col <= resumeRange.e.c; col++) {
-        const cellRef = XLSX.utils.encode_cell({ r: 0, c: col })
-        if (!wsResumen[cellRef]) continue
-        wsResumen[cellRef].s = {
-          font: { bold: true, color: { rgb: "FFFFFF" } },
-          fill: { fgColor: { rgb: "059669" } }, // Color verde para diferenciarlo
-          alignment: { horizontal: "center", vertical: "center" }
+    // Si es vista agrupada, aplicar formato especial a las filas de resumen
+    if (options.vistaAgrupada) {
+      let currentRow = 1 // Empezar después del header
+      grupos.forEach(grupo => {
+        // Saltar las filas de órdenes individuales
+        currentRow += grupo.ordenes.length
+        
+        // Aplicar formato azul a la fila de resumen
+        for (let col = range.s.c; col <= range.e.c; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: currentRow, c: col })
+          if (!wsPrincipal[cellRef]) {
+            wsPrincipal[cellRef] = { v: '', t: 's' }
+          }
+          wsPrincipal[cellRef].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "3B82F6" } }, // Azul para resumen (como la web)
+            alignment: { horizontal: "center", vertical: "center" }
+          }
         }
-      }
-      
-      XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen por Proveedor')
+        currentRow++ // Pasar a la siguiente fila
+      })
     }
+    
+    const nombreHoja = options.vistaAgrupada ? 'OC Agrupadas por Proveedor' : 'Órdenes de Compra'
+    XLSX.utils.book_append_sheet(wb, wsPrincipal, nombreHoja)
 
     // Generar archivo Excel
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
