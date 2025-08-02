@@ -312,6 +312,27 @@ export async function exportarOrdenesCompleto(
     // Configurar estructura mejorada para el Excel
     // Agregar espacios y separadores visuales para claridad
     if (options.vistaAgrupada) {
+      // Headers para la vista agrupada
+      const headers = [
+        'ID OC',
+        'Fecha',
+        'Vehículo',
+        'Placa',
+        'Interno',
+        'Modelo',
+        'Proveedor',
+        'Monto',
+        'Moneda',
+        'Estado',
+        'Emergencia',
+        'PDF',
+        'Nombre Archivo',
+        'Titular',
+        'CUIT',
+        'Items/Descripción',
+        'Fecha Creación'
+      ]
+      
       // Modificar datos agrupados para mejor presentación visual
       const datosVisualesMejorados: any[] = [headers]
       
@@ -326,7 +347,7 @@ export async function exportarOrdenesCompleto(
           '',
           `${grupo.cantidadOrdenes} ÓRDENES`,
           `TOTAL: ${Object.entries(grupo.totalPorMoneda).map(([moneda, total]) => 
-            `${simbolosMonedas[moneda] || '$'}${total.toLocaleString()} ${moneda}`
+            `${options.simbolosMonedas[moneda] || '$'}${total.toLocaleString()} ${moneda}`
           ).join(' + ')}`,
           '',
           '',
@@ -347,7 +368,7 @@ export async function exportarOrdenesCompleto(
             : (orden.placa || orden.modelo || '-')
           
           const montoFormateado = orden.monto 
-            ? `${simbolosMonedas[orden.moneda || 'ARS'] || '$'}${orden.monto.toLocaleString()}`
+            ? `${options.simbolosMonedas[orden.moneda || 'ARS'] || '$'}${orden.monto.toLocaleString()}`
             : '-'
 
           datosVisualesMejorados.push([
@@ -373,7 +394,7 @@ export async function exportarOrdenesCompleto(
         
         // Agregar fila de resumen del proveedor destacada
         const totalTextos = Object.entries(grupo.totalPorMoneda).map(([moneda, total]) => 
-          `${simbolosMonedas[moneda] || '$'}${total.toLocaleString()} ${moneda}`
+          `${options.simbolosMonedas[moneda] || '$'}${total.toLocaleString()} ${moneda}`
         ).join(' + ')
 
         const estadosTexto = []
