@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { type OrdenCompra } from '@/lib/supabase';
@@ -272,24 +273,21 @@ function crearHojaPDFsIncluidos(ordenes: OrdenCompra[]) {
   return [headers, ...rows]
 }
 
-// Función principal de exportación
+// Función principal de exportación con formato visual
 export async function exportarOrdenesCompleto(
   ordenes: OrdenCompra[],
   grupos: GrupoProveedor[],
   options: ExportOptions
 ): Promise<void> {
   try {
-    // Crear workbook de Excel
-    const wb = XLSX.utils.book_new()
+    // Crear workbook con ExcelJS para mejor formato
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet(
+      options.vistaAgrupada ? 'OC Agrupadas por Proveedor' : 'Órdenes de Compra'
+    )
 
-    // Hoja Principal: Según el tipo de vista
-    const datosPrincipal = options.vistaAgrupada 
-      ? crearHojaAgrupadaPorProveedor(grupos, options.simbolosMonedas)
-      : crearHojaPrincipal(ordenes, options.simbolosMonedas)
-    const wsPrincipal = XLSX.utils.aoa_to_sheet(datosPrincipal)
-    
-    // Estilo para hoja principal (optimizado para que se vea como la web)
-    wsPrincipal['!cols'] = [
+    // Configurar anchos de columnas
+    worksheet.columns = [
       { width: 22 }, // ID OC
       { width: 12 }, // Fecha
       { width: 30 }, // Vehículo
@@ -309,13 +307,135 @@ export async function exportarOrdenesCompleto(
       { width: 18 }  // Fecha Creación
     ]
 
-    // Mantener la estructura original limpia
-    
-    const nombreHoja = options.vistaAgrupada ? 'OC Agrupadas por Proveedor' : 'Órdenes de Compra'
-    XLSX.utils.book_append_sheet(wb, wsPrincipal, nombreHoja)
+    // Headers
+    const headers = [
+      'ID OC', 'Fecha', 'Vehículo', 'Placa', 'Interno', 'Modelo', 'Proveedor',
+      'Monto', 'Moneda', 'Estado', 'Emergencia', 'PDF', 'Nombre Archivo',
+      'Titular', 'CUIT', 'Items/Descripción', 'Fecha Creación'
+    ]
 
-    // Generar archivo Excel
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    // Agregar headers con formato
+    const headerRow = worksheet.addRow(headers)
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } }
+      cell.alignment = { horizontal: 'center', vertical: 'middle' }
+      cell.border = {
+        top: { style: 'thin' },
+        bottom: { style: 'thin' },
+        left: { style: 'thin' },
+        right: { style: 'thin' }
+      }
+    })
+
+    // Agregar datos según la vista
+    if (options.vistaAgrupada) {
+      grupos.forEach((grupo) => {
+        // Agregar órdenes del proveedor
+        grupo.ordenes.forEach(orden => {
+          const estado = getEstadoOrden(orden)
+          const vehiculo = orden.placa && orden.modelo 
+            ? `${orden.placa} • ${orden.modelo}`
+            : (orden.placa || orden.modelo || '-')
+          
+          const montoFormateado = orden.monto 
+            ? `${options.simbolosMonedas[orden.moneda || 'ARS'] || '$'}${orden.monto.toLocaleString()}`
+            : '-'
+
+          worksheet.addRow([
+            orden.codigo,
+            formatearFecha(orden.fecha),
+            vehiculo,
+            orden.placa || '-',
+            orden.interno || '-',
+            orden.modelo || '-',
+            orden.proveedor || '-',
+            montoFormateado,
+            orden.moneda || 'ARS',
+            getEstadoTexto(estado, orden.es_emergencia),
+            orden.es_emergencia ? '🚨 URGENTE' : 'Normal',
+            orden.pdf_url ? '✅ Disponible' : '❌ Sin PDF',
+            orden.pdf_url ? `${orden.codigo}.pdf` : '-',
+            orden.titular || '-',
+            orden.cuit || '-',
+            orden.items || '-',
+            orden.created_at ? new Date(orden.created_at).toLocaleString('es-ES') : '-'
+          ])
+        })
+
+        // Agregar fila de resumen con formato especial
+        const totalTextos = Object.entries(grupo.totalPorMoneda).map(([moneda, total]) => 
+          `${options.simbolosMonedas[moneda] || '$'}${total.toLocaleString()} ${moneda}`
+        ).join(' + ')
+
+        const estadosTexto = []
+        if (grupo.estadosResumen.compras > 0) estadosTexto.push(`${grupo.estadosResumen.compras} Compras`)
+        if (grupo.estadosResumen.tesoreria > 0) estadosTexto.push(`${grupo.estadosResumen.tesoreria} Tesorería`)
+        if (grupo.estadosResumen.completada > 0) estadosTexto.push(`${grupo.estadosResumen.completada} Completadas`)
+
+        const resumenRow = worksheet.addRow([
+          '',
+          '',
+          '',
+          `📊 RESUMEN - ${grupo.proveedor}`,
+          '',
+          '',
+          `${grupo.cantidadOrdenes} órdenes`,
+          totalTextos,
+          '',
+          estadosTexto.join(', '),
+          '',
+          'TOTAL',
+          '',
+          '',
+          '',
+          '',
+          ''
+        ])
+
+        // Formato especial para fila de resumen
+        resumenRow.eachCell((cell) => {
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } }
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        })
+      })
+    } else {
+      // Vista individual
+      ordenes.forEach(orden => {
+        const estado = getEstadoOrden(orden)
+        const vehiculo = orden.placa && orden.modelo 
+          ? `${orden.placa} • ${orden.modelo}`
+          : (orden.placa || orden.modelo || '-')
+        
+        const montoFormateado = orden.monto 
+          ? `${options.simbolosMonedas[orden.moneda || 'ARS'] || '$'}${orden.monto.toLocaleString()}`
+          : '-'
+
+        worksheet.addRow([
+          orden.codigo,
+          formatearFecha(orden.fecha),
+          vehiculo,
+          orden.placa || '-',
+          orden.interno || '-',
+          orden.modelo || '-',
+          orden.proveedor || '-',
+          montoFormateado,
+          orden.moneda || 'ARS',
+          getEstadoTexto(estado, orden.es_emergencia),
+          orden.es_emergencia ? '🚨 URGENTE' : 'Normal',
+          orden.pdf_url ? '✅ Disponible' : '❌ Sin PDF',
+          orden.pdf_url ? `${orden.codigo}.pdf` : '-',
+          orden.titular || '-',
+          orden.cuit || '-',
+          orden.items || '-',
+          orden.created_at ? new Date(orden.created_at).toLocaleString('es-ES') : '-'
+        ])
+      })
+    }
+
+    // Generar buffer del Excel
+    const excelBuffer = await workbook.xlsx.writeBuffer()
     
     const ordenesBConPDF = ordenes.filter(o => o.pdf_url)
     
