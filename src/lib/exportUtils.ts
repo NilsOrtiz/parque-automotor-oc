@@ -376,8 +376,8 @@ export async function exportarOrdenesCompleto(
         const resumenRow = worksheet.addRow([
           '',
           '',
-          '',
           `📊 RESUMEN - ${grupo.proveedor}`,
+          '',
           '',
           '',
           `${grupo.cantidadOrdenes} órdenes`,
