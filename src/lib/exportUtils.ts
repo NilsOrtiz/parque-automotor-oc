@@ -101,43 +101,55 @@ function crearHojaResumenProveedores(grupos: GrupoProveedor[], simbolosMonedas: 
   return [headers, ...rows]
 }
 
-// Crear hoja de detalle individual
-function crearHojaDetalleIndividual(ordenes: OrdenCompra[], simbolosMonedas: Record<string, string>) {
+// Crear hoja principal única (como la tabla web)
+function crearHojaPrincipal(ordenes: OrdenCompra[], simbolosMonedas: Record<string, string>) {
   const headers = [
-    'Código OC',
+    'ID OC',
     'Fecha',
-    'Proveedor',
-    'Vehículo (Placa)',
-    'Vehículo (Modelo)',
+    'Vehículo',
+    'Placa',
     'Interno',
+    'Modelo',
+    'Proveedor',
     'Monto',
     'Moneda',
     'Estado',
-    'Es Emergencia',
+    'Emergencia',
+    'PDF',
+    'Nombre Archivo',
     'Titular',
     'CUIT',
     'Items/Descripción',
-    'PDF Disponible',
     'Fecha Creación'
   ]
 
   const rows = ordenes.map(orden => {
     const estado = getEstadoOrden(orden)
+    const vehiculo = orden.placa && orden.modelo 
+      ? `${orden.placa} • ${orden.modelo}`
+      : (orden.placa || orden.modelo || '-')
+    
+    const montoFormateado = orden.monto 
+      ? `${simbolosMonedas[orden.moneda || 'ARS'] || '$'}${orden.monto.toLocaleString()}`
+      : '-'
+
     return [
       orden.codigo,
       formatearFecha(orden.fecha),
-      orden.proveedor || '-',
+      vehiculo,
       orden.placa || '-',
-      orden.modelo || '-',
       orden.interno || '-',
-      orden.monto ? orden.monto.toLocaleString() : '-',
+      orden.modelo || '-',
+      orden.proveedor || '-',
+      montoFormateado,
       orden.moneda || 'ARS',
       getEstadoTexto(estado, orden.es_emergencia),
-      orden.es_emergencia ? 'SÍ' : 'NO',
+      orden.es_emergencia ? '🚨 URGENTE' : 'Normal',
+      orden.pdf_url ? '✅ Disponible' : '❌ Sin PDF',
+      orden.pdf_url ? `${orden.codigo}.pdf` : '-',
       orden.titular || '-',
       orden.cuit || '-',
       orden.items || '-',
-      orden.pdf_url ? 'SÍ' : 'NO',
       orden.created_at ? new Date(orden.created_at).toLocaleString('es-ES') : '-'
     ]
   })
@@ -178,7 +190,46 @@ export async function exportarOrdenesCompleto(
     // Crear workbook de Excel
     const wb = XLSX.utils.book_new()
 
-    // Hoja 1: Resumen por Proveedor (solo en vista agrupada)
+    // Hoja Principal: Todas las OC (como la tabla web)
+    const datosPrincipal = crearHojaPrincipal(ordenes, options.simbolosMonedas)
+    const wsPrincipal = XLSX.utils.aoa_to_sheet(datosPrincipal)
+    
+    // Estilo para hoja principal (optimizado para que se vea como la web)
+    wsPrincipal['!cols'] = [
+      { width: 22 }, // ID OC
+      { width: 12 }, // Fecha
+      { width: 30 }, // Vehículo
+      { width: 12 }, // Placa
+      { width: 8 },  // Interno
+      { width: 20 }, // Modelo
+      { width: 25 }, // Proveedor
+      { width: 18 }, // Monto
+      { width: 8 },  // Moneda
+      { width: 20 }, // Estado
+      { width: 15 }, // Emergencia
+      { width: 15 }, // PDF
+      { width: 25 }, // Nombre Archivo
+      { width: 25 }, // Titular
+      { width: 15 }, // CUIT
+      { width: 40 }, // Items/Descripción
+      { width: 18 }  // Fecha Creación
+    ]
+
+    // Aplicar formato a los headers
+    const range = XLSX.utils.decode_range(wsPrincipal['!ref'] || 'A1')
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: col })
+      if (!wsPrincipal[cellRef]) continue
+      wsPrincipal[cellRef].s = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "4F46E5" } }, // Color azul como la web
+        alignment: { horizontal: "center", vertical: "center" }
+      }
+    }
+    
+    XLSX.utils.book_append_sheet(wb, wsPrincipal, 'Órdenes de Compra')
+
+    // Hoja Adicional: Resumen por Proveedor (solo en vista agrupada)
     if (options.vistaAgrupada && grupos.length > 0) {
       const datosResumen = crearHojaResumenProveedores(grupos, options.simbolosMonedas)
       const wsResumen = XLSX.utils.aoa_to_sheet(datosResumen)
@@ -196,54 +247,26 @@ export async function exportarOrdenesCompleto(
         { width: 12 }, // Completadas
         { width: 30 }  // Estado General
       ]
+
+      // Aplicar formato a headers del resumen
+      const resumeRange = XLSX.utils.decode_range(wsResumen['!ref'] || 'A1')
+      for (let col = resumeRange.s.c; col <= resumeRange.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: col })
+        if (!wsResumen[cellRef]) continue
+        wsResumen[cellRef].s = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "059669" } }, // Color verde para diferenciarlo
+          alignment: { horizontal: "center", vertical: "center" }
+        }
+      }
       
       XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen por Proveedor')
     }
 
-    // Hoja 2: Detalle Individual
-    const datosDetalle = crearHojaDetalleIndividual(ordenes, options.simbolosMonedas)
-    const wsDetalle = XLSX.utils.aoa_to_sheet(datosDetalle)
-    
-    // Estilo para hoja detalle
-    wsDetalle['!cols'] = [
-      { width: 20 }, // Código OC
-      { width: 12 }, // Fecha
-      { width: 25 }, // Proveedor
-      { width: 15 }, // Placa
-      { width: 20 }, // Modelo
-      { width: 10 }, // Interno
-      { width: 15 }, // Monto
-      { width: 10 }, // Moneda
-      { width: 20 }, // Estado
-      { width: 12 }, // Es Emergencia
-      { width: 25 }, // Titular
-      { width: 15 }, // CUIT
-      { width: 40 }, // Items
-      { width: 12 }, // PDF
-      { width: 18 }  // Fecha Creación
-    ]
-    
-    XLSX.utils.book_append_sheet(wb, wsDetalle, 'Detalle Individual')
-
-    // Hoja 3: PDFs Incluidos
-    const ordenesBConPDF = ordenes.filter(o => o.pdf_url)
-    if (ordenesBConPDF.length > 0) {
-      const datosPDFs = crearHojaPDFsIncluidos(ordenes)
-      const wsPDFs = XLSX.utils.aoa_to_sheet(datosPDFs)
-      
-      wsPDFs['!cols'] = [
-        { width: 20 }, // Código OC
-        { width: 25 }, // Nombre Archivo
-        { width: 50 }, // URL Original
-        { width: 20 }, // Estado
-        { width: 25 }  // Proveedor
-      ]
-      
-      XLSX.utils.book_append_sheet(wb, wsPDFs, 'PDFs Incluidos')
-    }
-
     // Generar archivo Excel
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    
+    const ordenesBConPDF = ordenes.filter(o => o.pdf_url)
     
     if (options.incluirPDFs && ordenesBConPDF.length > 0) {
       // Crear ZIP con Excel + PDFs
@@ -252,8 +275,8 @@ export async function exportarOrdenesCompleto(
       // Solo descargar Excel
       const fechaHoy = new Date().toISOString().split('T')[0]
       const nombreArchivo = options.vistaAgrupada 
-        ? `Reporte_OC_Agrupado_${fechaHoy}.xlsx`
-        : `Reporte_OC_Individual_${fechaHoy}.xlsx`
+        ? `OC_Agrupado_${fechaHoy}.xlsx`
+        : `OC_Listado_${fechaHoy}.xlsx`
       
       const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       saveAs(blob, nombreArchivo)

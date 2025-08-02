@@ -496,16 +496,16 @@ export default function ListadoOCPage() {
               <div className="flex items-start gap-4 text-xs text-gray-600">
                 <div className="flex items-center gap-1">
                   <FileSpreadsheet className="h-3 w-3 text-green-600" />
-                  <span><strong>Solo Excel:</strong> Descarga inmediata, 3 hojas (Resumen, Detalle, PDFs)</span>
+                  <span><strong>Solo Excel:</strong> Tabla principal como la web + todas las columnas</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Archive className="h-3 w-3 text-blue-600" />
-                  <span><strong>Excel + PDFs:</strong> Archivo ZIP con Excel + carpeta PDFs</span>
+                  <span><strong>Excel + PDFs:</strong> Tabla Excel + archivos PDF en ZIP</span>
                 </div>
                 {vistaAgrupada && (
                   <div className="flex items-center gap-1">
                     <Download className="h-3 w-3 text-purple-600" />
-                    <span><strong>Vista Agrupada:</strong> Incluye hoja de resumen por proveedor</span>
+                    <span><strong>Vista Agrupada:</strong> Incluye hoja adicional de totales por proveedor</span>
                   </div>
                 )}
               </div>
