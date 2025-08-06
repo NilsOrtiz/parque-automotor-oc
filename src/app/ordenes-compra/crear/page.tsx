@@ -242,6 +242,64 @@ export default function CrearOCPage() {
     setAdjuntos(prev => prev.filter((_, i) => i !== index))
   }
 
+  // Convertir PDF encriptado a imágenes usando PDF.js
+  const convertirPDFEncriptadoAImagenes = async (file: File): Promise<Uint8Array[]> => {
+    console.log(`🔄 Iniciando conversión PDF→imágenes: ${file.name}`)
+    
+    try {
+      // Usar PDF.js para renderizar PDF encriptado
+      const pdfjsLib = await import('pdfjs-dist')
+      
+      // Configurar worker (necesario para PDF.js)
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+      
+      const arrayBuffer = await file.arrayBuffer()
+      const pdf = await pdfjsLib.getDocument({ 
+        data: arrayBuffer,
+        password: '' // Intentar sin contraseña primero
+      }).promise
+      
+      console.log(`📄 PDF cargado con PDF.js: ${pdf.numPages} páginas`)
+      
+      const imagenes: Uint8Array[] = []
+      
+      // Renderizar cada página a imagen
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        console.log(`🖼️ Renderizando página ${pageNum}/${pdf.numPages}`)
+        
+        const page = await pdf.getPage(pageNum)
+        const viewport = page.getViewport({ scale: 2.0 }) // Alta resolución
+        
+        // Crear canvas
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d')!
+        canvas.height = viewport.height
+        canvas.width = viewport.width
+        
+        // Renderizar página al canvas
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise
+        
+        // Convertir canvas a imagen
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob(resolve!, 'image/jpeg', 0.9)
+        })
+        
+        const imageBytes = new Uint8Array(await blob!.arrayBuffer())
+        imagenes.push(imageBytes)
+      }
+      
+      console.log(`✅ PDF convertido a ${imagenes.length} imágenes`)
+      return imagenes
+      
+    } catch (error) {
+      console.error('❌ Error en conversión PDF→imágenes:', error)
+      throw error
+    }
+  }
+
   // Convertir imagen a PDF usando jsPDF
   const imagenToPDF = async (file: File): Promise<Uint8Array> => {
     console.log(`🖼️ Convirtiendo imagen a PDF: ${file.name} (${file.type}, ${file.size} bytes)`)
@@ -433,56 +491,55 @@ export default function CrearOCPage() {
               console.log(`    ✅ Página ${idx + 1} del PDF agregada`)
             })
           } catch (encryptionError) {
-            console.log('🔒 PDF encriptado detectado, agregando como adjunto embebido...')
+            console.log('🔒 PDF encriptado detectado, convirtiendo a imágenes...')
             
-            // Si está encriptado, crear una página con el PDF embebido
-            const pageWidth = 595.28 // A4 width in points
-            const pageHeight = 841.89 // A4 height in points
-            const embedPage = pdfFinal.addPage([pageWidth, pageHeight])
-            
-            // Embeber el PDF como attachment
-            await pdfFinal.attach(adjuntoPDFBytes, adjunto.name, {
-              mimeType: 'application/pdf',
-              description: `PDF adjunto encriptado: ${adjunto.name}`,
-              creationDate: new Date(),
-              modificationDate: new Date()
-            })
-            
-            // Agregar texto explicativo en la página
-            embedPage.drawText('PDF ADJUNTO ENCRIPTADO', {
-              x: 50,
-              y: pageHeight - 100,
-              size: 18,
-              color: rgb(0.8, 0.1, 0.1)
-            })
-            
-            embedPage.drawText(`Nombre: ${adjunto.name}`, {
-              x: 50,
-              y: pageHeight - 140,
-              size: 12
-            })
-            
-            embedPage.drawText(`Tamaño: ${(adjunto.size / 1024).toFixed(1)} KB`, {
-              x: 50,
-              y: pageHeight - 160,
-              size: 12
-            })
-            
-            embedPage.drawText('Este PDF está protegido/encriptado.', {
-              x: 50,
-              y: pageHeight - 200,
-              size: 12,
-              color: rgb(0.6, 0.6, 0.6)
-            })
-            
-            embedPage.drawText('Puede encontrar el archivo original adjunto a este documento.', {
-              x: 50,
-              y: pageHeight - 220,
-              size: 12,
-              color: rgb(0.6, 0.6, 0.6)
-            })
-            
-            console.log(`    ✅ PDF encriptado embebido como adjunto`)
+            // Intentar convertir PDF encriptado a imágenes usando browser APIs
+            try {
+              const imagenesPDF = await convertirPDFEncriptadoAImagenes(adjunto)
+              
+              // Agregar cada imagen como página
+              for (let i = 0; i < imagenesPDF.length; i++) {
+                const imagenBytes = imagenesPDF[i]
+                console.log(`  🖼️ Agregando imagen ${i + 1}/${imagenesPDF.length} del PDF encriptado`)
+                
+                // Convertir imagen a PDF y agregar
+                const imagenPDFBytes = await imagenToPDF(new File([imagenBytes], `${adjunto.name}_page_${i + 1}.jpg`, { type: 'image/jpeg' }))
+                const imagenPDF = await PDFDocument.load(imagenPDFBytes, { ignoreEncryption: true })
+                const imagenPages = await pdfFinal.copyPages(imagenPDF, [0])
+                pdfFinal.addPage(imagenPages[0])
+              }
+              
+              console.log(`    ✅ PDF encriptado convertido a ${imagenesPDF.length} imágenes`)
+            } catch (conversionError) {
+              console.log('❌ Error convirtiendo PDF encriptado a imágenes:', conversionError)
+              
+              // Fallback: crear página explicativa
+              const pageWidth = 595.28
+              const pageHeight = 841.89
+              const fallbackPage = pdfFinal.addPage([pageWidth, pageHeight])
+              
+              fallbackPage.drawText('PDF ENCRIPTADO - NO SE PUDO PROCESAR', {
+                x: 50,
+                y: pageHeight - 100,
+                size: 16,
+                color: rgb(0.8, 0.1, 0.1)
+              })
+              
+              fallbackPage.drawText(`Nombre: ${adjunto.name}`, {
+                x: 50,
+                y: pageHeight - 140,
+                size: 12
+              })
+              
+              fallbackPage.drawText('Este archivo requiere procesamiento manual.', {
+                x: 50,
+                y: pageHeight - 180,
+                size: 12,
+                color: rgb(0.6, 0.6, 0.6)
+              })
+              
+              console.log(`    ⚠️ PDF encriptado agregado como página de error`)
+            }
           }
         } else {
           console.log('🖼️ Procesando imagen adjunta...')
