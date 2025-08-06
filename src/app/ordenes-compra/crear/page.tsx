@@ -405,7 +405,7 @@ export default function CrearOCPage() {
     
     // Agregar la OC como primera página
     console.log('📋 Agregando OC como primera página...')
-    const ocPDF = await PDFDocument.load(ocPDFBytes)
+    const ocPDF = await PDFDocument.load(ocPDFBytes, { ignoreEncryption: true })
     const ocPages = await pdfFinal.copyPages(ocPDF, [0])
     pdfFinal.addPage(ocPages[0])
     console.log('✅ OC agregada (página 1)')
@@ -422,7 +422,7 @@ export default function CrearOCPage() {
           const adjuntoPDFBytes = await adjunto.arrayBuffer()
           console.log(`  📊 PDF cargado: ${adjuntoPDFBytes.byteLength} bytes`)
           
-          const adjuntoPDF = await PDFDocument.load(adjuntoPDFBytes)
+          const adjuntoPDF = await PDFDocument.load(adjuntoPDFBytes, { ignoreEncryption: true })
           const totalPaginasAdjunto = adjuntoPDF.getPageCount()
           console.log(`  📑 PDF tiene ${totalPaginasAdjunto} páginas`)
           
@@ -437,7 +437,7 @@ export default function CrearOCPage() {
           const imagenPDFBytes = await imagenToPDF(adjunto)
           console.log(`  📊 Imagen convertida a PDF: ${imagenPDFBytes.byteLength} bytes`)
           
-          const imagenPDF = await PDFDocument.load(imagenPDFBytes)
+          const imagenPDF = await PDFDocument.load(imagenPDFBytes, { ignoreEncryption: true })
           const imagenPages = await pdfFinal.copyPages(imagenPDF, [0])
           pdfFinal.addPage(imagenPages[0])
           console.log(`    ✅ Imagen agregada como página PDF`)
