@@ -449,7 +449,7 @@ export default function CrearOCPage() {
             })
             
             // Agregar texto explicativo en la página
-            embedPage.drawText('📎 PDF Adjunto Encriptado', {
+            embedPage.drawText('PDF ADJUNTO ENCRIPTADO', {
               x: 50,
               y: pageHeight - 100,
               size: 18,
