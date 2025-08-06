@@ -397,7 +397,7 @@ export default function CrearOCPage() {
   const crearPDFMultipagina = async (ocPDFBytes: Uint8Array, adjuntos: File[]): Promise<Uint8Array> => {
     console.log('🔧 Iniciando creación PDF multipágina:', { totalAdjuntos: adjuntos.length, ocSize: ocPDFBytes.byteLength })
     
-    const { PDFDocument } = await import('pdf-lib')
+    const { PDFDocument, rgb } = await import('pdf-lib')
     
     // Crear documento PDF final
     const pdfFinal = await PDFDocument.create()
@@ -453,7 +453,7 @@ export default function CrearOCPage() {
               x: 50,
               y: pageHeight - 100,
               size: 18,
-              color: { r: 0.8, g: 0.1, b: 0.1 }
+              color: rgb(0.8, 0.1, 0.1)
             })
             
             embedPage.drawText(`Nombre: ${adjunto.name}`, {
@@ -472,14 +472,14 @@ export default function CrearOCPage() {
               x: 50,
               y: pageHeight - 200,
               size: 12,
-              color: { r: 0.6, g: 0.6, b: 0.6 }
+              color: rgb(0.6, 0.6, 0.6)
             })
             
             embedPage.drawText('Puede encontrar el archivo original adjunto a este documento.', {
               x: 50,
               y: pageHeight - 220,
               size: 12,
-              color: { r: 0.6, g: 0.6, b: 0.6 }
+              color: rgb(0.6, 0.6, 0.6)
             })
             
             console.log(`    ✅ PDF encriptado embebido como adjunto`)
