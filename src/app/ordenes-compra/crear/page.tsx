@@ -418,19 +418,72 @@ export default function CrearOCPage() {
       try {
         if (adjunto.type === 'application/pdf') {
           console.log('📄 Procesando PDF adjunto...')
-          // Si es PDF, copiar todas sus páginas
           const adjuntoPDFBytes = await adjunto.arrayBuffer()
           console.log(`  📊 PDF cargado: ${adjuntoPDFBytes.byteLength} bytes`)
           
-          const adjuntoPDF = await PDFDocument.load(adjuntoPDFBytes, { ignoreEncryption: true })
-          const totalPaginasAdjunto = adjuntoPDF.getPageCount()
-          console.log(`  📑 PDF tiene ${totalPaginasAdjunto} páginas`)
-          
-          const adjuntoPages = await pdfFinal.copyPages(adjuntoPDF, adjuntoPDF.getPageIndices())
-          adjuntoPages.forEach((page, idx) => {
-            pdfFinal.addPage(page)
-            console.log(`    ✅ Página ${idx + 1} del PDF agregada`)
-          })
+          try {
+            // Intentar cargar sin ignorar encriptación primero
+            const adjuntoPDF = await PDFDocument.load(adjuntoPDFBytes)
+            const totalPaginasAdjunto = adjuntoPDF.getPageCount()
+            console.log(`  📑 PDF normal tiene ${totalPaginasAdjunto} páginas`)
+            
+            const adjuntoPages = await pdfFinal.copyPages(adjuntoPDF, adjuntoPDF.getPageIndices())
+            adjuntoPages.forEach((page, idx) => {
+              pdfFinal.addPage(page)
+              console.log(`    ✅ Página ${idx + 1} del PDF agregada`)
+            })
+          } catch (encryptionError) {
+            console.log('🔒 PDF encriptado detectado, agregando como adjunto embebido...')
+            
+            // Si está encriptado, crear una página con el PDF embebido
+            const pageWidth = 595.28 // A4 width in points
+            const pageHeight = 841.89 // A4 height in points
+            const embedPage = pdfFinal.addPage([pageWidth, pageHeight])
+            
+            // Embeber el PDF como attachment
+            await pdfFinal.attach(adjuntoPDFBytes, adjunto.name, {
+              mimeType: 'application/pdf',
+              description: `PDF adjunto encriptado: ${adjunto.name}`,
+              creationDate: new Date(),
+              modificationDate: new Date()
+            })
+            
+            // Agregar texto explicativo en la página
+            embedPage.drawText('📎 PDF Adjunto Encriptado', {
+              x: 50,
+              y: pageHeight - 100,
+              size: 18,
+              color: { r: 0.8, g: 0.1, b: 0.1 }
+            })
+            
+            embedPage.drawText(`Nombre: ${adjunto.name}`, {
+              x: 50,
+              y: pageHeight - 140,
+              size: 12
+            })
+            
+            embedPage.drawText(`Tamaño: ${(adjunto.size / 1024).toFixed(1)} KB`, {
+              x: 50,
+              y: pageHeight - 160,
+              size: 12
+            })
+            
+            embedPage.drawText('Este PDF está protegido/encriptado.', {
+              x: 50,
+              y: pageHeight - 200,
+              size: 12,
+              color: { r: 0.6, g: 0.6, b: 0.6 }
+            })
+            
+            embedPage.drawText('Puede encontrar el archivo original adjunto a este documento.', {
+              x: 50,
+              y: pageHeight - 220,
+              size: 12,
+              color: { r: 0.6, g: 0.6, b: 0.6 }
+            })
+            
+            console.log(`    ✅ PDF encriptado embebido como adjunto`)
+          }
         } else {
           console.log('🖼️ Procesando imagen adjunta...')
           // Si es imagen, convertir a PDF y agregar
