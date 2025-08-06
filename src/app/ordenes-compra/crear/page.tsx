@@ -247,6 +247,11 @@ export default function CrearOCPage() {
     console.log(`🔄 Iniciando conversión PDF→imágenes: ${file.name}`)
     
     try {
+      // Solo funciona en el browser
+      if (typeof window === 'undefined') {
+        throw new Error('PDF.js conversion only works in browser')
+      }
+      
       // Usar PDF.js para renderizar PDF encriptado
       const pdfjsLib = await import('pdfjs-dist')
       

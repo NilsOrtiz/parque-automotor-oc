@@ -9,6 +9,18 @@ const nextConfig: NextConfig = {
     // Solo desactivar en producción
     ignoreBuildErrors: process.env.NODE_ENV === 'production',
   },
+  webpack: (config, { isServer }) => {
+    // Fix para pdfjs-dist en el browser
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        canvas: false,
+        fs: false,
+        path: false
+      }
+    }
+    return config
+  },
 };
 
 export default nextConfig;
