@@ -242,7 +242,7 @@ export default function CrearOCPage() {
     setAdjuntos(prev => prev.filter((_, i) => i !== index))
   }
 
-  // Convertir PDF encriptado a imágenes usando PDF.js
+  // Convertir PDF encriptado a imágenes usando PDF.js desde CDN
   const convertirPDFEncriptadoAImagenes = async (file: File): Promise<Uint8Array[]> => {
     console.log(`🔄 Iniciando conversión PDF→imágenes: ${file.name}`)
     
@@ -252,11 +252,23 @@ export default function CrearOCPage() {
         throw new Error('PDF.js conversion only works in browser')
       }
       
-      // Usar PDF.js para renderizar PDF encriptado
-      const pdfjsLib = await import('pdfjs-dist')
+      console.log('📦 Cargando PDF.js desde CDN...')
       
-      // Configurar worker (necesario para PDF.js)
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+      // Cargar PDF.js desde CDN si no está disponible
+      if (!window.pdfjsLib) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script')
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+          script.onload = () => resolve()
+          script.onerror = () => reject(new Error('Failed to load PDF.js from CDN'))
+          document.head.appendChild(script)
+        })
+      }
+      
+      const pdfjsLib = (window as any).pdfjsLib
+      
+      // Configurar worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
       
       const arrayBuffer = await file.arrayBuffer()
       const pdf = await pdfjsLib.getDocument({ 
