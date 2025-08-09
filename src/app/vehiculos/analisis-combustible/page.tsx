@@ -98,11 +98,11 @@ export default function AnalisisCombustiblePage() {
               const cargaActual = cargasVehiculo[i]
               const cargaAnterior = cargasVehiculo[i - 1]
               
-              if (cargaActual.odometro && cargaAnterior.odometro && cargaActual.odometro > cargaAnterior.odometro) {
-                const distancia = cargaActual.odometro - cargaAnterior.odometro
-                const consumo = distancia / cargaActual.litros_cargados // km/litro
-                
-                if (consumo > 0 && consumo < 50) { // Filtrar valores razonables
+              if (cargaActual.odometro && cargaAnterior.odometro) {
+                const distancia = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
+                if (distancia > 0) {
+                  const consumo = distancia / cargaActual.litros_cargados // km/litro
+                  
                   totalConsumo += consumo
                   if (cargaActual.monto_total) {
                     totalCosto += cargaActual.monto_total / distancia
@@ -158,11 +158,11 @@ export default function AnalisisCombustiblePage() {
       const cargaActual = cargasVehiculo[i]
       const cargaAnterior = cargasVehiculo[i - 1]
 
-      if (cargaActual.odometro && cargaAnterior.odometro && cargaActual.odometro > cargaAnterior.odometro) {
-        const distancia = cargaActual.odometro - cargaAnterior.odometro
-        const consumo = distancia / cargaActual.litros_cargados // km/litro
-        
-        if (consumo > 0 && consumo < 50) { // Filtrar valores razonables
+      if (cargaActual.odometro && cargaAnterior.odometro) {
+        const distancia = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
+        if (distancia > 0) {
+          const consumo = distancia / cargaActual.litros_cargados // km/litro
+          
           datos.push({
             fecha: cargaActual.fecha_carga,
             consumo,
