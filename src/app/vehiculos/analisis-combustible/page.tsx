@@ -75,10 +75,71 @@ export default function AnalisisCombustiblePage() {
 
       if (cargasError) throw cargasError
 
+      // DEBUG: Ver AF949YS específicamente
+      const af949ysRecords = cargasData?.filter(r => r.placa === 'AF949YS') || []
+      console.log('🔍 DEBUG AF949YS total records in Supabase:', af949ysRecords.length)
+      console.log('🔍 DEBUG AF949YS first 3 records:', af949ysRecords.slice(0, 3))
+      console.log('🔍 DEBUG AF949YS last 3 records:', af949ysRecords.slice(-3))
+      console.log('🔍 DEBUG total records from Supabase:', cargasData?.length || 0)
+      
+      if (af949ysVehiculos.length > 0 || af949ysCargas.length > 0) {
+        console.log('🔍 DEBUG AF949YS:')
+        console.log(`Vehicles found: ${af949ysVehiculos.length}`)
+        af949ysVehiculos.forEach(v => {
+          console.log(`  Vehicle: ID=${v.id}, Placa="${v.Placa}", Length=${v.Placa.length}`)
+          console.log(`  Placa chars: [${v.Placa.split('').join(', ')}]`)
+        })
+        
+        console.log(`Fuel charges found: ${af949ysCargas.length}`)
+        af949ysCargas.slice(0, 5).forEach(c => {
+          console.log(`  Charge: ID=${c.id}, Placa="${c.placa}", Length=${c.placa.length}`)
+          console.log(`  Placa chars: [${c.placa.split('').join(', ')}]`)
+        })
+        
+        // Test the exact matching
+        af949ysVehiculos.forEach(vehiculo => {
+          const exactMatches = cargasData.filter(carga => carga.placa === vehiculo.Placa)
+          const caseInsensitiveMatches = cargasData.filter(carga => 
+            carga.placa && carga.placa.toLowerCase() === vehiculo.Placa.toLowerCase()
+          )
+          const trimmedMatches = cargasData.filter(carga => 
+            carga.placa && carga.placa.trim() === vehiculo.Placa.trim()
+          )
+          
+          console.log(`  Matching for vehicle "${vehiculo.Placa}":`)
+          console.log(`    Exact matches: ${exactMatches.length}`)
+          console.log(`    Case insensitive: ${caseInsensitiveMatches.length}`)
+          console.log(`    Trimmed matches: ${trimmedMatches.length}`)
+        })
+      }
+
       // Procesar datos por vehículo
       const vehiculosConCombustible = await Promise.all(
         vehiculosData.map(async (vehiculo) => {
-          const cargasVehiculo = cargasData.filter(carga => carga.placa === vehiculo.Placa)
+          // Try multiple matching strategies to handle data inconsistencies
+          let cargasVehiculo = cargasData.filter(carga => carga.placa === vehiculo.Placa)
+          
+          // If no exact matches, try case-insensitive
+          if (cargasVehiculo.length === 0) {
+            cargasVehiculo = cargasData.filter(carga => 
+              carga.placa && carga.placa.toLowerCase() === vehiculo.Placa.toLowerCase()
+            )
+          }
+          
+          // If still no matches, try trimmed comparison
+          if (cargasVehiculo.length === 0) {
+            cargasVehiculo = cargasData.filter(carga => 
+              carga.placa && carga.placa.trim() === vehiculo.Placa.trim()
+            )
+          }
+          
+          // If still no matches, try both case-insensitive and trimmed
+          if (cargasVehiculo.length === 0) {
+            cargasVehiculo = cargasData.filter(carga => 
+              carga.placa && 
+              carga.placa.toLowerCase().trim() === vehiculo.Placa.toLowerCase().trim()
+            )
+          }
           
           let consumoPromedio = undefined
           let costoPorKm = undefined
@@ -126,8 +187,32 @@ export default function AnalisisCombustiblePage() {
   }
 
   const cargarDatosGrafica = (placa: string, todasLasCargas: CargaCombustibleYPF[]) => {
-    const cargasVehiculo = todasLasCargas
-      .filter(carga => carga.placa === placa)
+    // Use the same robust matching logic as in the main data processing
+    let cargasVehiculo = todasLasCargas.filter(carga => carga.placa === placa)
+    
+    // If no exact matches, try case-insensitive
+    if (cargasVehiculo.length === 0) {
+      cargasVehiculo = todasLasCargas.filter(carga => 
+        carga.placa && carga.placa.toLowerCase() === placa.toLowerCase()
+      )
+    }
+    
+    // If still no matches, try trimmed comparison
+    if (cargasVehiculo.length === 0) {
+      cargasVehiculo = todasLasCargas.filter(carga => 
+        carga.placa && carga.placa.trim() === placa.trim()
+      )
+    }
+    
+    // If still no matches, try both case-insensitive and trimmed
+    if (cargasVehiculo.length === 0) {
+      cargasVehiculo = todasLasCargas.filter(carga => 
+        carga.placa && 
+        carga.placa.toLowerCase().trim() === placa.toLowerCase().trim()
+      )
+    }
+    
+    cargasVehiculo = cargasVehiculo
       .sort((a, b) => new Date(a.fecha_carga).getTime() - new Date(b.fecha_carga).getTime())
 
     const datos: DatosGrafica[] = []
