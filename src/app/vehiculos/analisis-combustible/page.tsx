@@ -67,15 +67,10 @@ export default function AnalisisCombustiblePage() {
 
       if (vehiculosError) throw vehiculosError
 
-      // Cargar cargas de combustible de los últimos 12 meses
-      const fechaLimite = new Date()
-      fechaLimite.setFullYear(fechaLimite.getFullYear() - 1)
-      const fechaLimiteISO = fechaLimite.toISOString()
-      
+      // Cargar TODAS las cargas de combustible sin filtros de fecha
       const { data: cargasData, error: cargasError } = await supabase
         .from('cargas_combustible_ypf')
         .select('*')
-        .gte('fecha_carga', fechaLimiteISO)
         .order('fecha_carga', { ascending: true })
 
       if (cargasError) throw cargasError
