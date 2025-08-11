@@ -67,14 +67,29 @@ export default function AnalisisCombustiblePage() {
 
       if (vehiculosError) throw vehiculosError
 
-      // Cargar TODAS las cargas de combustible sin límite
-      const { data: cargasData, error: cargasError } = await supabase
-        .from('cargas_combustible_ypf')
-        .select('*')
-        .order('fecha_carga', { ascending: true })
-        .limit(5000) // Aumentar límite para cubrir todos los registros
+      // Cargar TODOS los registros con paginación
+      let allCargasData: any[] = []
+      let page = 0
+      const pageSize = 1000
+      
+      while (true) {
+        const { data: pageData, error: cargasError } = await supabase
+          .from('cargas_combustible_ypf')
+          .select('*')
+          .order('fecha_carga', { ascending: true })
+          .range(page * pageSize, (page + 1) * pageSize - 1)
 
-      if (cargasError) throw cargasError
+        if (cargasError) throw cargasError
+        
+        if (!pageData || pageData.length === 0) break
+        
+        allCargasData = [...allCargasData, ...pageData]
+        
+        if (pageData.length < pageSize) break // Última página
+        page++
+      }
+      
+      const cargasData = allCargasData
 
       // DEBUG: Ver AF949YS específicamente
       const af949ysRecords = cargasData?.filter(r => r.placa === 'AF949YS') || []
