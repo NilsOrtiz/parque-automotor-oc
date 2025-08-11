@@ -198,75 +198,68 @@ export default function AnalisisCombustiblePage() {
     }
   }
 
-  // Función para detectar odómetros anómalos basada en continuidad de curva
+  // Función SIMPLE para detectar odómetros anómalos - solo casos obvios
   const detectarAnomalias = (cargas: CargaCombustibleYPF[]) => {
     const cargasConOdometro = cargas.filter(c => c.odometro && c.odometro > 0)
-    if (cargasConOdometro.length < 4) return [] // Necesitamos más puntos para detectar curva
+    if (cargasConOdometro.length < 3) return []
 
     const anomalias: Array<{
       id: number
-      tipo: 'salto_adelante' | 'salto_atras' | 'digito_extra' | 'digito_faltante' | 'fuera_de_curva'
+      tipo: 'digito_extra' | 'digito_faltante'
       valorOriginal: number
       valorSugerido: number
       confianza: number
     }> = []
 
-    for (let i = 1; i < cargasConOdometro.length - 1; i++) {
-      const anterior = cargasConOdometro[i - 1]
+    for (let i = 0; i < cargasConOdometro.length; i++) {
       const actual = cargasConOdometro[i]
-      const siguiente = cargasConOdometro[i + 1]
-
-      if (!anterior.odometro || !actual.odometro || !siguiente.odometro) continue
-
-      // ANÁLISIS DE CONTINUIDAD DE CURVA
-      // Calcular la tendencia esperada usando interpolación lineal
-      const diasAnterior = (new Date(actual.fecha_carga).getTime() - new Date(anterior.fecha_carga).getTime()) / (1000 * 60 * 60 * 24)
-      const diasSiguiente = (new Date(siguiente.fecha_carga).getTime() - new Date(actual.fecha_carga).getTime()) / (1000 * 60 * 60 * 24)
-      const diasTotal = diasAnterior + diasSiguiente
       
-      // Valor esperado basado en interpolación lineal entre anterior y siguiente
-      const valorEsperadoLineal = anterior.odometro + ((siguiente.odometro - anterior.odometro) * (diasAnterior / diasTotal))
-      const desviacionLineal = Math.abs(actual.odometro - valorEsperadoLineal)
+      // REGLA SIMPLE: Detectar dígito extra obvio
+      // Si el valor es >10x más grande que valores cercanos = dígito extra
+      const valoresCercanos = []
       
-      // Calcular umbral de tolerancia basado en la distancia temporal y el rango típico
-      const rangoTipico = Math.abs(siguiente.odometro - anterior.odometro)
-      const umbralTolerancia = Math.max(rangoTipico * 0.3, 1000) // Mínimo 1000 km de tolerancia
+      // Tomar 2 valores antes y 2 después si existen
+      for (let j = Math.max(0, i - 2); j <= Math.min(cargasConOdometro.length - 1, i + 2); j++) {
+        if (j !== i && cargasConOdometro[j].odometro) {
+          valoresCercanos.push(cargasConOdometro[j].odometro)
+        }
+      }
       
-      console.log(`🔍 Punto ${i}: ${actual.odometro} vs esperado ${valorEsperadoLineal.toFixed(0)} (desv: ${desviacionLineal.toFixed(0)}, umbral: ${umbralTolerancia.toFixed(0)})`)
-      
-      // Si la desviación es muy grande, es sospechoso
-      if (desviacionLineal > umbralTolerancia) {
-        let valorSugerido = Math.round(valorEsperadoLineal)
-        let confianza = 0.7
-        let tipo: 'fuera_de_curva' | 'digito_extra' | 'digito_faltante' = 'fuera_de_curva'
+      if (valoresCercanos.length >= 2) {
+        const promedioVecinos = valoresCercanos.reduce((a, b) => a + b, 0) / valoresCercanos.length
         
-        // Verificar si es un dígito extra (569275 → 56927)
-        const valorSinPrimerDigito = Math.floor(actual.odometro / 10)
-        const desviacionSinPrimerDigito = Math.abs(valorSinPrimerDigito - valorEsperadoLineal)
+        console.log(`🔍 ${actual.odometro} vs promedio vecinos ${promedioVecinos.toFixed(0)}`)
         
-        if (desviacionSinPrimerDigito < desviacionLineal * 0.1) {
-          valorSugerido = valorSinPrimerDigito
-          tipo = 'digito_extra'
-          confianza = 0.9
+        // Si actual es >10x el promedio de vecinos = dígito extra
+        if (actual.odometro > promedioVecinos * 8) {
+          const valorSinDigitoExtra = Math.floor(actual.odometro / 10)
+          
+          // Verificar que el valor corregido tiene más sentido
+          if (Math.abs(valorSinDigitoExtra - promedioVecinos) < Math.abs(actual.odometro - promedioVecinos)) {
+            anomalias.push({
+              id: actual.id,
+              tipo: 'digito_extra',
+              valorOriginal: actual.odometro,
+              valorSugerido: valorSinDigitoExtra,
+              confianza: 0.95
+            })
+          }
         }
         
-        // Verificar si es un dígito faltante (56927 → 569275)
-        const valorConDigitoExtra = actual.odometro * 10
-        const desviacionConDigitoExtra = Math.abs(valorConDigitoExtra - valorEsperadoLineal)
-        
-        if (desviacionConDigitoExtra < desviacionLineal * 0.1 && valorConDigitoExtra > anterior.odometro) {
-          valorSugerido = valorConDigitoExtra
-          tipo = 'digito_faltante'
-          confianza = 0.8
+        // Si actual es <1/10 del promedio = dígito faltante (más conservador)
+        if (actual.odometro * 8 < promedioVecinos && actual.odometro * 10 < promedioVecinos * 1.5) {
+          const valorConDigitoExtra = actual.odometro * 10
+          
+          if (Math.abs(valorConDigitoExtra - promedioVecinos) < Math.abs(actual.odometro - promedioVecinos)) {
+            anomalias.push({
+              id: actual.id,
+              tipo: 'digito_faltante',
+              valorOriginal: actual.odometro,
+              valorSugerido: valorConDigitoExtra,
+              confianza: 0.85
+            })
+          }
         }
-        
-        anomalias.push({
-          id: actual.id,
-          tipo,
-          valorOriginal: actual.odometro,
-          valorSugerido,
-          confianza
-        })
       }
     }
 
