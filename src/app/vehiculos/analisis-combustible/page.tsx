@@ -427,18 +427,49 @@ export default function AnalisisCombustiblePage() {
     setEditandoId(null)
   }
 
-  const guardarEdicion = (cargaId: number, nuevoValor: string) => {
+  const guardarEdicion = async (cargaId: number, nuevoValor: string) => {
     const valor = parseInt(nuevoValor.replace(/[^0-9]/g, '')) // Solo números
     if (!isNaN(valor) && valor >= 0) {
-      const nuevosEditados = new Map(odometrosEditados)
-      nuevosEditados.set(cargaId, valor)
-      setOdometrosEditados(nuevosEditados)
-      
-      console.log(`✏️ Odómetro editado: Carga ${cargaId} → ${valor.toLocaleString()} km`)
-      
-      // Actualizar cálculos automáticamente
-      if (vehiculoSeleccionado) {
-        actualizarCalculosConEdiciones(vehiculoSeleccionado.Placa)
+      try {
+        // Actualizar en la base de datos
+        const { error } = await supabase
+          .from('cargas_combustible_ypf')
+          .update({ odometro: valor })
+          .eq('id', cargaId)
+        
+        if (error) {
+          console.error('Error al actualizar odómetro:', error)
+          alert('Error al guardar el cambio. Inténtalo de nuevo.')
+          setEditandoId(null)
+          return
+        }
+        
+        // Actualizar en el estado local
+        setCargasCombustible(prev => 
+          prev.map(carga => 
+            carga.id === cargaId ? { ...carga, odometro: valor } : carga
+          )
+        )
+        
+        // Limpiar ediciones temporales ya que ahora está guardado
+        const nuevosEditados = new Map(odometrosEditados)
+        nuevosEditados.delete(cargaId)
+        setOdometrosEditados(nuevosEditados)
+        
+        console.log(`✅ Odómetro guardado en BD: Carga ${cargaId} → ${valor.toLocaleString()} km`)
+        
+        // Actualizar cálculos automáticamente
+        if (vehiculoSeleccionado) {
+          // Recargar datos para asegurar consistencia
+          const cargasActualizadas = cargasCombustible.map(carga => 
+            carga.id === cargaId ? { ...carga, odometro: valor } : carga
+          )
+          cargarDatosGrafica(vehiculoSeleccionado.Placa, cargasActualizadas)
+        }
+        
+      } catch (error) {
+        console.error('Error inesperado:', error)
+        alert('Error al guardar el cambio. Inténtalo de nuevo.')
       }
     }
     setEditandoId(null)
