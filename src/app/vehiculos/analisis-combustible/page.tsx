@@ -50,11 +50,12 @@ export default function AnalisisCombustiblePage() {
   const [datosGrafica, setDatosGrafica] = useState<DatosGrafica[]>([])
   const [anomalias, setAnomalias] = useState<Array<{
     id: number
-    tipo: 'salto_adelante' | 'salto_atras' | 'digito_extra' | 'digito_faltante'
+    tipo: 'salto_adelante' | 'salto_atras' | 'digito_extra' | 'digito_faltante' | 'manual'
     valorOriginal: number
     valorSugerido: number
     confianza: number
   }>>([])
+  const [anomaliasManualeslIds, setAnomaliasManualeslIds] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -266,6 +267,91 @@ export default function AnalisisCombustiblePage() {
     return anomalias
   }
 
+  // Función para calcular valor interpolado
+  const calcularInterpolacion = (cargas: CargaCombustibleYPF[], indiceAnomalo: number): number => {
+    // Buscar el punto anterior y posterior válidos más cercanos
+    let anteriorValido = null
+    let siguienteValido = null
+    
+    // Buscar anterior válido
+    for (let i = indiceAnomalo - 1; i >= 0; i--) {
+      if (cargas[i].odometro && !anomaliasManualeslIds.has(cargas[i].id)) {
+        anteriorValido = { ...cargas[i], indice: i }
+        break
+      }
+    }
+    
+    // Buscar siguiente válido  
+    for (let i = indiceAnomalo + 1; i < cargas.length; i++) {
+      if (cargas[i].odometro && !anomaliasManualeslIds.has(cargas[i].id)) {
+        siguienteValido = { ...cargas[i], indice: i }
+        break
+      }
+    }
+    
+    if (anteriorValido && siguienteValido) {
+      // Interpolación lineal basada en tiempo
+      const fechaAnomala = new Date(cargas[indiceAnomalo].fecha_carga).getTime()
+      const fechaAnterior = new Date(anteriorValido.fecha_carga).getTime()
+      const fechaSiguiente = new Date(siguienteValido.fecha_carga).getTime()
+      
+      const proporcion = (fechaAnomala - fechaAnterior) / (fechaSiguiente - fechaAnterior)
+      const valorInterpolado = anteriorValido.odometro + (siguienteValido.odometro - anteriorValido.odometro) * proporcion
+      
+      return Math.round(valorInterpolado)
+    } else if (anteriorValido) {
+      // Solo tenemos anterior, incremento conservador
+      return anteriorValido.odometro + 500
+    } else if (siguienteValido) {
+      // Solo tenemos siguiente, decremento conservador  
+      return Math.max(0, siguienteValido.odometro - 500)
+    }
+    
+    return cargas[indiceAnomalo].odometro // Fallback
+  }
+  
+  // Función para marcar/desmarcar anomalía manual
+  const toggleAnomaliaManual = (cargaId: number, vehiculoPlaca: string) => {
+    const nuevasAnomaliasManuales = new Set(anomaliasManualeslIds)
+    
+    if (nuevasAnomaliasManuales.has(cargaId)) {
+      // Desmarcar
+      nuevasAnomaliasManuales.delete(cargaId)
+    } else {
+      // Marcar
+      nuevasAnomaliasManuales.add(cargaId)
+    }
+    
+    setAnomaliasManualeslIds(nuevasAnomaliasManuales)
+    
+    // Recalcular todas las interpolaciones para este vehículo
+    recalcularInterpolaciones(vehiculoPlaca, nuevasAnomaliasManuales)
+  }
+  
+  const recalcularInterpolaciones = (vehiculoPlaca: string, idsAnomalosManuales: Set<number>) => {
+    const cargasVehiculo = cargasCombustible
+      .filter(carga => carga.placa === vehiculoPlaca)
+      .sort((a, b) => new Date(a.fecha_carga).getTime() - new Date(b.fecha_carga).getTime())
+    
+    const nuevasAnomalias: typeof anomalias = []
+    
+    cargasVehiculo.forEach((carga, index) => {
+      if (idsAnomalosManuales.has(carga.id)) {
+        const valorSugerido = calcularInterpolacion(cargasVehiculo, index)
+        
+        nuevasAnomalias.push({
+          id: carga.id,
+          tipo: 'manual',
+          valorOriginal: carga.odometro,
+          valorSugerido,
+          confianza: 0.8
+        })
+      }
+    })
+    
+    setAnomalias(nuevasAnomalias)
+  }
+
   const cargarDatosGrafica = (placa: string, todasLasCargas: CargaCombustibleYPF[]) => {
     // Use the same robust matching logic as in the main data processing
     let cargasVehiculo = todasLasCargas.filter(carga => carga.placa === placa)
@@ -326,14 +412,9 @@ export default function AnalisisCombustiblePage() {
     setVehiculoSeleccionado(vehiculo)
     cargarDatosGrafica(vehiculo.Placa, cargasCombustible)
     
-    // Detectar anomalías para este vehículo
-    const cargasVehiculo = cargasCombustible.filter(carga => carga.placa === vehiculo.Placa)
-    const anomaliasDetectadas = detectarAnomalias(cargasVehiculo.sort((a, b) => new Date(a.fecha_carga).getTime() - new Date(b.fecha_carga).getTime()))
-    setAnomalias(anomaliasDetectadas)
-    
-    if (anomaliasDetectadas.length > 0) {
-      console.log(`🚨 Detectadas ${anomaliasDetectadas.length} anomalías en ${vehiculo.Placa}:`, anomaliasDetectadas)
-    }
+    // Limpiar selecciones manuales previas
+    setAnomaliasManualeslIds(new Set())
+    setAnomalias([])
   }
 
   const chartData = {
@@ -602,6 +683,7 @@ export default function AnalisisCombustiblePage() {
                             {anomalia.tipo === 'salto_atras' && '⬅️ Retroceso'}
                             {anomalia.tipo === 'salto_adelante' && '➡️ Salto adelante'}
                             {anomalia.tipo === 'fuera_de_curva' && '📈 Fuera de curva'}
+                            {anomalia.tipo === 'manual' && '👆 Marcado manual'}
                           </span>
                           <span className="font-mono">
                             {anomalia.valorOriginal.toLocaleString()} → {anomalia.valorSugerido.toLocaleString()}
@@ -646,6 +728,9 @@ export default function AnalisisCombustiblePage() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Consumo
                           </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Marcar
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -663,6 +748,7 @@ export default function AnalisisCombustiblePage() {
                               
                               // Buscar si esta carga tiene anomalías
                               const anomalia = anomalias.find(a => a.id === carga.id)
+                              const esMarcadoManualmente = anomaliasManualeslIds.has(carga.id)
                               
                               let consumo = 'N/A'
                               if (cargaAnterior && carga.odometro && cargaAnterior.odometro) {
@@ -673,8 +759,8 @@ export default function AnalisisCombustiblePage() {
                                 }
                               }
                               
-                              const esAnomalo = !!anomalia
-                              const tipoAnomalia = anomalia?.tipo || ''
+                              const esAnomalo = esMarcadoManualmente || !!anomalia
+                              const tipoAnomalia = anomalia?.tipo || 'manual'
                               
                               return (
                                 <tr key={carga.id} className={`hover:bg-gray-50 ${esAnomalo ? 'bg-red-50 border-l-4 border-l-red-500' : ''}`}>
@@ -695,6 +781,7 @@ export default function AnalisisCombustiblePage() {
                                             {tipoAnomalia === 'salto_atras' && '(Retroceso)'}
                                             {tipoAnomalia === 'salto_adelante' && '(Salto adelante)'}
                                             {tipoAnomalia === 'fuera_de_curva' && '(Fuera de curva)'}
+                            {tipoAnomalia === 'manual' && '(Marcado manual)'}
                                             {` - ${Math.round(anomalia.confianza * 100)}% confianza`}
                                           </span>
                                         </div>
@@ -712,6 +799,18 @@ export default function AnalisisCombustiblePage() {
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                                     {consumo}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <button
+                                      onClick={() => toggleAnomaliaManual(carga.id, vehiculoSeleccionado.Placa)}
+                                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                        esMarcadoManualmente 
+                                          ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300' 
+                                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300'
+                                      }`}
+                                    >
+                                      {esMarcadoManualmente ? '❌ Desmarcar' : '⚠️ Marcar'}
+                                    </button>
                                   </td>
                                 </tr>
                               )
