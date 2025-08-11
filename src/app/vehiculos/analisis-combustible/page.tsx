@@ -89,28 +89,11 @@ export default function AnalisisCombustiblePage() {
             let totalCosto = 0
             let contadorCalculos = 0
             
-            for (let i = 1; i < cargasVehiculo.length; i++) {
-              const cargaActual = cargasVehiculo[i]
-              const cargaAnterior = cargasVehiculo[i - 1]
-              
-              if (cargaActual.odometro && cargaAnterior.odometro) {
-                const distancia = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
-                if (distancia > 0) {
-                  const consumo = distancia / cargaActual.litros_cargados // km/litro
-                  
-                  totalConsumo += consumo
-                  if (cargaActual.monto_total) {
-                    totalCosto += cargaActual.monto_total / distancia
-                  }
-                  contadorCalculos++
-                }
-              }
-            }
+            // Sin cálculos de consumo para mostrar datos puros
+            consumoPromedio = 0
+            costoPorKm = 0
             
-            if (contadorCalculos > 0) {
-              consumoPromedio = totalConsumo / contadorCalculos
-              costoPorKm = totalCosto / contadorCalculos
-            }
+            // No hay cálculos de consumo en modo datos puros
           }
 
           return {
@@ -149,24 +132,17 @@ export default function AnalisisCombustiblePage() {
 
     const datos: DatosGrafica[] = []
 
-    for (let i = 1; i < cargasVehiculo.length; i++) {
-      const cargaActual = cargasVehiculo[i]
-      const cargaAnterior = cargasVehiculo[i - 1]
-
-      if (cargaActual.odometro && cargaAnterior.odometro) {
-        const distancia = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
-        if (distancia > 0) {
-          const consumo = distancia / cargaActual.litros_cargados // km/litro
-          
-          datos.push({
-            fecha: cargaActual.fecha_carga,
-            consumo,
-            odometro: cargaActual.odometro,
-            litros: cargaActual.litros_cargados,
-            costo: cargaActual.monto_total || 0
-          })
-        }
-      }
+    // Mostrar TODAS las cargas sin filtros
+    for (let i = 0; i < cargasVehiculo.length; i++) {
+      const carga = cargasVehiculo[i]
+      
+      datos.push({
+        fecha: carga.fecha_carga,
+        consumo: 0, // Sin cálculo de consumo, solo mostrar datos
+        odometro: carga.odometro || 0,
+        litros: carga.litros_cargados,
+        costo: carga.monto_total || 0
+      })
     }
 
     setDatosGrafica(datos)
