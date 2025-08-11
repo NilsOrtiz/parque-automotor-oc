@@ -198,14 +198,14 @@ export default function AnalisisCombustiblePage() {
     }
   }
 
-  // Función para detectar odómetros anómalos
+  // Función para detectar odómetros anómalos basada en continuidad de curva
   const detectarAnomalias = (cargas: CargaCombustibleYPF[]) => {
     const cargasConOdometro = cargas.filter(c => c.odometro && c.odometro > 0)
-    if (cargasConOdometro.length < 3) return []
+    if (cargasConOdometro.length < 4) return [] // Necesitamos más puntos para detectar curva
 
     const anomalias: Array<{
       id: number
-      tipo: 'salto_adelante' | 'salto_atras' | 'digito_extra' | 'digito_faltante'
+      tipo: 'salto_adelante' | 'salto_atras' | 'digito_extra' | 'digito_faltante' | 'fuera_de_curva'
       valorOriginal: number
       valorSugerido: number
       confianza: number
@@ -218,83 +218,55 @@ export default function AnalisisCombustiblePage() {
 
       if (!anterior.odometro || !actual.odometro || !siguiente.odometro) continue
 
-      // Calcular incrementos esperados
-      const incrementoAnterior = Math.abs(actual.odometro - anterior.odometro)
-      const incrementoSiguiente = Math.abs(siguiente.odometro - actual.odometro)
-      const incrementoPromedio = (incrementoAnterior + incrementoSiguiente) / 2
-
-      // Detectar dígito extra (866941 en lugar de 86694) - MÁS ESTRICTO
-      if (incrementoAnterior > 500000 && actual.odometro > anterior.odometro * 5) {
-        // Verificar si quitar el primer dígito hace sentido
-        const valorSinDigitoExtra = Math.floor(actual.odometro / 10)
+      // ANÁLISIS DE CONTINUIDAD DE CURVA
+      // Calcular la tendencia esperada usando interpolación lineal
+      const diasAnterior = (new Date(actual.fecha_carga).getTime() - new Date(anterior.fecha_carga).getTime()) / (1000 * 60 * 60 * 24)
+      const diasSiguiente = (new Date(siguiente.fecha_carga).getTime() - new Date(actual.fecha_carga).getTime()) / (1000 * 60 * 60 * 24)
+      const diasTotal = diasAnterior + diasSiguiente
+      
+      // Valor esperado basado en interpolación lineal entre anterior y siguiente
+      const valorEsperadoLineal = anterior.odometro + ((siguiente.odometro - anterior.odometro) * (diasAnterior / diasTotal))
+      const desviacionLineal = Math.abs(actual.odometro - valorEsperadoLineal)
+      
+      // Calcular umbral de tolerancia basado en la distancia temporal y el rango típico
+      const rangoTipico = Math.abs(siguiente.odometro - anterior.odometro)
+      const umbralTolerancia = Math.max(rangoTipico * 0.3, 1000) // Mínimo 1000 km de tolerancia
+      
+      console.log(`🔍 Punto ${i}: ${actual.odometro} vs esperado ${valorEsperadoLineal.toFixed(0)} (desv: ${desviacionLineal.toFixed(0)}, umbral: ${umbralTolerancia.toFixed(0)})`)
+      
+      // Si la desviación es muy grande, es sospechoso
+      if (desviacionLineal > umbralTolerancia) {
+        let valorSugerido = Math.round(valorEsperadoLineal)
+        let confianza = 0.7
+        let tipo: 'fuera_de_curva' | 'digito_extra' | 'digito_faltante' = 'fuera_de_curva'
         
-        // Debe estar en un rango razonable con respecto a anterior y siguiente
-        if (valorSinDigitoExtra > anterior.odometro && 
-            valorSinDigitoExtra < anterior.odometro + 10000 &&
-            siguiente.odometro &&
-            Math.abs(valorSinDigitoExtra - siguiente.odometro) < Math.abs(actual.odometro - siguiente.odometro)) {
-          
-          anomalias.push({
-            id: actual.id,
-            tipo: 'digito_extra',
-            valorOriginal: actual.odometro,
-            valorSugerido: valorSinDigitoExtra,
-            confianza: 0.9
-          })
-        }
-      }
-
-      // Detectar dígito faltante - DESHABILITADO temporalmente (causar falsos positivos)
-      // if (incrementoAnterior < incrementoPromedio / 10 && incrementoAnterior > 0) {
-      //   const valorConDigitoExtra = actual.odometro * 10
-      //   if (valorConDigitoExtra > anterior.odometro && valorConDigitoExtra < siguiente.odometro * 2) {
-      //     anomalias.push({
-      //       id: actual.id,
-      //       tipo: 'digito_faltante',
-      //       valorOriginal: actual.odometro,
-      //       valorSugerido: valorConDigitoExtra,
-      //       confianza: 0.8
-      //     })
-      //   }
-      // }
-
-      // Detectar saltos grandes hacia atrás - MÁS ESTRICTO (solo retrocesos extremos)
-      if (actual.odometro < anterior.odometro * 0.5 && anterior.odometro - actual.odometro > 20000) {
-        // Calcular incremento promedio más conservador usando múltiples puntos
-        let incrementoPromedioReal = 1000 // Default seguro
+        // Verificar si es un dígito extra (569275 → 56927)
+        const valorSinPrimerDigito = Math.floor(actual.odometro / 10)
+        const desviacionSinPrimerDigito = Math.abs(valorSinPrimerDigito - valorEsperadoLineal)
         
-        if (i >= 2 && i < cargasConOdometro.length - 2) {
-          // Usar más puntos para calcular incremento real
-          const incrementos = []
-          for (let j = Math.max(0, i - 3); j < Math.min(cargasConOdometro.length - 1, i + 2); j++) {
-            if (j !== i - 1 && cargasConOdometro[j + 1] && cargasConOdometro[j]) {
-              const inc = Math.abs(cargasConOdometro[j + 1].odometro - cargasConOdometro[j].odometro)
-              if (inc > 0 && inc < 10000) { // Filtrar incrementos razonables
-                incrementos.push(inc)
-              }
-            }
-          }
-          
-          if (incrementos.length > 0) {
-            incrementoPromedioReal = incrementos.reduce((a, b) => a + b, 0) / incrementos.length
-          }
+        if (desviacionSinPrimerDigito < desviacionLineal * 0.1) {
+          valorSugerido = valorSinPrimerDigito
+          tipo = 'digito_extra'
+          confianza = 0.9
         }
         
-        // Predecir basado en incremento promedio conservador
-        const diasEntreFechas = (new Date(actual.fecha_carga).getTime() - new Date(anterior.fecha_carga).getTime()) / (1000 * 60 * 60 * 24)
-        const incrementoEsperado = Math.min(incrementoPromedioReal * Math.max(1, diasEntreFechas / 7), 5000) // Máximo 5000 km
-        const valorSugerido = Math.round(anterior.odometro + incrementoEsperado)
-
-        // Solo sugerir si el valor es razonable
-        if (valorSugerido > anterior.odometro && valorSugerido < anterior.odometro + 10000) {
-          anomalias.push({
-            id: actual.id,
-            tipo: 'salto_atras',
-            valorOriginal: actual.odometro,
-            valorSugerido: valorSugerido,
-            confianza: 0.5 // Menor confianza para retrocesos
-          })
+        // Verificar si es un dígito faltante (56927 → 569275)
+        const valorConDigitoExtra = actual.odometro * 10
+        const desviacionConDigitoExtra = Math.abs(valorConDigitoExtra - valorEsperadoLineal)
+        
+        if (desviacionConDigitoExtra < desviacionLineal * 0.1 && valorConDigitoExtra > anterior.odometro) {
+          valorSugerido = valorConDigitoExtra
+          tipo = 'digito_faltante'
+          confianza = 0.8
         }
+        
+        anomalias.push({
+          id: actual.id,
+          tipo,
+          valorOriginal: actual.odometro,
+          valorSugerido,
+          confianza
+        })
       }
     }
 
@@ -636,6 +608,7 @@ export default function AnalisisCombustiblePage() {
                             {anomalia.tipo === 'digito_faltante' && '🔢 Dígito faltante'}
                             {anomalia.tipo === 'salto_atras' && '⬅️ Retroceso'}
                             {anomalia.tipo === 'salto_adelante' && '➡️ Salto adelante'}
+                            {anomalia.tipo === 'fuera_de_curva' && '📈 Fuera de curva'}
                           </span>
                           <span className="font-mono">
                             {anomalia.valorOriginal.toLocaleString()} → {anomalia.valorSugerido.toLocaleString()}
@@ -728,6 +701,7 @@ export default function AnalisisCombustiblePage() {
                                             {tipoAnomalia === 'digito_faltante' && '(Dígito faltante)'}
                                             {tipoAnomalia === 'salto_atras' && '(Retroceso)'}
                                             {tipoAnomalia === 'salto_adelante' && '(Salto adelante)'}
+                                            {tipoAnomalia === 'fuera_de_curva' && '(Fuera de curva)'}
                                             {` - ${Math.round(anomalia.confianza * 100)}% confianza`}
                                           </span>
                                         </div>
