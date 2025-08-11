@@ -223,10 +223,17 @@ export default function AnalisisCombustiblePage() {
       const incrementoSiguiente = Math.abs(siguiente.odometro - actual.odometro)
       const incrementoPromedio = (incrementoAnterior + incrementoSiguiente) / 2
 
-      // Detectar dígito extra (866941 en lugar de 86694)
-      if (incrementoAnterior > incrementoPromedio * 10) {
+      // Detectar dígito extra (866941 en lugar de 86694) - MÁS ESTRICTO
+      if (incrementoAnterior > 500000 && actual.odometro > anterior.odometro * 5) {
+        // Verificar si quitar el primer dígito hace sentido
         const valorSinDigitoExtra = Math.floor(actual.odometro / 10)
-        if (valorSinDigitoExtra > anterior.odometro && valorSinDigitoExtra < siguiente.odometro) {
+        
+        // Debe estar en un rango razonable con respecto a anterior y siguiente
+        if (valorSinDigitoExtra > anterior.odometro && 
+            valorSinDigitoExtra < anterior.odometro + 10000 &&
+            siguiente.odometro &&
+            Math.abs(valorSinDigitoExtra - siguiente.odometro) < Math.abs(actual.odometro - siguiente.odometro)) {
+          
           anomalias.push({
             id: actual.id,
             tipo: 'digito_extra',
@@ -237,34 +244,57 @@ export default function AnalisisCombustiblePage() {
         }
       }
 
-      // Detectar dígito faltante
-      if (incrementoAnterior < incrementoPromedio / 10 && incrementoAnterior > 0) {
-        const valorConDigitoExtra = actual.odometro * 10
-        if (valorConDigitoExtra > anterior.odometro && valorConDigitoExtra < siguiente.odometro * 2) {
+      // Detectar dígito faltante - DESHABILITADO temporalmente (causar falsos positivos)
+      // if (incrementoAnterior < incrementoPromedio / 10 && incrementoAnterior > 0) {
+      //   const valorConDigitoExtra = actual.odometro * 10
+      //   if (valorConDigitoExtra > anterior.odometro && valorConDigitoExtra < siguiente.odometro * 2) {
+      //     anomalias.push({
+      //       id: actual.id,
+      //       tipo: 'digito_faltante',
+      //       valorOriginal: actual.odometro,
+      //       valorSugerido: valorConDigitoExtra,
+      //       confianza: 0.8
+      //     })
+      //   }
+      // }
+
+      // Detectar saltos grandes hacia atrás - MÁS ESTRICTO (solo retrocesos extremos)
+      if (actual.odometro < anterior.odometro * 0.5 && anterior.odometro - actual.odometro > 20000) {
+        // Calcular incremento promedio más conservador usando múltiples puntos
+        let incrementoPromedioReal = 1000 // Default seguro
+        
+        if (i >= 2 && i < cargasConOdometro.length - 2) {
+          // Usar más puntos para calcular incremento real
+          const incrementos = []
+          for (let j = Math.max(0, i - 3); j < Math.min(cargasConOdometro.length - 1, i + 2); j++) {
+            if (j !== i - 1 && cargasConOdometro[j + 1] && cargasConOdometro[j]) {
+              const inc = Math.abs(cargasConOdometro[j + 1].odometro - cargasConOdometro[j].odometro)
+              if (inc > 0 && inc < 10000) { // Filtrar incrementos razonables
+                incrementos.push(inc)
+              }
+            }
+          }
+          
+          if (incrementos.length > 0) {
+            incrementoPromedioReal = incrementos.reduce((a, b) => a + b, 0) / incrementos.length
+          }
+        }
+        
+        // Predecir basado en incremento promedio conservador
+        const diasEntreFechas = (new Date(actual.fecha_carga).getTime() - new Date(anterior.fecha_carga).getTime()) / (1000 * 60 * 60 * 24)
+        const incrementoEsperado = Math.min(incrementoPromedioReal * Math.max(1, diasEntreFechas / 7), 5000) // Máximo 5000 km
+        const valorSugerido = Math.round(anterior.odometro + incrementoEsperado)
+
+        // Solo sugerir si el valor es razonable
+        if (valorSugerido > anterior.odometro && valorSugerido < anterior.odometro + 10000) {
           anomalias.push({
             id: actual.id,
-            tipo: 'digito_faltante',
+            tipo: 'salto_atras',
             valorOriginal: actual.odometro,
-            valorSugerido: valorConDigitoExtra,
-            confianza: 0.8
+            valorSugerido: valorSugerido,
+            confianza: 0.5 // Menor confianza para retrocesos
           })
         }
-      }
-
-      // Detectar saltos grandes hacia atrás (63840 después de 87798)
-      if (actual.odometro < anterior.odometro * 0.8) {
-        // Predecir valor basado en tendencia
-        const diasEntreFechas = (new Date(actual.fecha_carga).getTime() - new Date(anterior.fecha_carga).getTime()) / (1000 * 60 * 60 * 24)
-        const kmPorDiaPromedio = incrementoAnterior / Math.max(1, diasEntreFechas)
-        const valorSugerido = Math.round(anterior.odometro + (kmPorDiaPromedio * diasEntreFechas))
-
-        anomalias.push({
-          id: actual.id,
-          tipo: 'salto_atras',
-          valorOriginal: actual.odometro,
-          valorSugerido: valorSugerido,
-          confianza: 0.7
-        })
       }
     }
 
