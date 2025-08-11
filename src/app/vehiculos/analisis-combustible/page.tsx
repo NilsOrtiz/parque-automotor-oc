@@ -474,7 +474,7 @@ export default function AnalisisCombustiblePage() {
                 {/* Tabla de cargas recientes */}
                 <div className="bg-white rounded-lg shadow-md">
                   <div className="p-6 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900">Cargas Recientes</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Todas las Cargas ({cargasCombustible.filter(c => c.placa === vehiculoSeleccionado.Placa).length})</h3>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -501,28 +501,31 @@ export default function AnalisisCombustiblePage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {datosGrafica.slice(-10).reverse().map((dato, index) => (
-                          <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {new Date(dato.fecha).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {dato.odometro?.toLocaleString()} km
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {dato.litros} L
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              Nafta
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              ${dato.costo?.toLocaleString()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                              {dato.consumo.toFixed(1)} km/L
-                            </td>
-                          </tr>
-                        ))}
+                        {cargasCombustible
+                          .filter(carga => carga.placa === vehiculoSeleccionado.Placa)
+                          .sort((a, b) => new Date(b.fecha_carga).getTime() - new Date(a.fecha_carga).getTime())
+                          .map((carga, index) => (
+                            <tr key={carga.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {new Date(carga.fecha_carga).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {carga.odometro?.toLocaleString() || 'N/A'} km
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {carga.litros_cargados} L
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {carga.tipo_combustible || 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${carga.monto_total?.toLocaleString() || 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                                N/A
+                              </td>
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
                   </div>
