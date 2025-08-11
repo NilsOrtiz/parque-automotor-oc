@@ -56,6 +56,8 @@ export default function AnalisisCombustiblePage() {
     confianza: number
   }>>([])
   const [anomaliasManualeslIds, setAnomaliasManualeslIds] = useState<Set<number>>(new Set())
+  const [odometrosEditados, setOdometrosEditados] = useState<Map<number, number>>(new Map())
+  const [editandoId, setEditandoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -416,6 +418,79 @@ export default function AnalisisCombustiblePage() {
     setAnomalias(nuevasAnomalias)
   }
 
+  // Funciones para edición temporal de odómetros
+  const iniciarEdicion = (cargaId: number, valorActual: number) => {
+    setEditandoId(cargaId)
+  }
+
+  const cancelarEdicion = () => {
+    setEditandoId(null)
+  }
+
+  const guardarEdicion = (cargaId: number, nuevoValor: string) => {
+    const valor = parseInt(nuevoValor.replace(/[^0-9]/g, '')) // Solo números
+    if (!isNaN(valor) && valor >= 0) {
+      const nuevosEditados = new Map(odometrosEditados)
+      nuevosEditados.set(cargaId, valor)
+      setOdometrosEditados(nuevosEditados)
+      
+      console.log(`✏️ Odómetro editado: Carga ${cargaId} → ${valor.toLocaleString()} km`)
+      
+      // Actualizar cálculos automáticamente
+      if (vehiculoSeleccionado) {
+        actualizarCalculosConEdiciones(vehiculoSeleccionado.Placa)
+      }
+    }
+    setEditandoId(null)
+  }
+
+  const actualizarCalculosConEdiciones = (vehiculoPlaca: string) => {
+    // Recrear datos de gráfica con valores editados
+    const cargasVehiculo = cargasCombustible
+      .filter(carga => carga.placa === vehiculoPlaca)
+      .sort((a, b) => new Date(a.fecha_carga).getTime() - new Date(b.fecha_carga).getTime())
+      .map(carga => ({
+        ...carga,
+        odometro: odometrosEditados.get(carga.id) || carga.odometro
+      }))
+
+    // Recalcular gráfica con valores editados
+    const datos: DatosGrafica[] = []
+    for (let i = 1; i < cargasVehiculo.length; i++) {
+      const cargaActual = cargasVehiculo[i]
+      const cargaAnterior = cargasVehiculo[i - 1]
+
+      if (cargaActual.odometro && cargaAnterior.odometro) {
+        const distancia = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
+        if (distancia > 0) {
+          const consumo = distancia / cargaActual.litros_cargados
+          
+          datos.push({
+            fecha: cargaActual.fecha_carga,
+            consumo,
+            odometro: cargaActual.odometro,
+            litros: cargaActual.litros_cargados,
+            costo: cargaActual.monto_total || 0
+          })
+        }
+      }
+    }
+
+    setDatosGrafica(datos)
+  }
+
+  const obtenerOdometroMostrar = (carga: CargaCombustibleYPF): number => {
+    return odometrosEditados.get(carga.id) || carga.odometro
+  }
+
+  const resetearEdiciones = () => {
+    setOdometrosEditados(new Map())
+    setEditandoId(null)
+    if (vehiculoSeleccionado) {
+      cargarDatosGrafica(vehiculoSeleccionado.Placa, cargasCombustible)
+    }
+  }
+
   const cargarDatosGrafica = (placa: string, todasLasCargas: CargaCombustibleYPF[]) => {
     // Use the same robust matching logic as in the main data processing
     let cargasVehiculo = todasLasCargas.filter(carga => carga.placa === placa)
@@ -476,9 +551,11 @@ export default function AnalisisCombustiblePage() {
     setVehiculoSeleccionado(vehiculo)
     cargarDatosGrafica(vehiculo.Placa, cargasCombustible)
     
-    // Limpiar selecciones manuales previas
+    // Limpiar selecciones manuales y ediciones previas
     setAnomaliasManualeslIds(new Set())
     setAnomalias([])
+    setOdometrosEditados(new Map())
+    setEditandoId(null)
   }
 
   const chartData = {
@@ -834,7 +911,58 @@ export default function AnalisisCombustiblePage() {
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                                     <div className={esAnomalo ? 'text-red-600 font-medium' : 'text-gray-900'}>
-                                      {carga.odometro?.toLocaleString() || 'N/A'} km
+                                      {editandoId === carga.id ? (
+                                        <div className="flex items-center space-x-2">
+                                          <input
+                                            type="text"
+                                            defaultValue={obtenerOdometroMostrar(carga)}
+                                            className="w-24 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                guardarEdicion(carga.id, e.currentTarget.value)
+                                              } else if (e.key === 'Escape') {
+                                                cancelarEdicion()
+                                              }
+                                            }}
+                                          />
+                                          <button
+                                            onClick={(e) => {
+                                              const input = e.currentTarget.previousElementSibling as HTMLInputElement
+                                              guardarEdicion(carga.id, input.value)
+                                            }}
+                                            className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                                          >
+                                            ✓
+                                          </button>
+                                          <button
+                                            onClick={cancelarEdicion}
+                                            className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                                          >
+                                            ✕
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center space-x-2">
+                                          <span 
+                                            className={`${odometrosEditados.has(carga.id) ? 'text-blue-600 font-bold bg-blue-50 px-1 rounded' : ''}`}
+                                          >
+                                            {obtenerOdometroMostrar(carga)?.toLocaleString() || 'N/A'} km
+                                          </span>
+                                          <button
+                                            onClick={() => iniciarEdicion(carga.id, obtenerOdometroMostrar(carga))}
+                                            className="px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+                                            title="Editar odómetro temporalmente"
+                                          >
+                                            ✏️
+                                          </button>
+                                          {odometrosEditados.has(carga.id) && (
+                                            <span className="text-xs text-blue-500" title="Valor editado temporalmente">
+                                              (editado)
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
                                       {anomalia && (
                                         <div className="text-xs text-red-500 mt-1">
                                           💡 Sugerido: {anomalia.valorSugerido.toLocaleString()} km
