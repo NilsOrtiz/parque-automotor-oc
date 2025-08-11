@@ -67,11 +67,12 @@ export default function AnalisisCombustiblePage() {
 
       if (vehiculosError) throw vehiculosError
 
-      // Cargar TODAS las cargas de combustible sin filtros de fecha
+      // Cargar TODAS las cargas de combustible sin límite
       const { data: cargasData, error: cargasError } = await supabase
         .from('cargas_combustible_ypf')
         .select('*')
         .order('fecha_carga', { ascending: true })
+        .limit(5000) // Aumentar límite para cubrir todos los registros
 
       if (cargasError) throw cargasError
 
