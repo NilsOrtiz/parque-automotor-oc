@@ -56,6 +56,8 @@ export default function AnalisisCombustiblePage() {
     confianza: number
   }>>([])
   const [anomaliasManualeslIds, setAnomaliasManualeslIds] = useState<Set<number>>(new Set())
+  const [valoresCorrectos, setValoresCorrectos] = useState<Set<number>>(new Set())
+  const [valoresIncorrectos, setValoresIncorrectos] = useState<Set<number>>(new Set())
   const [odometrosEditados, setOdometrosEditados] = useState<Map<number, number>>(new Map())
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -514,9 +516,11 @@ export default function AnalisisCombustiblePage() {
     return odometrosEditados.get(carga.id) || carga.odometro
   }
 
-  const resetearEdiciones = () => {
+  const resetearTodo = () => {
     setOdometrosEditados(new Map())
     setEditandoId(null)
+    setValoresCorrectos(new Set())
+    setValoresIncorrectos(new Set())
     if (vehiculoSeleccionado) {
       cargarDatosGrafica(vehiculoSeleccionado.Placa, cargasCombustible)
     }
@@ -578,6 +582,189 @@ export default function AnalisisCombustiblePage() {
     setDatosGrafica(datos)
   }
 
+  // Funciones para el sistema de marcado mejorado
+  const marcarComoCorrecto = (cargaId: number) => {
+    const nuevosCorrectos = new Set(valoresCorrectos)
+    const nuevosIncorrectos = new Set(valoresIncorrectos)
+    
+    nuevosCorrectos.add(cargaId)
+    nuevosIncorrectos.delete(cargaId) // No puede estar en ambos
+    
+    setValoresCorrectos(nuevosCorrectos)
+    setValoresIncorrectos(nuevosIncorrectos)
+    
+    console.log(`✅ Marcado como correcto: Carga ${cargaId}`)
+  }
+  
+  const marcarComoIncorrecto = (cargaId: number) => {
+    const nuevosCorrectos = new Set(valoresCorrectos)
+    const nuevosIncorrectos = new Set(valoresIncorrectos)
+    
+    nuevosIncorrectos.add(cargaId)
+    nuevosCorrectos.delete(cargaId) // No puede estar en ambos
+    
+    setValoresCorrectos(nuevosCorrectos)
+    setValoresIncorrectos(nuevosIncorrectos)
+    
+    console.log(`❌ Marcado como incorrecto: Carga ${cargaId}`)
+  }
+  
+  const limpiarMarcado = (cargaId: number) => {
+    const nuevosCorrectos = new Set(valoresCorrectos)
+    const nuevosIncorrectos = new Set(valoresIncorrectos)
+    
+    nuevosCorrectos.delete(cargaId)
+    nuevosIncorrectos.delete(cargaId)
+    
+    setValoresCorrectos(nuevosCorrectos)
+    setValoresIncorrectos(nuevosIncorrectos)
+    
+    console.log(`🗑️ Marcado limpiado: Carga ${cargaId}`)
+  }
+  
+  const interpolarTodo = async () => {
+    if (!vehiculoSeleccionado || valoresCorrectos.size < 2) {
+      alert('Necesitas marcar al menos 2 valores como correctos para interpolar')
+      return
+    }
+    
+    const cargasVehiculo = cargasCombustible
+      .filter(carga => carga.placa === vehiculoSeleccionado.Placa)
+      .sort((a, b) => new Date(a.fecha_carga).getTime() - new Date(b.fecha_carga).getTime())
+    
+    // Obtener solo los puntos correctos para interpolación
+    const puntosCorrectos = cargasVehiculo.filter(carga => valoresCorrectos.has(carga.id))
+    
+    console.log(`📏 Interpolando con ${puntosCorrectos.length} puntos correctos de ${cargasVehiculo.length} totales`)
+    
+    const actualizaciones: Array<{id: number, nuevoOdometro: number}> = []
+    
+    // Interpolar cada valor incorrecto
+    for (const carga of cargasVehiculo) {
+      if (valoresIncorrectos.has(carga.id)) {
+        const valorInterpolado = calcularInterpolacionMejorada(carga, puntosCorrectos)
+        if (valorInterpolado > 0) {
+          actualizaciones.push({
+            id: carga.id,
+            nuevoOdometro: valorInterpolado
+          })
+        }
+      }
+    }
+    
+    // Ejecutar todas las actualizaciones
+    let exitosos = 0
+    for (const actualizacion of actualizaciones) {
+      try {
+        const { error } = await supabase
+          .from('cargas_combustible_ypf')
+          .update({ odometro: actualizacion.nuevoOdometro })
+          .eq('id', actualizacion.id)
+        
+        if (!error) {
+          exitosos++
+          // Actualizar estado local
+          setCargasCombustible(prev => 
+            prev.map(carga => 
+              carga.id === actualizacion.id 
+                ? { ...carga, odometro: actualizacion.nuevoOdometro } 
+                : carga
+            )
+          )
+        }
+      } catch (error) {
+        console.error(`Error actualizando carga ${actualizacion.id}:`, error)
+      }
+    }
+    
+    alert(`✅ Interpolación completada: ${exitosos}/${actualizaciones.length} valores actualizados`)
+    
+    // Limpiar marcados y recargar datos
+    setValoresCorrectos(new Set())
+    setValoresIncorrectos(new Set())
+    
+    if (vehiculoSeleccionado) {
+      const cargasActualizadas = cargasCombustible.map(carga => {
+        const actualizacion = actualizaciones.find(a => a.id === carga.id)
+        return actualizacion ? { ...carga, odometro: actualizacion.nuevoOdometro } : carga
+      })
+      cargarDatosGrafica(vehiculoSeleccionado.Placa, cargasActualizadas)
+    }
+  }
+  
+  const calcularInterpolacionMejorada = (cargaObjetivo: CargaCombustibleYPF, puntosCorrectos: CargaCombustibleYPF[]): number => {
+    const fechaObjetivo = new Date(cargaObjetivo.fecha_carga).getTime()
+    
+    // Encontrar los puntos correctos más cercanos antes y después
+    const puntosOrdenados = puntosCorrectos
+      .sort((a, b) => new Date(a.fecha_carga).getTime() - new Date(b.fecha_carga).getTime())
+    
+    let puntoAnterior: CargaCombustibleYPF | null = null
+    let puntoPosterior: CargaCombustibleYPF | null = null
+    
+    for (const punto of puntosOrdenados) {
+      const fechaPunto = new Date(punto.fecha_carga).getTime()
+      if (fechaPunto < fechaObjetivo) {
+        puntoAnterior = punto
+      } else if (fechaPunto > fechaObjetivo && !puntoPosterior) {
+        puntoPosterior = punto
+        break
+      }
+    }
+    
+    // Si tenemos puntos antes y después, interpolar linealmente
+    if (puntoAnterior && puntoPosterior) {
+      const fechaAnt = new Date(puntoAnterior.fecha_carga).getTime()
+      const fechaPost = new Date(puntoPosterior.fecha_carga).getTime()
+      
+      const proporcion = (fechaObjetivo - fechaAnt) / (fechaPost - fechaAnt)
+      const odometroInterpolado = puntoAnterior.odometro + 
+        (puntoPosterior.odometro - puntoAnterior.odometro) * proporcion
+      
+      return Math.round(odometroInterpolado)
+    }
+    
+    // Si solo tenemos punto anterior, estimar basado en consumo promedio
+    if (puntoAnterior) {
+      const consumoPromedio = calcularConsumoPromedio(puntosCorrectos)
+      const diasTranscurridos = (fechaObjetivo - new Date(puntoAnterior.fecha_carga).getTime()) / (1000 * 60 * 60 * 24)
+      const kmEstimados = diasTranscurridos * consumoPromedio * cargaObjetivo.litros_cargados * 0.1 // Factor conservador
+      
+      return Math.round(puntoAnterior.odometro + kmEstimados)
+    }
+    
+    // Si solo tenemos punto posterior, estimar hacia atrás
+    if (puntoPosterior) {
+      const consumoPromedio = calcularConsumoPromedio(puntosCorrectos)
+      const diasTranscurridos = (new Date(puntoPosterior.fecha_carga).getTime() - fechaObjetivo) / (1000 * 60 * 60 * 24)
+      const kmEstimados = diasTranscurridos * consumoPromedio * cargaObjetivo.litros_cargados * 0.1
+      
+      return Math.round(puntoPosterior.odometro - kmEstimados)
+    }
+    
+    return cargaObjetivo.odometro // Si no hay puntos de referencia, mantener original
+  }
+  
+  const calcularConsumoPromedio = (puntos: CargaCombustibleYPF[]): number => {
+    if (puntos.length < 2) return 50 // Valor por defecto conservador (50 km/día)
+    
+    let totalKm = 0
+    let totalDias = 0
+    
+    for (let i = 1; i < puntos.length; i++) {
+      const kmRecorridos = Math.abs(puntos[i].odometro - puntos[i-1].odometro)
+      const diasEntreCarga = Math.abs(
+        new Date(puntos[i].fecha_carga).getTime() - 
+        new Date(puntos[i-1].fecha_carga).getTime()
+      ) / (1000 * 60 * 60 * 24)
+      
+      totalKm += kmRecorridos
+      totalDias += diasEntreCarga
+    }
+    
+    return totalDias > 0 ? totalKm / totalDias : 50
+  }
+
   const seleccionarVehiculo = (vehiculo: VehiculoConCombustible) => {
     setVehiculoSeleccionado(vehiculo)
     cargarDatosGrafica(vehiculo.Placa, cargasCombustible)
@@ -587,6 +774,8 @@ export default function AnalisisCombustiblePage() {
     setAnomalias([])
     setOdometrosEditados(new Map())
     setEditandoId(null)
+    setValoresCorrectos(new Set())
+    setValoresIncorrectos(new Set())
   }
 
   const chartData = {
@@ -869,14 +1058,60 @@ export default function AnalisisCombustiblePage() {
                 {/* Tabla de cargas recientes */}
                 <div className="bg-white rounded-lg shadow-md">
                   <div className="p-6 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Todas las Cargas ({cargasCombustible.filter(c => c.placa === vehiculoSeleccionado.Placa).length})
-                      {anomalias.length > 0 && (
-                        <span className="ml-2 text-red-500 text-sm">
-                          • {anomalias.length} con anomalías
-                        </span>
-                      )}
-                    </h3>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Todas las Cargas ({cargasCombustible.filter(c => c.placa === vehiculoSeleccionado.Placa).length})
+                        {anomalias.length > 0 && (
+                          <span className="ml-2 text-red-500 text-sm">
+                            • {anomalias.length} con anomalías
+                          </span>
+                        )}
+                      </h3>
+                      
+                      {/* Controles de marcado e interpolación */}
+                      <div className="flex space-x-2">
+                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                          <span className="bg-green-100 px-2 py-1 rounded">
+                            ✓ Correctos: {valoresCorrectos.size}
+                          </span>
+                          <span className="bg-red-100 px-2 py-1 rounded">
+                            ✗ Incorrectos: {valoresIncorrectos.size}
+                          </span>
+                        </div>
+                        
+                        <button
+                          onClick={interpolarTodo}
+                          disabled={valoresCorrectos.size < 2 || valoresIncorrectos.size === 0}
+                          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium"
+                          title="Interpolar todos los valores marcados como incorrectos usando los correctos"
+                        >
+                          📏 Interpolar Todo
+                        </button>
+                        
+                        <button
+                          onClick={resetearTodo}
+                          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm font-medium"
+                          title="Limpiar todos los marcados y ediciones"
+                        >
+                          🗑️ Reset
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {valoresCorrectos.size > 0 || valoresIncorrectos.size > 0 ? (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                        <strong>Instrucciones:</strong> 
+                        {valoresCorrectos.size < 2 && 'Marca al menos 2 valores como correctos, '}
+                        {valoresIncorrectos.size === 0 && 'marca los valores incorrectos, '}
+                        luego haz clic en "Interpolar Todo" para calcular automáticamente los valores faltantes.
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-600">
+                        <strong>Cómo usar:</strong> 
+                        Marca los valores de odómetro como ✓<strong>correctos</strong> (datos confiables) o ✗<strong>incorrectos</strong> (necesitan corrección).
+                        Después usa "Interpolar Todo" para calcular automáticamente los valores incorrectos.
+                      </div>
+                    )}
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -1024,16 +1259,54 @@ export default function AnalisisCombustiblePage() {
                                     {consumo}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                    <button
-                                      onClick={() => toggleAnomaliaManual(carga.id, vehiculoSeleccionado.Placa)}
-                                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                        esMarcadoManualmente 
-                                          ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300' 
-                                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300'
-                                      }`}
-                                    >
-                                      {esMarcadoManualmente ? '❌ Desmarcar' : '⚠️ Marcar'}
-                                    </button>
+                                    <div className="flex flex-col space-y-1">
+                                      {/* Botones de marcado mejorado */}
+                                      <div className="flex space-x-1">
+                                        <button
+                                          onClick={() => marcarComoCorrecto(carga.id)}
+                                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                            valoresCorrectos.has(carga.id)
+                                              ? 'bg-green-500 text-white'
+                                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                          }`}
+                                          title="Marcar como correcto"
+                                        >
+                                          ✓ OK
+                                        </button>
+                                        <button
+                                          onClick={() => marcarComoIncorrecto(carga.id)}
+                                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                            valoresIncorrectos.has(carga.id)
+                                              ? 'bg-red-500 text-white'
+                                              : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                          }`}
+                                          title="Marcar como incorrecto"
+                                        >
+                                          ✗ MAL
+                                        </button>
+                                        {(valoresCorrectos.has(carga.id) || valoresIncorrectos.has(carga.id)) && (
+                                          <button
+                                            onClick={() => limpiarMarcado(carga.id)}
+                                            className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                            title="Limpiar marcado"
+                                          >
+                                            ↺
+                                          </button>
+                                        )}
+                                      </div>
+                                      {/* Botón original de anomalías (mantener por compatibilidad) */}
+                                      <button
+                                        onClick={() => toggleAnomaliaManual(carga.id, vehiculoSeleccionado.Placa)}
+                                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                          esMarcadoManualmente 
+                                            ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300' 
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300'
+                                        }`}
+                                        title="Sistema anterior de marcado"
+                                      >
+                                        {esMarcadoManualmente ? '🔶 Marcado' : '⚠️ Marcar'}
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               )
