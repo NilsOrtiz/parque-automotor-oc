@@ -97,37 +97,6 @@ export default function AnalisisCombustiblePage() {
       console.log('🔍 DEBUG AF949YS first 3 records:', af949ysRecords.slice(0, 3))
       console.log('🔍 DEBUG AF949YS last 3 records:', af949ysRecords.slice(-3))
       console.log('🔍 DEBUG total records from Supabase:', cargasData?.length || 0)
-      
-      if (af949ysVehiculos.length > 0 || af949ysCargas.length > 0) {
-        console.log('🔍 DEBUG AF949YS:')
-        console.log(`Vehicles found: ${af949ysVehiculos.length}`)
-        af949ysVehiculos.forEach(v => {
-          console.log(`  Vehicle: ID=${v.id}, Placa="${v.Placa}", Length=${v.Placa.length}`)
-          console.log(`  Placa chars: [${v.Placa.split('').join(', ')}]`)
-        })
-        
-        console.log(`Fuel charges found: ${af949ysCargas.length}`)
-        af949ysCargas.slice(0, 5).forEach(c => {
-          console.log(`  Charge: ID=${c.id}, Placa="${c.placa}", Length=${c.placa.length}`)
-          console.log(`  Placa chars: [${c.placa.split('').join(', ')}]`)
-        })
-        
-        // Test the exact matching
-        af949ysVehiculos.forEach(vehiculo => {
-          const exactMatches = cargasData.filter(carga => carga.placa === vehiculo.Placa)
-          const caseInsensitiveMatches = cargasData.filter(carga => 
-            carga.placa && carga.placa.toLowerCase() === vehiculo.Placa.toLowerCase()
-          )
-          const trimmedMatches = cargasData.filter(carga => 
-            carga.placa && carga.placa.trim() === vehiculo.Placa.trim()
-          )
-          
-          console.log(`  Matching for vehicle "${vehiculo.Placa}":`)
-          console.log(`    Exact matches: ${exactMatches.length}`)
-          console.log(`    Case insensitive: ${caseInsensitiveMatches.length}`)
-          console.log(`    Trimmed matches: ${trimmedMatches.length}`)
-        })
-      }
 
       // Procesar datos por vehículo
       const vehiculosConCombustible = await Promise.all(
