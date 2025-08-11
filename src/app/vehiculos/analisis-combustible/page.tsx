@@ -48,6 +48,13 @@ export default function AnalisisCombustiblePage() {
   const [vehiculoSeleccionado, setVehiculoSeleccionado] = useState<VehiculoConCombustible | null>(null)
   const [cargasCombustible, setCargasCombustible] = useState<CargaCombustibleYPF[]>([])
   const [datosGrafica, setDatosGrafica] = useState<DatosGrafica[]>([])
+  const [anomalias, setAnomalias] = useState<Array<{
+    id: number
+    tipo: 'salto_adelante' | 'salto_atras' | 'digito_extra' | 'digito_faltante'
+    valorOriginal: number
+    valorSugerido: number
+    confianza: number
+  }>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -191,6 +198,79 @@ export default function AnalisisCombustiblePage() {
     }
   }
 
+  // Función para detectar odómetros anómalos
+  const detectarAnomalias = (cargas: CargaCombustibleYPF[]) => {
+    const cargasConOdometro = cargas.filter(c => c.odometro && c.odometro > 0)
+    if (cargasConOdometro.length < 3) return []
+
+    const anomalias: Array<{
+      id: number
+      tipo: 'salto_adelante' | 'salto_atras' | 'digito_extra' | 'digito_faltante'
+      valorOriginal: number
+      valorSugerido: number
+      confianza: number
+    }> = []
+
+    for (let i = 1; i < cargasConOdometro.length - 1; i++) {
+      const anterior = cargasConOdometro[i - 1]
+      const actual = cargasConOdometro[i]
+      const siguiente = cargasConOdometro[i + 1]
+
+      if (!anterior.odometro || !actual.odometro || !siguiente.odometro) continue
+
+      // Calcular incrementos esperados
+      const incrementoAnterior = Math.abs(actual.odometro - anterior.odometro)
+      const incrementoSiguiente = Math.abs(siguiente.odometro - actual.odometro)
+      const incrementoPromedio = (incrementoAnterior + incrementoSiguiente) / 2
+
+      // Detectar dígito extra (866941 en lugar de 86694)
+      if (incrementoAnterior > incrementoPromedio * 10) {
+        const valorSinDigitoExtra = Math.floor(actual.odometro / 10)
+        if (valorSinDigitoExtra > anterior.odometro && valorSinDigitoExtra < siguiente.odometro) {
+          anomalias.push({
+            id: actual.id,
+            tipo: 'digito_extra',
+            valorOriginal: actual.odometro,
+            valorSugerido: valorSinDigitoExtra,
+            confianza: 0.9
+          })
+        }
+      }
+
+      // Detectar dígito faltante
+      if (incrementoAnterior < incrementoPromedio / 10 && incrementoAnterior > 0) {
+        const valorConDigitoExtra = actual.odometro * 10
+        if (valorConDigitoExtra > anterior.odometro && valorConDigitoExtra < siguiente.odometro * 2) {
+          anomalias.push({
+            id: actual.id,
+            tipo: 'digito_faltante',
+            valorOriginal: actual.odometro,
+            valorSugerido: valorConDigitoExtra,
+            confianza: 0.8
+          })
+        }
+      }
+
+      // Detectar saltos grandes hacia atrás (63840 después de 87798)
+      if (actual.odometro < anterior.odometro * 0.8) {
+        // Predecir valor basado en tendencia
+        const diasEntreFechas = (new Date(actual.fecha_carga).getTime() - new Date(anterior.fecha_carga).getTime()) / (1000 * 60 * 60 * 24)
+        const kmPorDiaPromedio = incrementoAnterior / Math.max(1, diasEntreFechas)
+        const valorSugerido = Math.round(anterior.odometro + (kmPorDiaPromedio * diasEntreFechas))
+
+        anomalias.push({
+          id: actual.id,
+          tipo: 'salto_atras',
+          valorOriginal: actual.odometro,
+          valorSugerido: valorSugerido,
+          confianza: 0.7
+        })
+      }
+    }
+
+    return anomalias
+  }
+
   const cargarDatosGrafica = (placa: string, todasLasCargas: CargaCombustibleYPF[]) => {
     // Use the same robust matching logic as in the main data processing
     let cargasVehiculo = todasLasCargas.filter(carga => carga.placa === placa)
@@ -250,6 +330,15 @@ export default function AnalisisCombustiblePage() {
   const seleccionarVehiculo = (vehiculo: VehiculoConCombustible) => {
     setVehiculoSeleccionado(vehiculo)
     cargarDatosGrafica(vehiculo.Placa, cargasCombustible)
+    
+    // Detectar anomalías para este vehículo
+    const cargasVehiculo = cargasCombustible.filter(carga => carga.placa === vehiculo.Placa)
+    const anomaliasDetectadas = detectarAnomalias(cargasVehiculo.sort((a, b) => new Date(a.fecha_carga).getTime() - new Date(b.fecha_carga).getTime()))
+    setAnomalias(anomaliasDetectadas)
+    
+    if (anomaliasDetectadas.length > 0) {
+      console.log(`🚨 Detectadas ${anomaliasDetectadas.length} anomalías en ${vehiculo.Placa}:`, anomaliasDetectadas)
+    }
   }
 
   const chartData = {
@@ -500,10 +589,44 @@ export default function AnalisisCombustiblePage() {
                   </div>
                 </div>
 
+                {/* Resumen de anomalías */}
+                {anomalias.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-red-500">⚠️</span>
+                      <h4 className="text-red-800 font-semibold">
+                        {anomalias.length} Anomalía{anomalias.length > 1 ? 's' : ''} Detectada{anomalias.length > 1 ? 's' : ''}
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-red-700">
+                      {anomalias.map((anomalia, i) => (
+                        <div key={i} className="flex justify-between">
+                          <span>
+                            {anomalia.tipo === 'digito_extra' && '📊 Dígito extra'}
+                            {anomalia.tipo === 'digito_faltante' && '🔢 Dígito faltante'}
+                            {anomalia.tipo === 'salto_atras' && '⬅️ Retroceso'}
+                            {anomalia.tipo === 'salto_adelante' && '➡️ Salto adelante'}
+                          </span>
+                          <span className="font-mono">
+                            {anomalia.valorOriginal.toLocaleString()} → {anomalia.valorSugerido.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Tabla de cargas recientes */}
                 <div className="bg-white rounded-lg shadow-md">
                   <div className="p-6 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900">Todas las Cargas ({cargasCombustible.filter(c => c.placa === vehiculoSeleccionado.Placa).length})</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Todas las Cargas ({cargasCombustible.filter(c => c.placa === vehiculoSeleccionado.Placa).length})
+                      {anomalias.length > 0 && (
+                        <span className="ml-2 text-red-500 text-sm">
+                          • {anomalias.length} con anomalías
+                        </span>
+                      )}
+                    </h3>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -542,6 +665,9 @@ export default function AnalisisCombustiblePage() {
                               const indexOriginal = cargasOrdenadas.findIndex(c => c.id === carga.id)
                               const cargaAnterior = indexOriginal > 0 ? cargasOrdenadas[indexOriginal - 1] : null
                               
+                              // Buscar si esta carga tiene anomalías
+                              const anomalia = anomalias.find(a => a.id === carga.id)
+                              
                               let consumo = 'N/A'
                               if (cargaAnterior && carga.odometro && cargaAnterior.odometro) {
                                 const distancia = Math.abs(carga.odometro - cargaAnterior.odometro)
@@ -551,13 +677,32 @@ export default function AnalisisCombustiblePage() {
                                 }
                               }
                               
+                              const esAnomalo = !!anomalia
+                              const tipoAnomalia = anomalia?.tipo || ''
+                              
                               return (
-                                <tr key={carga.id} className="hover:bg-gray-50">
+                                <tr key={carga.id} className={`hover:bg-gray-50 ${esAnomalo ? 'bg-red-50 border-l-4 border-l-red-500' : ''}`}>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {new Date(carga.fecha_carga).toLocaleDateString()}
+                                    {esAnomalo && <span className="ml-2 text-red-500">⚠️</span>}
                                   </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {carga.odometro?.toLocaleString() || 'N/A'} km
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <div className={esAnomalo ? 'text-red-600 font-medium' : 'text-gray-900'}>
+                                      {carga.odometro?.toLocaleString() || 'N/A'} km
+                                      {anomalia && (
+                                        <div className="text-xs text-red-500 mt-1">
+                                          💡 Sugerido: {anomalia.valorSugerido.toLocaleString()} km
+                                          <br />
+                                          <span className="text-red-400">
+                                            {tipoAnomalia === 'digito_extra' && '(Dígito extra)'}
+                                            {tipoAnomalia === 'digito_faltante' && '(Dígito faltante)'}
+                                            {tipoAnomalia === 'salto_atras' && '(Retroceso)'}
+                                            {tipoAnomalia === 'salto_adelante' && '(Salto adelante)'}
+                                            {` - ${Math.round(anomalia.confianza * 100)}% confianza`}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {carga.litros_cargados} L
