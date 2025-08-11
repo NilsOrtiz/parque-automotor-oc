@@ -135,11 +135,31 @@ export default function AnalisisCombustiblePage() {
             let totalCosto = 0
             let contadorCalculos = 0
             
-            // Sin cálculos de consumo para mostrar datos puros
-            consumoPromedio = 0
-            costoPorKm = 0
+            for (let i = 1; i < cargasVehiculo.length; i++) {
+              const cargaActual = cargasVehiculo[i]
+              const cargaAnterior = cargasVehiculo[i - 1]
+              
+              if (cargaActual.odometro && cargaAnterior.odometro) {
+                const distancia = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
+                if (distancia > 0) {
+                  const consumo = distancia / cargaActual.litros_cargados // km/litro
+                  
+                  // Filtrar valores extremos para promedios más realistas
+                  if (consumo > 0 && consumo < 100) {
+                    totalConsumo += consumo
+                    if (cargaActual.monto_total) {
+                      totalCosto += cargaActual.monto_total / distancia
+                    }
+                    contadorCalculos++
+                  }
+                }
+              }
+            }
             
-            // No hay cálculos de consumo en modo datos puros
+            if (contadorCalculos > 0) {
+              consumoPromedio = totalConsumo / contadorCalculos
+              costoPorKm = totalCosto / contadorCalculos
+            }
           }
 
           return {
@@ -202,17 +222,26 @@ export default function AnalisisCombustiblePage() {
 
     const datos: DatosGrafica[] = []
 
-    // Mostrar TODAS las cargas sin filtros
-    for (let i = 0; i < cargasVehiculo.length; i++) {
-      const carga = cargasVehiculo[i]
-      
-      datos.push({
-        fecha: carga.fecha_carga,
-        consumo: 0, // Sin cálculo de consumo, solo mostrar datos
-        odometro: carga.odometro || 0,
-        litros: carga.litros_cargados,
-        costo: carga.monto_total || 0
-      })
+    // Calcular consumo para cada carga consecutiva
+    for (let i = 1; i < cargasVehiculo.length; i++) {
+      const cargaActual = cargasVehiculo[i]
+      const cargaAnterior = cargasVehiculo[i - 1]
+
+      if (cargaActual.odometro && cargaAnterior.odometro) {
+        const distancia = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
+        if (distancia > 0) {
+          const consumo = distancia / cargaActual.litros_cargados // km/litro
+          
+          // Incluir todos los datos, incluso valores extremos para análisis completo
+          datos.push({
+            fecha: cargaActual.fecha_carga,
+            consumo,
+            odometro: cargaActual.odometro,
+            litros: cargaActual.litros_cargados,
+            costo: cargaActual.monto_total || 0
+          })
+        }
+      }
     }
 
     setDatosGrafica(datos)
@@ -501,31 +530,51 @@ export default function AnalisisCombustiblePage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {cargasCombustible
-                          .filter(carga => carga.placa === vehiculoSeleccionado.Placa)
-                          .sort((a, b) => new Date(b.fecha_carga).getTime() - new Date(a.fecha_carga).getTime())
-                          .map((carga, index) => (
-                            <tr key={carga.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {new Date(carga.fecha_carga).toLocaleDateString()}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {carga.odometro?.toLocaleString() || 'N/A'} km
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {carga.litros_cargados} L
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {carga.tipo_combustible || 'N/A'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                ${carga.monto_total?.toLocaleString() || 'N/A'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                                N/A
-                              </td>
-                            </tr>
-                          ))}
+                        {(() => {
+                          const cargasOrdenadas = cargasCombustible
+                            .filter(carga => carga.placa === vehiculoSeleccionado.Placa)
+                            .sort((a, b) => new Date(a.fecha_carga).getTime() - new Date(b.fecha_carga).getTime())
+                          
+                          return cargasOrdenadas
+                            .sort((a, b) => new Date(b.fecha_carga).getTime() - new Date(a.fecha_carga).getTime())
+                            .map((carga, index) => {
+                              // Encontrar la carga anterior para calcular consumo
+                              const indexOriginal = cargasOrdenadas.findIndex(c => c.id === carga.id)
+                              const cargaAnterior = indexOriginal > 0 ? cargasOrdenadas[indexOriginal - 1] : null
+                              
+                              let consumo = 'N/A'
+                              if (cargaAnterior && carga.odometro && cargaAnterior.odometro) {
+                                const distancia = Math.abs(carga.odometro - cargaAnterior.odometro)
+                                if (distancia > 0) {
+                                  const kmPorLitro = distancia / carga.litros_cargados
+                                  consumo = `${kmPorLitro.toFixed(1)} km/L`
+                                }
+                              }
+                              
+                              return (
+                                <tr key={carga.id} className="hover:bg-gray-50">
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {new Date(carga.fecha_carga).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {carga.odometro?.toLocaleString() || 'N/A'} km
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {carga.litros_cargados} L
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {carga.tipo_combustible || 'N/A'}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ${carga.monto_total?.toLocaleString() || 'N/A'}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                                    {consumo}
+                                  </td>
+                                </tr>
+                              )
+                            })
+                        })()}
                       </tbody>
                     </table>
                   </div>
