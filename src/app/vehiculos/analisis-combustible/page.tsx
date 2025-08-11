@@ -267,9 +267,11 @@ export default function AnalisisCombustiblePage() {
     return anomalias
   }
 
-  // Función para calcular valor interpolado
+  // Función para calcular valor interpolado usando múltiples factores
   const calcularInterpolacion = (cargas: CargaCombustibleYPF[], indiceAnomalo: number): number => {
-    // Buscar el punto anterior y posterior válidos más cercanos
+    const cargaAnomala = cargas[indiceAnomalo]
+    
+    // Buscar puntos válidos anteriores y posteriores
     let anteriorValido = null
     let siguienteValido = null
     
@@ -290,24 +292,86 @@ export default function AnalisisCombustiblePage() {
     }
     
     if (anteriorValido && siguienteValido) {
-      // Interpolación lineal basada en tiempo
-      const fechaAnomala = new Date(cargas[indiceAnomalo].fecha_carga).getTime()
+      console.log('📊 Interpolando con múltiples factores...')
+      
+      // 1. INTERPOLACIÓN TEMPORAL (peso: 40%)
+      const fechaAnomala = new Date(cargaAnomala.fecha_carga).getTime()
       const fechaAnterior = new Date(anteriorValido.fecha_carga).getTime()
       const fechaSiguiente = new Date(siguienteValido.fecha_carga).getTime()
       
-      const proporcion = (fechaAnomala - fechaAnterior) / (fechaSiguiente - fechaAnterior)
-      const valorInterpolado = anteriorValido.odometro + (siguienteValido.odometro - anteriorValido.odometro) * proporcion
+      const proporcionTiempo = (fechaAnomala - fechaAnterior) / (fechaSiguiente - fechaAnterior)
+      const interpolacionTiempo = anteriorValido.odometro + (siguienteValido.odometro - anteriorValido.odometro) * proporcionTiempo
       
-      return Math.round(valorInterpolado)
+      console.log(`⏰ Interpolación temporal: ${interpolacionTiempo.toFixed(0)} km (proporción: ${(proporcionTiempo*100).toFixed(1)}%)`)
+      
+      // 2. INTERPOLACIÓN POR CONSUMO COMBUSTIBLE (peso: 30%)
+      let interpolacionCombustible = interpolacionTiempo // Default
+      if (cargaAnomala.litros_cargados > 0 && anteriorValido.litros_cargados > 0 && siguienteValido.litros_cargados > 0) {
+        // Calcular km/litro promedio del vehículo
+        const kmTotales = siguienteValido.odometro - anteriorValido.odometro
+        const litrosTotales = anteriorValido.litros_cargados + cargaAnomala.litros_cargados + siguienteValido.litros_cargados
+        const kmPorLitroPromedio = kmTotales / (litrosTotales - cargaAnomala.litros_cargados)
+        
+        // Estimar km recorridos desde anterior usando litros cargados
+        const kmEstimados = cargaAnomala.litros_cargados * kmPorLitroPromedio
+        interpolacionCombustible = anteriorValido.odometro + kmEstimados
+        
+        console.log(`⛽ Interpolación por combustible: ${interpolacionCombustible.toFixed(0)} km (${kmPorLitroPromedio.toFixed(1)} km/L, ${cargaAnomala.litros_cargados}L)`)
+      }
+      
+      // 3. INTERPOLACIÓN POR MONTO GASTADO (peso: 20%)
+      let interpolacionMonto = interpolacionTiempo // Default
+      if (cargaAnomala.monto_total && anteriorValido.monto_total && siguienteValido.monto_total) {
+        // Calcular costo por km promedio
+        const kmTotales = siguienteValido.odometro - anteriorValido.odometro
+        const montoTotalPeriodo = anteriorValido.monto_total + (cargaAnomala.monto_total || 0) + siguienteValido.monto_total
+        const costoPorKm = montoTotalPeriodo / kmTotales * 0.5 // Estimación
+        
+        // Estimar km basado en monto gastado
+        const kmEstimadosPorMonto = (cargaAnomala.monto_total || 0) / costoPorKm
+        interpolacionMonto = anteriorValido.odometro + kmEstimadosPorMonto
+        
+        console.log(`💰 Interpolación por monto: ${interpolacionMonto.toFixed(0)} km ($${costoPorKm.toFixed(2)}/km, $${cargaAnomala.monto_total})`)
+      }
+      
+      // 4. INTERPOLACIÓN POR FRECUENCIA DE USO (peso: 10%)
+      const diasTranscurridos = (fechaAnomala - fechaAnterior) / (1000 * 60 * 60 * 24)
+      const kmPorDiaPromedio = (siguienteValido.odometro - anteriorValido.odometro) / ((fechaSiguiente - fechaAnterior) / (1000 * 60 * 60 * 24))
+      const interpolacionFrecuencia = anteriorValido.odometro + (kmPorDiaPromedio * diasTranscurridos)
+      
+      console.log(`📅 Interpolación por frecuencia: ${interpolacionFrecuencia.toFixed(0)} km (${kmPorDiaPromedio.toFixed(0)} km/día)`)
+      
+      // PROMEDIO PONDERADO
+      const valorFinal = (
+        interpolacionTiempo * 0.4 +
+        interpolacionCombustible * 0.3 +
+        interpolacionMonto * 0.2 +
+        interpolacionFrecuencia * 0.1
+      )
+      
+      console.log(`🎯 Valor final ponderado: ${valorFinal.toFixed(0)} km`)
+      
+      return Math.round(valorFinal)
+      
     } else if (anteriorValido) {
-      // Solo tenemos anterior, incremento conservador
+      // Solo tenemos anterior, usar tendencia de combustible si es posible
+      if (cargaAnomala.litros_cargados > 0 && anteriorValido.litros_cargados > 0) {
+        // Estimar 12 km/L promedio para vehículos
+        const kmEstimados = cargaAnomala.litros_cargados * 12
+        return anteriorValido.odometro + kmEstimados
+      }
       return anteriorValido.odometro + 500
+      
     } else if (siguienteValido) {
-      // Solo tenemos siguiente, decremento conservador  
+      // Solo tenemos siguiente, estimación conservadora
+      if (cargaAnomala.litros_cargados > 0) {
+        const kmEstimados = cargaAnomala.litros_cargados * 12
+        return Math.max(0, siguienteValido.odometro - kmEstimados)
+      }
       return Math.max(0, siguienteValido.odometro - 500)
     }
     
-    return cargas[indiceAnomalo].odometro // Fallback
+    return cargaAnomala.odometro // Fallback
   }
   
   // Función para marcar/desmarcar anomalía manual
