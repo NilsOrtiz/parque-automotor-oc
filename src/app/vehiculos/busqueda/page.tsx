@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { supabase, type Vehiculo } from '@/lib/supabase'
-import { Search, ArrowLeft, Car } from 'lucide-react'
+import { Search, ArrowLeft, Car, Droplets, Settings, Disc, Zap, Gauge, Circle, Battery, Wrench, Cog, Truck } from 'lucide-react'
 import MantenimientoSection from '@/components/MantenimientoSection'
 
 export default function BusquedaPage() {
@@ -159,6 +159,30 @@ export default function BusquedaPage() {
   function updateVehiculo(updates: Partial<Vehiculo>) {
     setEditedVehiculo(prev => prev ? { ...prev, ...updates } : null)
   }
+
+  // Función para scroll automático a secciones
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId)
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start',
+        inline: 'nearest'
+      })
+    }
+  }
+
+  // Configuración de secciones con iconos
+  const secciones = [
+    { id: 'aceites-filtros', nombre: 'Aceites y Filtros', icono: Droplets, color: 'blue' },
+    { id: 'transmision-liquidos', nombre: 'Transmisión y Líquidos', icono: Settings, color: 'green' },
+    { id: 'frenos', nombre: 'Sistema de Frenos', icono: Disc, color: 'red' },
+    { id: 'motor-embrague', nombre: 'Motor y Embrague', icono: Cog, color: 'orange' },
+    { id: 'suspension', nombre: 'Suspensión', icono: Truck, color: 'purple' },
+    { id: 'correas', nombre: 'Correas', icono: Wrench, color: 'yellow' },
+    { id: 'electrico', nombre: 'Sistema Eléctrico', icono: Zap, color: 'indigo' },
+    { id: 'neumaticos', nombre: 'Neumáticos', icono: Circle, color: 'gray' }
+  ]
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -465,9 +489,44 @@ export default function BusquedaPage() {
               </div>
             </div>
 
+            {/* Navegación por Secciones */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Navegación Rápida</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                {secciones.map((seccion) => {
+                  const IconoComponente = seccion.icono
+                  return (
+                    <button
+                      key={seccion.id}
+                      onClick={() => scrollToSection(seccion.id)}
+                      className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md ${
+                        seccion.color === 'blue' ? 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700' :
+                        seccion.color === 'green' ? 'border-green-200 bg-green-50 hover:bg-green-100 text-green-700' :
+                        seccion.color === 'red' ? 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700' :
+                        seccion.color === 'orange' ? 'border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700' :
+                        seccion.color === 'purple' ? 'border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700' :
+                        seccion.color === 'yellow' ? 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100 text-yellow-700' :
+                        seccion.color === 'indigo' ? 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700' :
+                        'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700'
+                      }`}
+                      title={seccion.nombre}
+                    >
+                      <IconoComponente className="h-6 w-6 mb-2" />
+                      <span className="text-xs font-medium text-center leading-tight">
+                        {seccion.nombre.split(' ').map((palabra, i) => (
+                          <div key={i}>{palabra}</div>
+                        ))}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             {/* Aceites y Filtros */}
-            <MantenimientoSection
-              title="Aceites y Filtros"
+            <div id="aceites-filtros">
+              <MantenimientoSection
+                title="Aceites y Filtros"
               fields={[
                 {
                   label: "Aceite de Motor",
@@ -528,10 +587,12 @@ export default function BusquedaPage() {
               editedVehiculo={editedVehiculo}
               editMode={editMode}
               onUpdate={updateVehiculo}
-            />
+              />
+            </div>
 
             {/* Transmisión y Líquidos */}
-            <MantenimientoSection
+            <div id="transmision-liquidos">
+              <MantenimientoSection
               title="Transmisión y Líquidos"
               fields={[
                 {
@@ -557,10 +618,12 @@ export default function BusquedaPage() {
               editedVehiculo={editedVehiculo}
               editMode={editMode}
               onUpdate={updateVehiculo}
-            />
+              />
+            </div>
 
             {/* Frenos */}
-            <MantenimientoSection
+            <div id="frenos">
+              <MantenimientoSection
               title="Sistema de Frenos"
               fields={[
                 {
@@ -592,10 +655,12 @@ export default function BusquedaPage() {
               editedVehiculo={editedVehiculo}
               editMode={editMode}
               onUpdate={updateVehiculo}
-            />
+              />
+            </div>
 
             {/* Motor y Embrague */}
-            <MantenimientoSection
+            <div id="motor-embrague">
+              <MantenimientoSection
               title="Motor y Embrague"
               fields={[
                 {
@@ -609,10 +674,12 @@ export default function BusquedaPage() {
               editedVehiculo={editedVehiculo}
               editMode={editMode}
               onUpdate={updateVehiculo}
-            />
+              />
+            </div>
 
             {/* Suspensión */}
-            <MantenimientoSection
+            <div id="suspension">
+              <MantenimientoSection
               title="Sistema de Suspensión"
               fields={[
                 {
@@ -644,10 +711,12 @@ export default function BusquedaPage() {
               editedVehiculo={editedVehiculo}
               editMode={editMode}
               onUpdate={updateVehiculo}
-            />
+              />
+            </div>
 
             {/* Correas */}
-            <MantenimientoSection
+            <div id="correas">
+              <MantenimientoSection
               title="Sistema de Correas"
               fields={[
                 {
@@ -697,10 +766,12 @@ export default function BusquedaPage() {
               editedVehiculo={editedVehiculo}
               editMode={editMode}
               onUpdate={updateVehiculo}
-            />
+              />
+            </div>
 
             {/* Sistema Eléctrico */}
-            <MantenimientoSection
+            <div id="electrico">
+              <MantenimientoSection
               title="Sistema Eléctrico"
               fields={[
                 {
@@ -720,10 +791,12 @@ export default function BusquedaPage() {
               editedVehiculo={editedVehiculo}
               editMode={editMode}
               onUpdate={updateVehiculo}
-            />
+              />
+            </div>
 
             {/* Neumáticos */}
-            <MantenimientoSection
+            <div id="neumaticos">
+              <MantenimientoSection
               title="Neumáticos"
               fields={[
                 {
@@ -775,7 +848,8 @@ export default function BusquedaPage() {
               editedVehiculo={editedVehiculo}
               editMode={editMode}
               onUpdate={updateVehiculo}
-            />
+              />
+            </div>
             </>
             ) : vistaActual === 'historial' ? (
               /* Vista de Historial */
