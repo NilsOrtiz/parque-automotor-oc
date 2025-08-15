@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { supabase, type Vehiculo } from '@/lib/supabase'
-import { ArrowLeft, Circle, AlertTriangle, CheckCircle, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { ArrowLeft, Circle, AlertTriangle, CheckCircle, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react'
 
 type SortField = 'interno' | 'placa' | 'marca' | 'km_actual' | 'ultima_rotacion' | 'km_faltantes' | 'estado'
 type SortDirection = 'asc' | 'desc'
@@ -14,6 +15,7 @@ export default function NeumáticosPage() {
   const [sortField, setSortField] = useState<SortField>('interno')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [tipoFlota, setTipoFlota] = useState<'rent-car' | 'ambos' | 'cuenca'>('ambos')
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     fetchVehiculos()
@@ -184,6 +186,16 @@ export default function NeumáticosPage() {
     }
   }
 
+  function toggleRowExpansion(vehiculoId: number) {
+    const newExpanded = new Set(expandedRows)
+    if (newExpanded.has(vehiculoId)) {
+      newExpanded.delete(vehiculoId)
+    } else {
+      newExpanded.add(vehiculoId)
+    }
+    setExpandedRows(newExpanded)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -297,6 +309,9 @@ export default function NeumáticosPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Detalle
+                  </th>
                   <th 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                     onClick={() => handleSort('interno')}
@@ -373,12 +388,26 @@ export default function NeumáticosPage() {
                   const estado = getEstadoNeumaticos(vehiculo.kilometraje_actual, vehiculo.rotacion_neumaticos_km, vehiculo.intervalo_rotacion_neumaticos)
                   const kmFaltantes = getKmFaltantesRotacion(vehiculo.kilometraje_actual, vehiculo.rotacion_neumaticos_km, vehiculo.intervalo_rotacion_neumaticos)
                   const porcentaje = getPorcentajeRestanteRotacion(vehiculo.kilometraje_actual, vehiculo.rotacion_neumaticos_km, vehiculo.intervalo_rotacion_neumaticos)
+                  const isExpanded = expandedRows.has(vehiculo.id)
                   
                   return (
-                    <tr key={vehiculo.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {vehiculo.Nro_Interno}
-                      </td>
+                    <>
+                      <tr key={vehiculo.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <button
+                            onClick={() => toggleRowExpansion(vehiculo.id)}
+                            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors"
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="h-4 w-4 text-gray-600" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-gray-600" />
+                            )}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {vehiculo.Nro_Interno}
+                        </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {vehiculo.Placa}
                       </td>
@@ -472,6 +501,121 @@ export default function NeumáticosPage() {
                         </div>
                       </td>
                     </tr>
+                    
+                    {/* Fila expandible */}
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={9} className="px-6 py-6 bg-gray-50">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Imagen del diagrama */}
+                            <div className="flex flex-col items-center">
+                              <h4 className="text-sm font-medium text-gray-900 mb-4">Diagrama de Neumáticos</h4>
+                              <div className="relative w-48 h-48">
+                                <Image
+                                  src="/tire-diagram.png"
+                                  alt="Diagrama de neumáticos"
+                                  fill
+                                  className="object-contain"
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Datos de cada neumático */}
+                            <div className="space-y-4">
+                              <h4 className="text-sm font-medium text-gray-900">Historial de Cambios</h4>
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                {/* Neumático A */}
+                                <div className="p-3 bg-white rounded-lg border">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-sm">Neumático A</span>
+                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Delantero Izq.</span>
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    <div>Fecha: {vehiculo.neumatico_fecha_a ? new Date(vehiculo.neumatico_fecha_a).toLocaleDateString() : 'No registrado'}</div>
+                                    <div>Km: {vehiculo.neumatico_km_a ? vehiculo.neumatico_km_a.toLocaleString() : 'No registrado'}</div>
+                                  </div>
+                                </div>
+                                
+                                {/* Neumático B */}
+                                <div className="p-3 bg-white rounded-lg border">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-sm">Neumático B</span>
+                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Delantero Der.</span>
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    <div>Fecha: {vehiculo.neumatico_fecha_b ? new Date(vehiculo.neumatico_fecha_b).toLocaleDateString() : 'No registrado'}</div>
+                                    <div>Km: {vehiculo.neumatico_km_b ? vehiculo.neumatico_km_b.toLocaleString() : 'No registrado'}</div>
+                                  </div>
+                                </div>
+                                
+                                {/* Neumático C */}
+                                <div className="p-3 bg-white rounded-lg border">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-sm">Neumático C</span>
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Trasero Izq.</span>
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    <div>Fecha: {vehiculo.neumatico_fecha_c ? new Date(vehiculo.neumatico_fecha_c).toLocaleDateString() : 'No registrado'}</div>
+                                    <div>Km: {vehiculo.neumatico_km_c ? vehiculo.neumatico_km_c.toLocaleString() : 'No registrado'}</div>
+                                  </div>
+                                </div>
+                                
+                                {/* Neumático D */}
+                                <div className="p-3 bg-white rounded-lg border">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-sm">Neumático D</span>
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Trasero Der.</span>
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    <div>Fecha: {vehiculo.neumatico_fecha_d ? new Date(vehiculo.neumatico_fecha_d).toLocaleDateString() : 'No registrado'}</div>
+                                    <div>Km: {vehiculo.neumatico_km_d ? vehiculo.neumatico_km_d.toLocaleString() : 'No registrado'}</div>
+                                  </div>
+                                </div>
+                                
+                                {/* Neumático E */}
+                                {(vehiculo.neumatico_fecha_e || vehiculo.neumatico_km_e) && (
+                                  <div className="p-3 bg-white rounded-lg border">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="font-medium text-sm">Neumático E</span>
+                                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Auxilio</span>
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      <div>Fecha: {vehiculo.neumatico_fecha_e ? new Date(vehiculo.neumatico_fecha_e).toLocaleDateString() : 'No registrado'}</div>
+                                      <div>Km: {vehiculo.neumatico_km_e ? vehiculo.neumatico_km_e.toLocaleString() : 'No registrado'}</div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Neumático F */}
+                                {(vehiculo.neumatico_fecha_f || vehiculo.neumatico_km_f) && (
+                                  <div className="p-3 bg-white rounded-lg border">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="font-medium text-sm">Neumático F</span>
+                                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Extra</span>
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      <div>Fecha: {vehiculo.neumatico_fecha_f ? new Date(vehiculo.neumatico_fecha_f).toLocaleDateString() : 'No registrado'}</div>
+                                      <div>Km: {vehiculo.neumatico_km_f ? vehiculo.neumatico_km_f.toLocaleString() : 'No registrado'}</div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Alineación */}
+                              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mt-4">
+                                <h5 className="font-medium text-sm text-blue-900 mb-2">Alineación de Neumáticos</h5>
+                                <div className="text-xs text-blue-700">
+                                  <div>Fecha: {vehiculo.alineacion_neumaticos_fecha ? new Date(vehiculo.alineacion_neumaticos_fecha).toLocaleDateString() : 'No registrado'}</div>
+                                  <div>Km: {vehiculo.alineacion_neumaticos_km ? vehiculo.alineacion_neumaticos_km.toLocaleString() : 'No registrado'}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </>
                   )
                 })}
               </tbody>
