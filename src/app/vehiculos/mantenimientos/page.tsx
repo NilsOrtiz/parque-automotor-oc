@@ -419,10 +419,18 @@ export default function MantenimientosPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {vehiculo.Placa}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
-                          <div className="font-medium">{vehiculo.Marca} {vehiculo.Modelo}</div>
+                      <td className="px-6 py-4 text-sm text-gray-900 max-w-[180px]">
+                        <div className="group relative">
+                          <div className="font-medium truncate">{vehiculo.Marca} {vehiculo.Modelo}</div>
                           <div className="text-gray-500">{vehiculo.Año}</div>
+                          {`${vehiculo.Marca} ${vehiculo.Modelo}`.length > 20 && (
+                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
+                              <div className="bg-gray-900 text-white text-xs rounded py-2 px-3 shadow-lg whitespace-nowrap">
+                                {vehiculo.Marca} {vehiculo.Modelo} ({vehiculo.Año})
+                                <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

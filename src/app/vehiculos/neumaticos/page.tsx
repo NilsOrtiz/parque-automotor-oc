@@ -382,10 +382,18 @@ export default function NeumáticosPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {vehiculo.Placa}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
-                          <div className="font-medium">{vehiculo.Marca} {vehiculo.Modelo}</div>
+                      <td className="px-6 py-4 text-sm text-gray-900 max-w-[180px]">
+                        <div className="group relative">
+                          <div className="font-medium truncate">{vehiculo.Marca} {vehiculo.Modelo}</div>
                           <div className="text-gray-500">{vehiculo.Año}</div>
+                          {`${vehiculo.Marca} ${vehiculo.Modelo}`.length > 20 && (
+                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
+                              <div className="bg-gray-900 text-white text-xs rounded py-2 px-3 shadow-lg whitespace-nowrap">
+                                {vehiculo.Marca} {vehiculo.Modelo} ({vehiculo.Año})
+                                <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -396,8 +404,20 @@ export default function NeumáticosPage() {
                           }
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {vehiculo.neumatico_modelo_marca || 'No especificado'}
+                      <td className="px-6 py-4 text-sm text-gray-900 max-w-[200px]">
+                        <div className="group relative">
+                          <div className="truncate">
+                            {vehiculo.neumatico_modelo_marca || 'No especificado'}
+                          </div>
+                          {vehiculo.neumatico_modelo_marca && vehiculo.neumatico_modelo_marca.length > 30 && (
+                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10 max-w-xs">
+                              <div className="bg-gray-900 text-white text-xs rounded py-2 px-3 shadow-lg">
+                                {vehiculo.neumatico_modelo_marca}
+                                <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
