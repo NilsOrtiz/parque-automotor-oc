@@ -37,10 +37,14 @@ interface VehiculoConCombustible extends Vehiculo {
 
 interface DatosGrafica {
   fecha: string
-  consumo: number
+  consumo: number // Método original
+  consumoReal: number // Método nuevo (tanque lleno)
   odometro: number
   litros: number
+  litrosConsumidos: number // Litros realmente consumidos
   costo: number
+  kmRecorridos: number
+  metodoCalculado: 'original' | 'tanque_lleno'
 }
 
 export default function AnalisisCombustiblePage() {
@@ -62,6 +66,7 @@ export default function AnalisisCombustiblePage() {
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [metodoCalculo, setMetodoCalculo] = useState<'original' | 'tanque_lleno' | 'ambos'>('tanque_lleno')
 
   useEffect(() => {
     cargarDatos()
@@ -557,23 +562,29 @@ export default function AnalisisCombustiblePage() {
 
     const datos: DatosGrafica[] = []
 
-    // Calcular consumo para cada carga consecutiva
+    // Calcular consumo para cada carga consecutiva usando AMBOS métodos
     for (let i = 1; i < cargasVehiculo.length; i++) {
       const cargaActual = cargasVehiculo[i]
       const cargaAnterior = cargasVehiculo[i - 1]
 
       if (cargaActual.odometro && cargaAnterior.odometro) {
-        const distancia = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
-        if (distancia > 0) {
-          const consumo = distancia / cargaActual.litros_cargados // km/litro
-          
-          // Incluir todos los datos, incluso valores extremos para análisis completo
+        // Método original
+        const calculoOriginal = calcularConsumoOriginal(cargaActual, cargaAnterior)
+        
+        // Método nuevo (tanque lleno)
+        const calculoReal = calcularConsumoRealTanqueLleno(cargaActual, cargaAnterior)
+        
+        if (calculoOriginal && calculoReal) {
           datos.push({
             fecha: cargaActual.fecha_carga,
-            consumo,
+            consumo: calculoOriginal.consumoKmPorLitro, // Método original
+            consumoReal: calculoReal.consumoKmPorLitro, // Método nuevo
             odometro: cargaActual.odometro,
             litros: cargaActual.litros_cargados,
-            costo: cargaActual.monto_total || 0
+            litrosConsumidos: calculoReal.litrosConsumidos,
+            costo: cargaActual.monto_total || 0,
+            kmRecorridos: calculoReal.kmRecorridos,
+            metodoCalculado: 'tanque_lleno'
           })
         }
       }
@@ -765,6 +776,75 @@ export default function AnalisisCombustiblePage() {
     return totalDias > 0 ? totalKm / totalDias : 50
   }
 
+  // NUEVAS FUNCIONES DE CÁLCULO MEJORADO
+  
+  // Función para calcular consumo real basado en tanque lleno
+  const calcularConsumoRealTanqueLleno = (cargaActual: CargaCombustibleYPF, cargaAnterior: CargaCombustibleYPF) => {
+    if (!cargaActual.odometro || !cargaAnterior.odometro || !cargaActual.litros_cargados) {
+      return null
+    }
+    
+    // Kilómetros recorridos entre cargas
+    const kmRecorridos = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
+    
+    // Litros que necesitó para llenarse = combustible realmente consumido en ese tramo
+    const litrosConsumidos = cargaActual.litros_cargados
+    
+    if (kmRecorridos <= 0 || litrosConsumidos <= 0) return null
+    
+    // Consumo real: km recorridos / litros realmente consumidos
+    const consumoReal = kmRecorridos / litrosConsumidos
+    
+    return {
+      kmRecorridos,
+      litrosConsumidos,
+      consumoKmPorLitro: consumoReal,
+      eficiencia: consumoReal > 0 ? `${consumoReal.toFixed(1)} km/L` : 'N/A',
+      costoPorKm: cargaActual.monto_total ? (cargaActual.monto_total / kmRecorridos) : null
+    }
+  }
+  
+  // Función para calcular consumo original (método actual)
+  const calcularConsumoOriginal = (cargaActual: CargaCombustibleYPF, cargaAnterior: CargaCombustibleYPF) => {
+    if (!cargaActual.odometro || !cargaAnterior.odometro || !cargaActual.litros_cargados) {
+      return null
+    }
+    
+    const distancia = Math.abs(cargaActual.odometro - cargaAnterior.odometro)
+    
+    if (distancia <= 0) return null
+    
+    // Método original: distancia / litros cargados (menos preciso)
+    const consumoOriginal = distancia / cargaActual.litros_cargados
+    
+    return {
+      kmRecorridos: distancia,
+      litrosCargados: cargaActual.litros_cargados,
+      consumoKmPorLitro: consumoOriginal,
+      eficiencia: `${consumoOriginal.toFixed(1)} km/L`
+    }
+  }
+  
+  // Función para comparar ambos métodos
+  const compararMetodos = (cargaActual: CargaCombustibleYPF, cargaAnterior: CargaCombustibleYPF) => {
+    const calculoReal = calcularConsumoRealTanqueLleno(cargaActual, cargaAnterior)
+    const calculoOriginal = calcularConsumoOriginal(cargaActual, cargaAnterior)
+    
+    if (!calculoReal || !calculoOriginal) return null
+    
+    const diferencia = Math.abs(calculoReal.consumoKmPorLitro - calculoOriginal.consumoKmPorLitro)
+    const porcentajeDiferencia = (diferencia / calculoReal.consumoKmPorLitro) * 100
+    
+    return {
+      consumoReal: calculoReal.consumoKmPorLitro,
+      consumoOriginal: calculoOriginal.consumoKmPorLitro,
+      diferencia,
+      porcentajeDiferencia,
+      metodoMasPreciso: 'tanque_lleno', // Siempre es más preciso
+      observacion: porcentajeDiferencia > 10 ? 'Diferencia significativa' : 'Diferencia menor'
+    }
+  }
+
   const seleccionarVehiculo = (vehiculo: VehiculoConCombustible) => {
     setVehiculoSeleccionado(vehiculo)
     cargarDatosGrafica(vehiculo.Placa, cargasCombustible)
@@ -781,16 +861,37 @@ export default function AnalisisCombustiblePage() {
   const chartData = {
     labels: datosGrafica.map(d => new Date(d.fecha).toLocaleDateString()),
     datasets: [
+      // Dataset para método nuevo (tanque lleno) - principal
       {
-        label: 'Consumo (km/litro)',
+        label: 'Consumo Real (Tanque Lleno)',
+        data: datosGrafica.map(d => d.consumoReal),
+        borderColor: 'rgb(34, 197, 94)', // Verde
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        tension: 0.1,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        borderWidth: 3,
+        hidden: metodoCalculo === 'original'
+      },
+      // Dataset para método original - referencia
+      {
+        label: 'Consumo Original (Referencia)',
         data: datosGrafica.map(d => d.consumo),
-        borderColor: 'rgb(59, 130, 246)',
+        borderColor: 'rgb(59, 130, 246)', // Azul
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.1,
         pointRadius: 4,
-        pointHoverRadius: 6
+        pointHoverRadius: 6,
+        borderWidth: 2,
+        borderDash: [5, 5], // Línea punteada para diferenciarlo
+        hidden: metodoCalculo === 'tanque_lleno'
       }
-    ]
+    ].filter(dataset => {
+      if (metodoCalculo === 'ambos') return true
+      if (metodoCalculo === 'tanque_lleno') return dataset.label.includes('Real')
+      if (metodoCalculo === 'original') return dataset.label.includes('Original')
+      return true
+    })
   }
 
   const chartOptions: ChartOptions<'line'> = {
@@ -883,6 +984,94 @@ export default function AnalisisCombustiblePage() {
               <h1 className="text-3xl font-bold text-gray-900">Análisis de Combustible</h1>
               <p className="text-gray-600">Consumo y eficiencia por vehículo</p>
             </div>
+          </div>
+        </div>
+
+        {/* Selector de método de cálculo */}
+        <div className="mb-6 bg-white rounded-lg shadow-md p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Método de Cálculo</h3>
+              <p className="text-sm text-gray-600">Selecciona cómo calcular el consumo de combustible</p>
+            </div>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setMetodoCalculo('tanque_lleno')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  metodoCalculo === 'tanque_lleno'
+                    ? 'bg-green-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span>🟢</span>
+                  <span>Tanque Lleno</span>
+                </div>
+                <div className="text-xs opacity-80">Más preciso</div>
+              </button>
+              <button
+                onClick={() => setMetodoCalculo('original')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  metodoCalculo === 'original'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span>🔵</span>
+                  <span>Original</span>
+                </div>
+                <div className="text-xs opacity-80">Referencia</div>
+              </button>
+              <button
+                onClick={() => setMetodoCalculo('ambos')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  metodoCalculo === 'ambos'
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span>🟣</span>
+                  <span>Comparar</span>
+                </div>
+                <div className="text-xs opacity-80">Ambos métodos</div>
+              </button>
+            </div>
+          </div>
+          
+          {/* Explicación del método seleccionado */}
+          <div className="mt-4 p-3 rounded-lg border">
+            {metodoCalculo === 'tanque_lleno' && (
+              <div className="bg-green-50 border-green-200">
+                <h4 className="font-medium text-green-800 mb-1">🟢 Método Tanque Lleno (Recomendado)</h4>
+                <p className="text-sm text-green-700">
+                  <strong>Lógica:</strong> Km recorridos ÷ Litros necesarios para llenar = Consumo real
+                  <br />
+                  <strong>Ventaja:</strong> Mide el combustible realmente consumido en cada tramo
+                </p>
+              </div>
+            )}
+            {metodoCalculo === 'original' && (
+              <div className="bg-blue-50 border-blue-200">
+                <h4 className="font-medium text-blue-800 mb-1">🔵 Método Original (Referencia)</h4>
+                <p className="text-sm text-blue-700">
+                  <strong>Lógica:</strong> Distancia recorrida ÷ Litros cargados = Consumo estimado
+                  <br />
+                  <strong>Limitación:</strong> No considera el combustible residual en el tanque
+                </p>
+              </div>
+            )}
+            {metodoCalculo === 'ambos' && (
+              <div className="bg-purple-50 border-purple-200">
+                <h4 className="font-medium text-purple-800 mb-1">🟣 Comparación de Métodos</h4>
+                <p className="text-sm text-purple-700">
+                  <strong>Verde (sólido):</strong> Tanque lleno - <strong>Azul (punteado):</strong> Original
+                  <br />
+                  Permite ver diferencias entre ambos cálculos para análisis detallado
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -985,12 +1174,42 @@ export default function AnalisisCombustiblePage() {
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">Consumo Promedio</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {vehiculoSeleccionado.consumoPromedio?.toFixed(1) || 'N/A'} km/L
+                        <p className="text-sm font-medium text-gray-600">
+                          Consumo Promedio {metodoCalculo === 'tanque_lleno' ? '(Real)' : metodoCalculo === 'original' ? '(Original)' : ''}
                         </p>
+                        <div className="flex flex-col">
+                          {metodoCalculo === 'tanque_lleno' && (
+                            <p className="text-2xl font-bold text-green-700">
+                              {datosGrafica.length > 0 
+                                ? (datosGrafica.reduce((sum, d) => sum + d.consumoReal, 0) / datosGrafica.length).toFixed(1)
+                                : vehiculoSeleccionado.consumoPromedio?.toFixed(1) || 'N/A'
+                              } km/L
+                            </p>
+                          )}
+                          {metodoCalculo === 'original' && (
+                            <p className="text-2xl font-bold text-blue-700">
+                              {vehiculoSeleccionado.consumoPromedio?.toFixed(1) || 'N/A'} km/L
+                            </p>
+                          )}
+                          {metodoCalculo === 'ambos' && (
+                            <>
+                              <p className="text-lg font-bold text-green-700">
+                                Real: {datosGrafica.length > 0 
+                                  ? (datosGrafica.reduce((sum, d) => sum + d.consumoReal, 0) / datosGrafica.length).toFixed(1)
+                                  : 'N/A'
+                                } km/L
+                              </p>
+                              <p className="text-sm font-medium text-blue-600">
+                                Original: {vehiculoSeleccionado.consumoPromedio?.toFixed(1) || 'N/A'} km/L
+                              </p>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <TrendingUp className="h-8 w-8 text-purple-600" />
+                      <TrendingUp className={`h-8 w-8 ${
+                        metodoCalculo === 'tanque_lleno' ? 'text-green-600' :
+                        metodoCalculo === 'original' ? 'text-blue-600' : 'text-purple-600'
+                      }`} />
                     </div>
                   </div>
                   
@@ -1157,12 +1376,24 @@ export default function AnalisisCombustiblePage() {
                               const anomalia = anomalias.find(a => a.id === carga.id)
                               const esMarcadoManualmente = anomaliasManualeslIds.has(carga.id)
                               
-                              let consumo = 'N/A'
+                              let consumoOriginal = 'N/A'
+                              let consumoReal = 'N/A'
+                              let comparacion = null
+                              
                               if (cargaAnterior && carga.odometro && cargaAnterior.odometro) {
-                                const distancia = Math.abs(carga.odometro - cargaAnterior.odometro)
-                                if (distancia > 0) {
-                                  const kmPorLitro = distancia / carga.litros_cargados
-                                  consumo = `${kmPorLitro.toFixed(1)} km/L`
+                                const calculoOriginal = calcularConsumoOriginal(carga, cargaAnterior)
+                                const calculoTanqueLleno = calcularConsumoRealTanqueLleno(carga, cargaAnterior)
+                                
+                                if (calculoOriginal) {
+                                  consumoOriginal = `${calculoOriginal.consumoKmPorLitro.toFixed(1)} km/L`
+                                }
+                                
+                                if (calculoTanqueLleno) {
+                                  consumoReal = `${calculoTanqueLleno.consumoKmPorLitro.toFixed(1)} km/L`
+                                }
+                                
+                                if (calculoOriginal && calculoTanqueLleno) {
+                                  comparacion = compararMetodos(carga, cargaAnterior)
                                 }
                               }
                               
@@ -1255,8 +1486,30 @@ export default function AnalisisCombustiblePage() {
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     ${carga.monto_total?.toLocaleString() || 'N/A'}
                                   </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                                    {consumo}
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <div className="flex flex-col space-y-1">
+                                      {metodoCalculo === 'tanque_lleno' && (
+                                        <span className="font-medium text-green-600">{consumoReal}</span>
+                                      )}
+                                      {metodoCalculo === 'original' && (
+                                        <span className="font-medium text-blue-600">{consumoOriginal}</span>
+                                      )}
+                                      {metodoCalculo === 'ambos' && (
+                                        <>
+                                          <span className="font-medium text-green-600">
+                                            🟢 {consumoReal}
+                                          </span>
+                                          <span className="text-sm text-blue-500">
+                                            🔵 {consumoOriginal}
+                                          </span>
+                                          {comparacion && comparacion.porcentajeDiferencia > 5 && (
+                                            <span className="text-xs text-orange-600">
+                                              Δ {comparacion.porcentajeDiferencia.toFixed(1)}%
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                                     <div className="flex flex-col space-y-1">
