@@ -196,6 +196,26 @@ export default function NeumáticosPage() {
     setExpandedRows(newExpanded)
   }
 
+  function getTipoVehiculoLabel(tipo?: number) {
+    switch (tipo) {
+      case 1: return '6 Ruedas'
+      case 2: return 'Tracción Delantera'
+      case 3: return 'Tracción Trasera'
+      case 4: return '4x4'
+      default: return 'No definido'
+    }
+  }
+
+  function getTipoVehiculoColor(tipo?: number) {
+    switch (tipo) {
+      case 1: return 'bg-purple-100 text-purple-800'
+      case 2: return 'bg-blue-100 text-blue-800'
+      case 3: return 'bg-green-100 text-green-800'
+      case 4: return 'bg-orange-100 text-orange-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -352,6 +372,9 @@ export default function NeumáticosPage() {
                     Marca/Modelo Neumático
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tipo Vehículo
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Intervalo Rotación
                   </th>
                   <th 
@@ -423,6 +446,16 @@ export default function NeumáticosPage() {
                               </div>
                             </div>
                           )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${getTipoVehiculoColor(vehiculo.tipo_vehiculo)}`}>
+                            {getTipoVehiculoLabel(vehiculo.tipo_vehiculo)}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Rotación: {vehiculo.rotacion_actual || '1.1'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -505,15 +538,25 @@ export default function NeumáticosPage() {
                     {/* Fila expandible */}
                     {isExpanded && (
                       <tr>
-                        <td colSpan={9} className="px-6 py-6 bg-gray-50">
+                        <td colSpan={10} className="px-6 py-6 bg-gray-50">
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Imagen del diagrama */}
                             <div className="flex flex-col items-center">
-                              <h4 className="text-sm font-medium text-gray-900 mb-4">Diagrama de Neumáticos</h4>
-                              <div className="relative w-48 h-48">
+                              <div className="mb-4 text-center">
+                                <h4 className="text-sm font-medium text-gray-900">Diagrama de Neumáticos</h4>
+                                <div className="flex items-center justify-center gap-2 mt-2">
+                                  <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${getTipoVehiculoColor(vehiculo.tipo_vehiculo)}`}>
+                                    {getTipoVehiculoLabel(vehiculo.tipo_vehiculo)}
+                                  </span>
+                                  <span className="text-xs text-gray-600 bg-white px-2 py-1 rounded border">
+                                    Rotación: {vehiculo.rotacion_actual || '1.1'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="relative w-64 h-96">
                                 <Image
-                                  src="/tire-diagram.png"
-                                  alt="Diagrama de neumáticos"
+                                  src={`/tire-rotations/${vehiculo.rotacion_actual || '1.1'}.png`}
+                                  alt={`Diagrama ${getTipoVehiculoLabel(vehiculo.tipo_vehiculo)} - Rotación ${vehiculo.rotacion_actual}`}
                                   fill
                                   className="object-contain"
                                 />
