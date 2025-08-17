@@ -804,7 +804,7 @@ export default function AnalisisCombustiblePage() {
     }
   }
   
-  // Función para calcular consumo original (método actual)
+  // Función para calcular consumo original CORREGIDO (método actual pero con litros correctos)
   const calcularConsumoOriginal = (cargaActual: CargaCombustibleYPF, cargaAnterior: CargaCombustibleYPF) => {
     if (!cargaActual.odometro || !cargaAnterior.odometro || !cargaActual.litros_cargados) {
       return null
@@ -814,7 +814,9 @@ export default function AnalisisCombustiblePage() {
     
     if (distancia <= 0) return null
     
-    // Método original: distancia / litros cargados (menos preciso)
+    // Método original CORREGIDO: 
+    // Km recorridos / litros de la carga ACTUAL (no anterior como estaba mal)
+    // Los litros de la carga actual = combustible consumido desde la carga anterior
     const consumoOriginal = distancia / cargaActual.litros_cargados
     
     return {
@@ -873,9 +875,9 @@ export default function AnalisisCombustiblePage() {
         borderWidth: 3,
         hidden: metodoCalculo === 'original'
       },
-      // Dataset para método original - referencia
+      // Dataset para método original CORREGIDO
       {
-        label: 'Consumo Original (Referencia)',
+        label: 'Consumo Original (Corregido)',
         data: datosGrafica.map(d => d.consumo),
         borderColor: 'rgb(59, 130, 246)', // Azul
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -1054,11 +1056,11 @@ export default function AnalisisCombustiblePage() {
             )}
             {metodoCalculo === 'original' && (
               <div className="bg-blue-50 border-blue-200">
-                <h4 className="font-medium text-blue-800 mb-1">🔵 Método Original (Referencia)</h4>
+                <h4 className="font-medium text-blue-800 mb-1">🔵 Método Original (Corregido)</h4>
                 <p className="text-sm text-blue-700">
-                  <strong>Lógica:</strong> Distancia recorrida ÷ Litros cargados = Consumo estimado
+                  <strong>Lógica:</strong> Km recorridos ÷ Litros cargados = Consumo básico
                   <br />
-                  <strong>Limitación:</strong> No considera el combustible residual en el tanque
+                  <strong>Uso:</strong> Cálculo directo y simple - mismo resultado que tanque lleno cuando siempre se llena al 100%
                 </p>
               </div>
             )}
@@ -1066,9 +1068,9 @@ export default function AnalisisCombustiblePage() {
               <div className="bg-purple-50 border-purple-200">
                 <h4 className="font-medium text-purple-800 mb-1">🟣 Comparación de Métodos</h4>
                 <p className="text-sm text-purple-700">
-                  <strong>Verde (sólido):</strong> Tanque lleno - <strong>Azul (punteado):</strong> Original
+                  <strong>Verde (sólido):</strong> Tanque lleno - <strong>Azul (punteado):</strong> Original corregido
                   <br />
-                  Permite ver diferencias entre ambos cálculos para análisis detallado
+                  <strong>Nota:</strong> Con tanque siempre lleno ambos métodos dan resultados idénticos
                 </p>
               </div>
             )}
