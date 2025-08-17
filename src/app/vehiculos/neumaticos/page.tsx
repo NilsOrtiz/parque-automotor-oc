@@ -449,16 +449,6 @@ export default function NeumáticosPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex flex-col gap-1">
-                          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${getTipoVehiculoColor(vehiculo.tipo_vehiculo)}`}>
-                            {getTipoVehiculoLabel(vehiculo.tipo_vehiculo)}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            Rotación: {vehiculo.rotacion_actual || '1.1'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <span className="font-medium">
                           {vehiculo.kilometraje_actual 
                             ? vehiculo.kilometraje_actual.toLocaleString() + ' km'
@@ -479,6 +469,16 @@ export default function NeumáticosPage() {
                               </div>
                             </div>
                           )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${getTipoVehiculoColor(vehiculo.tipo_vehiculo)}`}>
+                            {getTipoVehiculoLabel(vehiculo.tipo_vehiculo)}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Rotación: {vehiculo.rotacion_actual || '1.1'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
