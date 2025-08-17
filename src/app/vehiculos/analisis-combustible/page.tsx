@@ -804,9 +804,9 @@ export default function AnalisisCombustiblePage() {
     }
   }
   
-  // Función para calcular consumo original CORREGIDO (método actual pero con litros correctos)
+  // Función para calcular consumo original (método INCORRECTO para comparación)
   const calcularConsumoOriginal = (cargaActual: CargaCombustibleYPF, cargaAnterior: CargaCombustibleYPF) => {
-    if (!cargaActual.odometro || !cargaAnterior.odometro || !cargaActual.litros_cargados) {
+    if (!cargaActual.odometro || !cargaAnterior.odometro || !cargaAnterior.litros_cargados) {
       return null
     }
     
@@ -814,14 +814,14 @@ export default function AnalisisCombustiblePage() {
     
     if (distancia <= 0) return null
     
-    // Método original CORREGIDO: 
-    // Km recorridos / litros de la carga ACTUAL (no anterior como estaba mal)
-    // Los litros de la carga actual = combustible consumido desde la carga anterior
-    const consumoOriginal = distancia / cargaActual.litros_cargados
+    // Método original INCORRECTO (para mostrar la diferencia): 
+    // Km recorridos / litros de la carga ANTERIOR (método erróneo)
+    // Esto da resultados incorrectos pero sirve para comparar
+    const consumoOriginal = distancia / cargaAnterior.litros_cargados
     
     return {
       kmRecorridos: distancia,
-      litrosCargados: cargaActual.litros_cargados,
+      litrosCargados: cargaAnterior.litros_cargados,
       consumoKmPorLitro: consumoOriginal,
       eficiencia: `${consumoOriginal.toFixed(1)} km/L`
     }
@@ -1056,11 +1056,11 @@ export default function AnalisisCombustiblePage() {
             )}
             {metodoCalculo === 'original' && (
               <div className="bg-blue-50 border-blue-200">
-                <h4 className="font-medium text-blue-800 mb-1">🔵 Método Original (Corregido)</h4>
+                <h4 className="font-medium text-blue-800 mb-1">🔵 Método Original (Incorrecto)</h4>
                 <p className="text-sm text-blue-700">
-                  <strong>Lógica:</strong> Km recorridos ÷ Litros cargados = Consumo básico
+                  <strong>Lógica:</strong> Km recorridos ÷ Litros carga ANTERIOR = Consumo erróneo
                   <br />
-                  <strong>Uso:</strong> Cálculo directo y simple - mismo resultado que tanque lleno cuando siempre se llena al 100%
+                  <strong>Problema:</strong> Usa combustible de la carga pasada, no el realmente consumido
                 </p>
               </div>
             )}
@@ -1068,9 +1068,9 @@ export default function AnalisisCombustiblePage() {
               <div className="bg-purple-50 border-purple-200">
                 <h4 className="font-medium text-purple-800 mb-1">🟣 Comparación de Métodos</h4>
                 <p className="text-sm text-purple-700">
-                  <strong>Verde (sólido):</strong> Tanque lleno - <strong>Azul (punteado):</strong> Original corregido
+                  <strong>Verde (sólido):</strong> Correcto (litros actuales) - <strong>Azul (punteado):</strong> Incorrecto (litros anteriores)
                   <br />
-                  <strong>Nota:</strong> Con tanque siempre lleno ambos métodos dan resultados idénticos
+                  <strong>Diferencia:</strong> Ahora podrás ver la diferencia entre ambos cálculos
                 </p>
               </div>
             )}
