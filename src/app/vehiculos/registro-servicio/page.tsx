@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type Vehiculo } from '@/lib/supabase'
-import { ArrowLeft, Search, Save, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Search, Save, AlertCircle, Droplets, Settings, Disc, Cog, Truck, Wrench, Zap, Circle } from 'lucide-react'
 
 interface OrdenCompra {
   id: number
@@ -41,12 +41,87 @@ export default function RegistroServicioPage() {
   const [pendienteSeleccionado, setPendienteSeleccionado] = useState<number | null>(null)
   const [loadingPendientes, setLoadingPendientes] = useState(false)
 
+  // Estados para formularios rápidos por sección
+  const [seccionSeleccionada, setSeccionSeleccionada] = useState<string | null>(null)
+  const [datosSeccion, setDatosSeccion] = useState<Record<string, any>>({})
+
   const subclasificaciones = [
     'Motor', 'Transmisión', 'Frenos', 'Suspensión', 'Neumáticos', 
     'Eléctrico', 'Electrónico', 'Carrocería', 'Interior', 'Documentación',
     'Climatización', 'Dirección', 'Filtros', 'Fluidos', 'Escape', 
     'Combustible', 'Seguridad'
   ]
+
+  // Configuración de secciones con iconos (igual que en busqueda)
+  const secciones = [
+    { id: 'aceites-filtros', nombre: 'Aceites y Filtros', icono: Droplets, color: 'blue' },
+    { id: 'transmision-liquidos', nombre: 'Transmisión y Líquidos', icono: Settings, color: 'green' },
+    { id: 'frenos', nombre: 'Sistema de Frenos', icono: Disc, color: 'red' },
+    { id: 'motor-embrague', nombre: 'Motor y Embrague', icono: Cog, color: 'orange' },
+    { id: 'suspension', nombre: 'Suspensión', icono: Truck, color: 'purple' },
+    { id: 'correas', nombre: 'Correas', icono: Wrench, color: 'yellow' },
+    { id: 'electrico', nombre: 'Sistema Eléctrico', icono: Zap, color: 'indigo' },
+    { id: 'neumaticos', nombre: 'Neumáticos', icono: Circle, color: 'gray' }
+  ]
+
+  // Configuración de campos por sección (igual que en busqueda)
+  const camposPorSeccion: Record<string, any[]> = {
+    'aceites-filtros': [
+      { label: "Aceite de Motor", kmField: "aceite_motor_km", dateField: "aceite_motor_fecha", modelField: "aceite_motor_modelo", litersField: "aceite_motor_litros", hrField: "aceite_motor_hr" },
+      { label: "Filtro Aceite Motor", modelField: "filtro_aceite_motor_modelo" },
+      { label: "Filtro de Combustible", kmField: "filtro_combustible_km", dateField: "filtro_combustible_fecha", modelField: "filtro_combustible_modelo" },
+      { label: "Filtro de Aire", kmField: "filtro_aire_km", dateField: "filtro_aire_fecha", modelField: "filtro_aire_modelo" },
+      { label: "Filtro de Cabina", kmField: "filtro_cabina_km", dateField: "filtro_cabina_fecha", modelField: "filtro_cabina_modelo" },
+      { label: "Filtro Deshumidificador", kmField: "filtro_deshumidificador_km", dateField: "filtro_deshumidificador_fecha", modelField: "filtro_deshumidificador_modelo" },
+      { label: "Filtro Secador", kmField: "filtro_secador_km", dateField: "filtro_secador_fecha", modelField: "filtro_secador_modelo" },
+      { label: "Filtro de Aire Secundario", kmField: "filtro_aire_secundario_km", dateField: "filtro_aire_secundario_fecha", modelField: "filtro_aire_secundario_modelo" },
+      { label: "Trampa de Agua", kmField: "trampa_agua_km", dateField: "trampa_agua_fecha", modelField: "trampa_agua_modelo" }
+    ],
+    'transmision-liquidos': [
+      { label: "Aceite de Transmisión", kmField: "aceite_transmicion_km", dateField: "aceite_transmicion_fecha", modelField: "aceite_transmicion_modelo" },
+      { label: "Líquido Refrigerante", kmField: "liquido_refrigerante_km", dateField: "liquido_refrigerante_fecha", modelField: "liquido_refrigerante_modelo" },
+      { label: "Líquido de Frenos", kmField: "liquido_frenos_km", dateField: "liquido_frenos_fecha", modelField: "liquido_frenos_modelo" }
+    ],
+    'frenos': [
+      { label: "Pastillas/Cintas Freno A", kmField: "pastilla_cinta_freno_km_a", dateField: "pastilla_cinta_freno_fecha_a", modelField: "pastilla_cinta_freno_modelo_a" },
+      { label: "Pastillas/Cintas Freno B", kmField: "pastilla_cinta_freno_km_b", dateField: "pastilla_cinta_freno_fecha_b", modelField: "pastilla_cinta_freno_modelo_b" },
+      { label: "Pastillas/Cintas Freno C", kmField: "pastilla_cinta_freno_km_c", dateField: "pastilla_cinta_freno_fecha_c", modelField: "pastilla_cinta_freno_modelo_c" },
+      { label: "Pastillas/Cintas Freno D", kmField: "pastilla_cinta_freno_km_d", dateField: "pastilla_cinta_freno_fecha_d", modelField: "pastilla_cinta_freno_modelo_d" }
+    ],
+    'motor-embrague': [
+      { label: "Embrague", kmField: "embrague_km", dateField: "embrague_fecha", modelField: "embrague_modelo" }
+    ],
+    'suspension': [
+      { label: "Suspensión A", kmField: "suspencion_km_a", dateField: "suspencion_fecha_a", modelField: "suspencion_modelo_a" },
+      { label: "Suspensión B", kmField: "suspencion_km_b", dateField: "suspencion_fecha_b", modelField: "suspencion_modelo_b" },
+      { label: "Suspensión C", kmField: "suspencion_km_c", dateField: "suspencion_fecha_c", modelField: "suspencion_modelo_c" },
+      { label: "Suspensión D", kmField: "suspencion_km_d", dateField: "suspencion_fecha_d", modelField: "suspencion_modelo_d" }
+    ],
+    'correas': [
+      { label: "Correa de Distribución", kmField: "correa_distribucion_km", dateField: "correa_distribucion_fecha", modelField: "correa_distribucion_modelo" },
+      { label: "Correa de Alternador", kmField: "correa_alternador_km", dateField: "correa_alternador_fecha", modelField: "correa_alternador_modelo" },
+      { label: "Correa de Dirección", kmField: "correa_direccion_km", dateField: "correa_direccion_fecha", modelField: "correa_direccion_modelo" },
+      { label: "Correa de Aire Acondicionado", kmField: "correa_aire_acondicionado_km", dateField: "correa_aire_acondicionado_fecha", modelField: "correa_aire_acondicionado_modelo" },
+      { label: "Correa Poly-V", kmField: "correa_polyv_km", dateField: "correa_polyv_fecha", modelField: "correa_polyv_modelo" },
+      { label: "Tensor de Correa", kmField: "tensor_correa_km", dateField: "tensor_correa_fecha", modelField: "tensor_correa_modelo" },
+      { label: "Polea Tensora", kmField: "polea_tensora_correa_km", dateField: "polea_tensora_correa_fecha", modelField: "polea_tensora_correa_modelo" }
+    ],
+    'electrico': [
+      { label: "Batería", kmField: "bateria_km", dateField: "bateria_fecha", modelField: "bateria_modelo" },
+      { label: "Escobillas", kmField: "escobillas_km", dateField: "escobillas_fecha", modelField: "escobillas_modelo" }
+    ],
+    'neumaticos': [
+      { label: "Modelo/Marca General", modelField: "neumatico_modelo_marca" },
+      { label: "Neumático A", kmField: "neumatico_km_a", dateField: "neumatico_fecha_a" },
+      { label: "Neumático B", kmField: "neumatico_km_b", dateField: "neumatico_fecha_b" },
+      { label: "Neumático C", kmField: "neumatico_km_c", dateField: "neumatico_fecha_c" },
+      { label: "Neumático D", kmField: "neumatico_km_d", dateField: "neumatico_fecha_d" },
+      { label: "Neumático E", kmField: "neumatico_km_e", dateField: "neumatico_fecha_e" },
+      { label: "Neumático F", kmField: "neumatico_km_f", dateField: "neumatico_fecha_f" },
+      { label: "Alineación", kmField: "alineacion_neumaticos_km", dateField: "alineacion_neumaticos_fecha" },
+      { label: "Rotación", kmField: "rotacion_neumaticos_km", dateField: "rotacion_neumaticos_fecha" }
+    ]
+  }
 
   async function buscarVehiculo() {
     if (!busquedaVehiculo.trim()) {
@@ -193,6 +268,31 @@ export default function RegistroServicioPage() {
 
       if (error) throw error
 
+      // Actualizar campos específicos del vehículo si hay datos de sección
+      if (Object.keys(datosSeccion).length > 0) {
+        const actualizacionesVehiculo: any = {}
+        
+        // Procesar cada campo de la sección
+        Object.entries(datosSeccion).forEach(([campo, valor]) => {
+          if (valor !== '' && valor !== null && valor !== undefined) {
+            actualizacionesVehiculo[campo] = valor
+          }
+        })
+        
+        // Si hay actualizaciones, aplicarlas al vehículo
+        if (Object.keys(actualizacionesVehiculo).length > 0) {
+          const { error: errorVehiculo } = await supabase
+            .from('vehiculos')
+            .update(actualizacionesVehiculo)
+            .eq('id', vehiculo.id)
+          
+          if (errorVehiculo) {
+            console.error('Error actualizando datos del vehículo:', errorVehiculo)
+            // No fallar el guardado por esto, pero informar al usuario
+          }
+        }
+      }
+
       // Si se seleccionó un pendiente, marcarlo como resuelto
       if (pendienteSeleccionado) {
         const { error: errorPendiente } = await supabase
@@ -216,6 +316,8 @@ export default function RegistroServicioPage() {
       setKilometrajeServicio('')
       setOrdenesSeleccionadas([])
       setPendienteSeleccionado(null)
+      setSeccionSeleccionada(null)
+      setDatosSeccion({})
       
       // Recargar pendientes para actualizar la lista
       if (vehiculo) {
@@ -235,6 +337,38 @@ export default function RegistroServicioPage() {
         ? prev.filter(id => id !== ordenId)
         : [...prev, ordenId]
     )
+  }
+
+  // Funciones para formularios rápidos
+  const seleccionarSeccion = (seccionId: string) => {
+    setSeccionSeleccionada(seccionId)
+    setSubclasificacion(secciones.find(s => s.id === seccionId)?.nombre || '')
+  }
+
+  const volverASeecciones = () => {
+    setSeccionSeleccionada(null)
+    setDatosSeccion({})
+  }
+
+  const actualizarDatoSeccion = (campo: string, valor: any) => {
+    setDatosSeccion(prev => ({
+      ...prev,
+      [campo]: valor
+    }))
+  }
+
+  const obtenerColorSeccion = (color: string) => {
+    const colores = {
+      blue: 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700',
+      green: 'border-green-200 bg-green-50 hover:bg-green-100 text-green-700',
+      red: 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700',
+      orange: 'border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700',
+      purple: 'border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700',
+      yellow: 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100 text-yellow-700',
+      indigo: 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700',
+      gray: 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700'
+    }
+    return colores[color as keyof typeof colores] || colores.gray
   }
 
   return (
@@ -342,7 +476,11 @@ export default function RegistroServicioPage() {
                   {['revision', 'mantenimiento', 'reparacion'].map((tipo) => (
                     <button
                       key={tipo}
-                      onClick={() => setClasificacion(tipo as any)}
+                      onClick={() => {
+                        setClasificacion(tipo as any)
+                        setSeccionSeleccionada(null)
+                        setDatosSeccion({})
+                      }}
                       className={`px-4 py-2 rounded-lg transition-colors capitalize ${
                         clasificacion === tipo
                           ? 'bg-indigo-600 text-white'
@@ -355,22 +493,192 @@ export default function RegistroServicioPage() {
                 </div>
               </div>
 
-              {/* Subclasificación */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Subclasificación
-                </label>
-                <select
-                  value={subclasificacion}
-                  onChange={(e) => setSubclasificacion(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="">Seleccionar sistema...</option>
-                  {subclasificaciones.map((sub) => (
-                    <option key={sub} value={sub}>{sub}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Formularios Rápidos por Sección - Solo para Mantenimiento */}
+              {clasificacion === 'mantenimiento' && (
+                <div className="border-t pt-6">
+                  {!seccionSeleccionada ? (
+                    // Selección de Sección
+                    <>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                        🚀 Formulario Rápido por Sistema
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-6">
+                        Selecciona el sistema del vehículo para un formulario especializado:
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                        {secciones.map((seccion) => {
+                          const IconoComponente = seccion.icono
+                          return (
+                            <button
+                              key={seccion.id}
+                              onClick={() => seleccionarSeccion(seccion.id)}
+                              className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md ${
+                                obtenerColorSeccion(seccion.color)
+                              }`}
+                              title={seccion.nombre}
+                            >
+                              <IconoComponente className="h-6 w-6 mb-2" />
+                              <span className="text-xs font-medium text-center leading-tight">
+                                {seccion.nombre.split(' ').map((palabra, i) => (
+                                  <div key={i}>{palabra}</div>
+                                ))}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          💡 <strong>Ventaja:</strong> Al usar estos formularios, los datos del vehículo se actualizarán automáticamente
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    // Formulario de Sección Específica
+                    <div>
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          {(() => {
+                            const seccion = secciones.find(s => s.id === seccionSeleccionada)
+                            const IconoComponente = seccion?.icono || Circle
+                            return (
+                              <>
+                                <div className={`p-2 rounded-lg ${obtenerColorSeccion(seccion?.color || 'gray')}`}>
+                                  <IconoComponente className="h-6 w-6" />
+                                </div>
+                                <div>
+                                  <h4 className="text-lg font-semibold text-gray-900">
+                                    {seccion?.nombre}
+                                  </h4>
+                                  <p className="text-sm text-gray-600">
+                                    Formulario especializado para este sistema
+                                  </p>
+                                </div>
+                              </>
+                            )
+                          })()} 
+                        </div>
+                        <button
+                          onClick={volverASeecciones}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                        >
+                          ← Volver a Secciones
+                        </button>
+                      </div>
+
+                      {/* Campos dinámicos de la sección */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {camposPorSeccion[seccionSeleccionada]?.map((campo, index) => (
+                          <div key={index} className="space-y-3">
+                            <h5 className="font-medium text-gray-900 border-b pb-1">
+                              {campo.label}
+                            </h5>
+                            
+                            {/* Kilometraje */}
+                            {campo.kmField && (
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                  Kilometraje
+                                </label>
+                                <input
+                                  type="number"
+                                  value={datosSeccion[campo.kmField] || ''}
+                                  onChange={(e) => actualizarDatoSeccion(campo.kmField, e.target.value ? parseInt(e.target.value) : '')}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="Km del servicio"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Fecha */}
+                            {campo.dateField && (
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                  Fecha
+                                </label>
+                                <input
+                                  type="date"
+                                  value={datosSeccion[campo.dateField] || new Date().toISOString().split('T')[0]}
+                                  onChange={(e) => actualizarDatoSeccion(campo.dateField, e.target.value)}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Modelo/Marca */}
+                            {campo.modelField && (
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                  Modelo/Marca
+                                </label>
+                                <input
+                                  type="text"
+                                  value={datosSeccion[campo.modelField] || ''}
+                                  onChange={(e) => actualizarDatoSeccion(campo.modelField, e.target.value)}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="Marca y modelo del repuesto"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Litros */}
+                            {campo.litersField && (
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                  Litros
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={datosSeccion[campo.litersField] || ''}
+                                  onChange={(e) => actualizarDatoSeccion(campo.litersField, e.target.value ? parseFloat(e.target.value) : '')}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="Cantidad en litros"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Horas */}
+                            {campo.hrField && (
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                  Horas
+                                </label>
+                                <input
+                                  type="number"
+                                  value={datosSeccion[campo.hrField] || ''}
+                                  onChange={(e) => actualizarDatoSeccion(campo.hrField, e.target.value ? parseInt(e.target.value) : '')}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="Horas de motor"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Subclasificación - Solo si no se está usando formulario rápido */}
+              {!(clasificacion === 'mantenimiento' && seccionSeleccionada) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Subclasificación
+                  </label>
+                  <select
+                    value={subclasificacion}
+                    onChange={(e) => setSubclasificacion(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="">Seleccionar sistema...</option>
+                    {subclasificaciones.map((sub) => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Problemas Reportados */}
               {pendientesDisponibles.length > 0 && (
