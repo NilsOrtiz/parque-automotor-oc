@@ -67,6 +67,7 @@ export default function AnalisisCombustiblePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [metodoCalculo, setMetodoCalculo] = useState<'original' | 'tanque_lleno' | 'ambos'>('tanque_lleno')
+  const [tipoFlota, setTipoFlota] = useState<'rent-car' | 'ambos' | 'cuenca'>('ambos')
 
   useEffect(() => {
     cargarDatos()
@@ -847,6 +848,22 @@ export default function AnalisisCombustiblePage() {
     }
   }
 
+  // Función para obtener vehículos filtrados por tipo de flota
+  const getSortedVehiculos = () => {
+    let filtrados = vehiculos
+    
+    if (tipoFlota === 'rent-car') {
+      // Solo vehículos sin interno (Rent Car)
+      filtrados = vehiculos.filter(v => !v.Nro_Interno || v.Nro_Interno === 0)
+    } else if (tipoFlota === 'cuenca') {
+      // Solo vehículos con interno (Cuenca del Plata)
+      filtrados = vehiculos.filter(v => v.Nro_Interno && v.Nro_Interno > 0)
+    }
+    // Si es 'ambos', no filtramos (filtrados = vehiculos)
+    
+    return filtrados
+  }
+
   const seleccionarVehiculo = (vehiculo: VehiculoConCombustible) => {
     setVehiculoSeleccionado(vehiculo)
     cargarDatosGrafica(vehiculo.Placa, cargasCombustible)
@@ -1077,6 +1094,45 @@ export default function AnalisisCombustiblePage() {
           </div>
         </div>
 
+        {/* Interruptor de Flota */}
+        <div className="mb-8 flex justify-center">
+          <div className="bg-white rounded-lg shadow-sm p-1 inline-flex">
+            <button
+              onClick={() => setTipoFlota('rent-car')}
+              className={`px-6 py-3 rounded-md text-sm font-medium transition-colors ${
+                tipoFlota === 'rent-car'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              🚗 Rent Car
+              <div className="text-xs mt-1 opacity-80">Solo Placa</div>
+            </button>
+            <button
+              onClick={() => setTipoFlota('ambos')}
+              className={`px-6 py-3 rounded-md text-sm font-medium transition-colors ${
+                tipoFlota === 'ambos'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              🚛 Ambas Flotas
+              <div className="text-xs mt-1 opacity-80">Todas</div>
+            </button>
+            <button
+              onClick={() => setTipoFlota('cuenca')}
+              className={`px-6 py-3 rounded-md text-sm font-medium transition-colors ${
+                tipoFlota === 'cuenca'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              🚚 Cuenca del Plata
+              <div className="text-xs mt-1 opacity-80">Placa + Interno</div>
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-12 gap-6">
           {/* Lista de vehículos */}
           <div className="col-span-4">
@@ -1084,11 +1140,11 @@ export default function AnalisisCombustiblePage() {
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                   <Car className="h-5 w-5" />
-                  Vehículos ({vehiculos.length})
+                  Vehículos ({getSortedVehiculos().length})
                 </h2>
               </div>
               <div className="max-h-96 overflow-y-auto">
-                {vehiculos.map((vehiculo) => (
+                {getSortedVehiculos().map((vehiculo) => (
                   <div
                     key={vehiculo.id}
                     onClick={() => seleccionarVehiculo(vehiculo)}
