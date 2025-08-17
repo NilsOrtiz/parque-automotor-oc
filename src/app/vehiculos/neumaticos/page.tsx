@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase, type Vehiculo } from '@/lib/supabase'
-import { ArrowLeft, Circle, AlertTriangle, CheckCircle, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Circle, AlertTriangle, CheckCircle, ArrowUp, ArrowDown, ArrowUpDown, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type SortField = 'interno' | 'placa' | 'marca' | 'km_actual' | 'ultima_rotacion' | 'km_faltantes' | 'estado'
 type SortDirection = 'asc' | 'desc'
@@ -16,6 +16,7 @@ export default function NeumáticosPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [tipoFlota, setTipoFlota] = useState<'rent-car' | 'ambos' | 'cuenca'>('ambos')
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+  const [viewingRotations, setViewingRotations] = useState<Map<number, string>>(new Map())
 
   useEffect(() => {
     fetchVehiculos()
@@ -214,6 +215,41 @@ export default function NeumáticosPage() {
       case 4: return 'bg-orange-100 text-orange-800'
       default: return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  // Configuraciones disponibles por tipo de vehículo
+  function getRotationConfigs(tipoVehiculo?: number): string[] {
+    switch (tipoVehiculo) {
+      case 1: return ['1.1', '1.2', '1.3'] // 6 Ruedas - 3 variaciones
+      case 2: return ['2.1', '2.2', '2.3', '2.4'] // Tracción Delantera - 4 variaciones
+      case 3: return ['3.1', '3.2', '3.3', '3.4'] // Tracción Trasera - 4 variaciones
+      case 4: return ['4.1', '4.2'] // 4x4 - 2 variaciones
+      default: return ['1.1'] // Default
+    }
+  }
+
+  // Obtener configuración actual visualizada para un vehículo
+  function getCurrentViewingRotation(vehiculoId: number, defaultRotation: string): string {
+    return viewingRotations.get(vehiculoId) || defaultRotation
+  }
+
+  // Navegar a la siguiente configuración
+  function navigateRotation(vehiculoId: number, tipoVehiculo: number, direction: 'prev' | 'next') {
+    const configs = getRotationConfigs(tipoVehiculo)
+    const currentRotation = getCurrentViewingRotation(vehiculoId, configs[0])
+    const currentIndex = configs.indexOf(currentRotation)
+    
+    let newIndex: number
+    if (direction === 'next') {
+      newIndex = (currentIndex + 1) % configs.length // Circular: al final vuelve al inicio
+    } else {
+      newIndex = (currentIndex - 1 + configs.length) % configs.length // Circular: al inicio va al final
+    }
+    
+    const newRotation = configs[newIndex]
+    const newViewingRotations = new Map(viewingRotations)
+    newViewingRotations.set(vehiculoId, newRotation)
+    setViewingRotations(newViewingRotations)
   }
 
   if (loading) {
@@ -549,17 +585,58 @@ export default function NeumáticosPage() {
                                     {getTipoVehiculoLabel(vehiculo.tipo_vehiculo)}
                                   </span>
                                   <span className="text-xs text-gray-600 bg-white px-2 py-1 rounded border">
-                                    Rotación: {vehiculo.rotacion_actual || '1.1'}
+                                    Rotación: {getCurrentViewingRotation(vehiculo.id, vehiculo.rotacion_actual || '1.1')}
+                                    {getCurrentViewingRotation(vehiculo.id, vehiculo.rotacion_actual || '1.1') !== (vehiculo.rotacion_actual || '1.1') && (
+                                      <span className="ml-1 text-blue-600">(Vista)</span>
+                                    )}
                                   </span>
                                 </div>
                               </div>
-                              <div className="relative w-64 h-96">
-                                <Image
-                                  src={`/tire-rotations/${vehiculo.rotacion_actual || '1.1'}.png`}
-                                  alt={`Diagrama ${getTipoVehiculoLabel(vehiculo.tipo_vehiculo)} - Rotación ${vehiculo.rotacion_actual}`}
-                                  fill
-                                  className="object-contain"
-                                />
+                              <div className="relative">
+                                <div className="relative w-64 h-96 mx-auto">
+                                  <Image
+                                    src={`/tire-rotations/${getCurrentViewingRotation(vehiculo.id, vehiculo.rotacion_actual || '1.1')}.png`}
+                                    alt={`Diagrama ${getTipoVehiculoLabel(vehiculo.tipo_vehiculo)} - Rotación ${getCurrentViewingRotation(vehiculo.id, vehiculo.rotacion_actual || '1.1')}`}
+                                    fill
+                                    className="object-contain"
+                                  />
+                                </div>
+                                
+                                {/* Controles de navegación */}
+                                <div className="flex items-center justify-between mt-4">
+                                  <button
+                                    onClick={() => navigateRotation(vehiculo.id, vehiculo.tipo_vehiculo || 1, 'prev')}
+                                    className="flex items-center justify-center w-10 h-10 bg-blue-100 hover:bg-blue-200 rounded-full transition-colors group"
+                                    title="Configuración anterior"
+                                  >
+                                    <ChevronLeft className="h-5 w-5 text-blue-600 group-hover:text-blue-700" />
+                                  </button>
+                                  
+                                  <div className="text-center">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      Configuración {getCurrentViewingRotation(vehiculo.id, vehiculo.rotacion_actual || '1.1')}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {(() => {
+                                        const configs = getRotationConfigs(vehiculo.tipo_vehiculo)
+                                        const current = getCurrentViewingRotation(vehiculo.id, vehiculo.rotacion_actual || '1.1')
+                                        const currentIndex = configs.indexOf(current)
+                                        return `${currentIndex + 1} de ${configs.length}`
+                                      })()} 
+                                      {getCurrentViewingRotation(vehiculo.id, vehiculo.rotacion_actual || '1.1') === (vehiculo.rotacion_actual || '1.1') ? 
+                                        '(Actual)' : '(Vista)'
+                                      }
+                                    </div>
+                                  </div>
+                                  
+                                  <button
+                                    onClick={() => navigateRotation(vehiculo.id, vehiculo.tipo_vehiculo || 1, 'next')}
+                                    className="flex items-center justify-center w-10 h-10 bg-blue-100 hover:bg-blue-200 rounded-full transition-colors group"
+                                    title="Configuración siguiente"
+                                  >
+                                    <ChevronRight className="h-5 w-5 text-blue-600 group-hover:text-blue-700" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                             
