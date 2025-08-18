@@ -14,8 +14,18 @@ interface OrdenCompra {
   moneda: string
 }
 
+interface ConfiguracionVehiculo {
+  id: number
+  nombre_configuracion: string
+  descripcion?: string
+  tipo_vehiculo?: number
+  componentes_aplicables: Record<string, boolean>
+  activo: boolean
+}
+
 export default function RegistroServicioPage() {
   const [vehiculo, setVehiculo] = useState<Vehiculo | null>(null)
+  const [configuracionVehiculo, setConfiguracionVehiculo] = useState<any>(null)
   const [busquedaVehiculo, setBusquedaVehiculo] = useState('')
   const [tipoBusqueda, setTipoBusqueda] = useState<'placa' | 'interno'>('placa')
   const [loading, setLoading] = useState(false)
@@ -132,6 +142,7 @@ export default function RegistroServicioPage() {
     setLoading(true)
     setError('')
     setVehiculo(null)
+    setConfiguracionVehiculo(null)
 
     try {
       const campo = tipoBusqueda === 'placa' ? 'Placa' : 'Nro_Interno'
@@ -139,7 +150,10 @@ export default function RegistroServicioPage() {
 
       const { data, error } = await supabase
         .from('vehiculos')
-        .select('*')
+        .select(`
+          *,
+          configuracion:configuraciones_vehiculo(*)
+        `)
         .eq(campo, valor)
         .single()
 
@@ -151,6 +165,7 @@ export default function RegistroServicioPage() {
         }
       } else {
         setVehiculo(data)
+        setConfiguracionVehiculo(data.configuracion)
         await cargarOrdenesDisponibles(data.Placa)
         await cargarPendientesDisponibles(data.id)
       }
@@ -371,6 +386,150 @@ export default function RegistroServicioPage() {
     return colores[color as keyof typeof colores] || colores.gray
   }
 
+  // Mapeo de secciones a números
+  const seccionANumero: Record<string, string> = {
+    'aceites-filtros': '1',
+    'transmision-liquidos': '2', 
+    'frenos': '3',
+    'motor-embrague': '4',
+    'suspension': '5',
+    'correas': '6',
+    'electrico': '7',
+    'neumaticos': '8'
+  }
+
+  // Mapeo de componentes a números por sección
+  const componenteANumero: Record<string, Record<string, string>> = {
+    'aceites-filtros': {
+      'aceite_motor': '1.1',
+      'filtro_aceite_motor': '1.2',
+      'filtro_combustible': '1.3',
+      'filtro_aire': '1.4',
+      'filtro_cabina': '1.5',
+      'filtro_deshumidificador': '1.6',
+      'filtro_secador': '1.7',
+      'filtro_aire_secundario': '1.8',
+      'trampa_agua': '1.9'
+    },
+    'transmision-liquidos': {
+      'aceite_transmision': '2.1',
+      'liquido_refrigerante': '2.2',
+      'liquido_frenos': '2.3'
+    },
+    'frenos': {
+      'pastillas_freno_a': '3.1',
+      'pastillas_freno_b': '3.2',
+      'pastillas_freno_c': '3.3',
+      'pastillas_freno_d': '3.4'
+    },
+    'motor-embrague': {
+      'embrague': '4.1'
+    },
+    'suspension': {
+      'suspension_a': '5.1',
+      'suspension_b': '5.2',
+      'suspension_c': '5.3',
+      'suspension_d': '5.4'
+    },
+    'correas': {
+      'correa_distribucion': '6.1',
+      'correa_alternador': '6.2',
+      'correa_direccion': '6.3',
+      'correa_aire_acondicionado': '6.4',
+      'correa_polyv': '6.5',
+      'tensor_correa': '6.6',
+      'polea_tensora': '6.7'
+    },
+    'electrico': {
+      'bateria': '7.1',
+      'escobillas': '7.2'
+    },
+    'neumaticos': {
+      'neumatico_modelo_marca': '8.1',
+      'neumatico_a': '8.2',
+      'neumatico_b': '8.3',
+      'neumatico_c': '8.4',
+      'neumatico_d': '8.5',
+      'neumatico_e': '8.6',
+      'neumatico_f': '8.7',
+      'alineacion': '8.8',
+      'rotacion': '8.9'
+    }
+  }
+
+  // Función para verificar si un componente debe mostrarse
+  const debeMotrarComponente = (seccionId: string, componenteKey: string): boolean => {
+    if (!configuracionVehiculo?.componentes_aplicables) {
+      return true // Si no hay configuración, mostrar todos
+    }
+    
+    const numeroComponente = componenteANumero[seccionId]?.[componenteKey]
+    if (!numeroComponente) {
+      return true // Si no está mapeado, mostrar por defecto
+    }
+    
+    return configuracionVehiculo.componentes_aplicables[numeroComponente] === true
+  }
+
+  // Función para filtrar campos por configuración
+  const obtenerCamposFiltrados = (seccionId: string) => {
+    if (!configuracionVehiculo?.componentes_aplicables) {
+      return camposPorSeccion[seccionId] || []
+    }
+    
+    return (camposPorSeccion[seccionId] || []).filter((campo) => {
+      // Mapear el label del campo a su clave
+      const componenteKey = mapearLabelAKey(campo.label)
+      return debeMotrarComponente(seccionId, componenteKey)
+    })
+  }
+
+  // Función helper para mapear labels a keys
+  const mapearLabelAKey = (label: string): string => {
+    const mapeo: Record<string, string> = {
+      'Aceite de Motor': 'aceite_motor',
+      'Filtro Aceite Motor': 'filtro_aceite_motor',
+      'Filtro de Combustible': 'filtro_combustible',
+      'Filtro de Aire': 'filtro_aire',
+      'Filtro de Cabina': 'filtro_cabina',
+      'Filtro Deshumidificador': 'filtro_deshumidificador',
+      'Filtro Secador': 'filtro_secador',
+      'Filtro de Aire Secundario': 'filtro_aire_secundario',
+      'Trampa de Agua': 'trampa_agua',
+      'Aceite de Transmisión': 'aceite_transmision',
+      'Líquido Refrigerante': 'liquido_refrigerante',
+      'Líquido de Frenos': 'liquido_frenos',
+      'Pastillas/Cintas Freno A': 'pastillas_freno_a',
+      'Pastillas/Cintas Freno B': 'pastillas_freno_b',
+      'Pastillas/Cintas Freno C': 'pastillas_freno_c',
+      'Pastillas/Cintas Freno D': 'pastillas_freno_d',
+      'Embrague': 'embrague',
+      'Suspensión A': 'suspension_a',
+      'Suspensión B': 'suspension_b',
+      'Suspensión C': 'suspension_c',
+      'Suspensión D': 'suspension_d',
+      'Correa de Distribución': 'correa_distribucion',
+      'Correa de Alternador': 'correa_alternador',
+      'Correa de Dirección': 'correa_direccion',
+      'Correa de Aire Acondicionado': 'correa_aire_acondicionado',
+      'Correa Poly-V': 'correa_polyv',
+      'Tensor de Correa': 'tensor_correa',
+      'Polea Tensora': 'polea_tensora',
+      'Batería': 'bateria',
+      'Escobillas': 'escobillas',
+      'Modelo/Marca General': 'neumatico_modelo_marca',
+      'Neumático A': 'neumatico_a',
+      'Neumático B': 'neumatico_b',
+      'Neumático C': 'neumatico_c',
+      'Neumático D': 'neumatico_d',
+      'Neumático E': 'neumatico_e',
+      'Neumático F': 'neumatico_f',
+      'Alineación': 'alineacion',
+      'Rotación': 'rotacion'
+    }
+    return mapeo[label] || label.toLowerCase().replace(/[^a-z0-9]/g, '_')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
@@ -531,6 +690,13 @@ export default function RegistroServicioPage() {
                         <p className="text-sm text-blue-800">
                           💡 <strong>Ventaja:</strong> Al usar estos formularios, los datos del vehículo se actualizarán automáticamente
                         </p>
+                        {configuracionVehiculo && (
+                          <p className="text-xs text-blue-600 mt-2">
+                            🔧 <strong>Configuración activa:</strong> {configuracionVehiculo.nombre_configuracion}
+                            <br />
+                            Solo se muestran los componentes relevantes para este tipo de vehículo
+                          </p>
+                        )}
                       </div>
                     </>
                   ) : (
@@ -566,9 +732,9 @@ export default function RegistroServicioPage() {
                         </button>
                       </div>
 
-                      {/* Campos dinámicos de la sección */}
+                      {/* Campos dinámicos de la sección - FILTRADOS por configuración */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        {camposPorSeccion[seccionSeleccionada]?.map((campo, index) => (
+                        {obtenerCamposFiltrados(seccionSeleccionada).map((campo, index) => (
                           <div key={index} className="space-y-3">
                             <h5 className="font-medium text-gray-900 border-b pb-1">
                               {campo.label}
