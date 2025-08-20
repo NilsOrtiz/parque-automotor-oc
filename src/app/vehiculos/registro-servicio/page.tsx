@@ -54,6 +54,15 @@ export default function RegistroServicioPage() {
   // Estados para formularios rápidos por sección
   const [seccionSeleccionada, setSeccionSeleccionada] = useState<string | null>(null)
   const [datosSeccion, setDatosSeccion] = useState<Record<string, any>>({})
+  
+  // Estados para interfaz mejorada con datos globales
+  const [datosGlobales, setDatosGlobales] = useState({
+    kilometraje: '',
+    fecha: new Date().toISOString().split('T')[0],
+    usarKmActual: false
+  })
+  const [componentesSeleccionados, setComponentesSeleccionados] = useState<Set<string>>(new Set())
+  const [modelosComponentes, setModelosComponentes] = useState<Record<string, string>>({})
 
   const subclasificaciones = [
     'Motor', 'Transmisión', 'Frenos', 'Suspensión', 'Neumáticos', 
@@ -283,28 +292,32 @@ export default function RegistroServicioPage() {
 
       if (error) throw error
 
-      // Actualizar campos específicos del vehículo si hay datos de sección
-      if (Object.keys(datosSeccion).length > 0) {
-        const actualizacionesVehiculo: any = {}
-        
-        // Procesar cada campo de la sección
+      // Actualizar campos específicos del vehículo
+      let actualizacionesVehiculo: any = {}
+      
+      // Datos de la interfaz mejorada (tiene prioridad)
+      if (componentesSeleccionados.size > 0) {
+        actualizacionesVehiculo = generarDatosSeccionMejorado()
+      } 
+      // Datos de la interfaz original (compatibilidad)
+      else if (Object.keys(datosSeccion).length > 0) {
         Object.entries(datosSeccion).forEach(([campo, valor]) => {
           if (valor !== '' && valor !== null && valor !== undefined) {
             actualizacionesVehiculo[campo] = valor
           }
         })
+      }
+      
+      // Si hay actualizaciones, aplicarlas al vehículo
+      if (Object.keys(actualizacionesVehiculo).length > 0) {
+        const { error: errorVehiculo } = await supabase
+          .from('vehiculos')
+          .update(actualizacionesVehiculo)
+          .eq('id', vehiculo.id)
         
-        // Si hay actualizaciones, aplicarlas al vehículo
-        if (Object.keys(actualizacionesVehiculo).length > 0) {
-          const { error: errorVehiculo } = await supabase
-            .from('vehiculos')
-            .update(actualizacionesVehiculo)
-            .eq('id', vehiculo.id)
-          
-          if (errorVehiculo) {
-            console.error('Error actualizando datos del vehículo:', errorVehiculo)
-            // No fallar el guardado por esto, pero informar al usuario
-          }
+        if (errorVehiculo) {
+          console.error('Error actualizando datos del vehículo:', errorVehiculo)
+          // No fallar el guardado por esto, pero informar al usuario
         }
       }
 
@@ -333,6 +346,7 @@ export default function RegistroServicioPage() {
       setPendienteSeleccionado(null)
       setSeccionSeleccionada(null)
       setDatosSeccion({})
+      limpiarFormularioMejorado()
       
       // Recargar pendientes para actualizar la lista
       if (vehiculo) {
@@ -365,6 +379,7 @@ export default function RegistroServicioPage() {
     setDatosSeccion({})
   }
 
+  // Función legacy mantenida para compatibilidad
   const actualizarDatoSeccion = (campo: string, valor: any) => {
     setDatosSeccion(prev => ({
       ...prev,
@@ -528,6 +543,66 @@ export default function RegistroServicioPage() {
       'Rotación': 'rotacion'
     }
     return mapeo[label] || label.toLowerCase().replace(/[^a-z0-9]/g, '_')
+  }
+
+  // Funciones para la interfaz mejorada
+  const toggleComponente = (componenteKey: string) => {
+    const nuevosSeleccionados = new Set(componentesSeleccionados)
+    if (nuevosSeleccionados.has(componenteKey)) {
+      nuevosSeleccionados.delete(componenteKey)
+      // Limpiar modelo si se deselecciona
+      const nuevosModelos = { ...modelosComponentes }
+      delete nuevosModelos[componenteKey]
+      setModelosComponentes(nuevosModelos)
+    } else {
+      nuevosSeleccionados.add(componenteKey)
+    }
+    setComponentesSeleccionados(nuevosSeleccionados)
+  }
+
+  const actualizarModeloComponente = (componenteKey: string, modelo: string) => {
+    setModelosComponentes(prev => ({
+      ...prev,
+      [componenteKey]: modelo
+    }))
+  }
+
+  const limpiarFormularioMejorado = () => {
+    setDatosGlobales({
+      kilometraje: '',
+      fecha: new Date().toISOString().split('T')[0],
+      usarKmActual: false
+    })
+    setComponentesSeleccionados(new Set())
+    setModelosComponentes({})
+  }
+
+  const generarDatosSeccionMejorado = () => {
+    const datosGenerados: Record<string, any> = {}
+    const kmFinal = datosGlobales.usarKmActual ? 
+      (vehiculo?.kilometraje_actual || '') : 
+      (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
+    
+    componentesSeleccionados.forEach(componenteKey => {
+      const campoBase = componenteKey
+      
+      // Agregar campos según lo que esté disponible
+      if (campoBase.includes('aceite_motor')) {
+        datosGenerados[`${campoBase}_km`] = kmFinal
+        datosGenerados[`${campoBase}_fecha`] = datosGlobales.fecha
+        datosGenerados[`${campoBase}_modelo`] = modelosComponentes[componenteKey] || ''
+        if (campoBase === 'aceite_motor') {
+          datosGenerados[`${campoBase}_hr`] = vehiculo?.hora_actual || ''
+        }
+      } else {
+        // Para otros componentes
+        datosGenerados[`${campoBase}_km`] = kmFinal
+        datosGenerados[`${campoBase}_fecha`] = datosGlobales.fecha
+        datosGenerados[`${campoBase}_modelo`] = modelosComponentes[componenteKey] || ''
+      }
+    })
+    
+    return datosGenerados
   }
 
   return (
@@ -732,95 +807,130 @@ export default function RegistroServicioPage() {
                         </button>
                       </div>
 
-                      {/* Campos dinámicos de la sección - FILTRADOS por configuración */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        {obtenerCamposFiltrados(seccionSeleccionada).map((campo, index) => (
-                          <div key={index} className="space-y-3">
-                            <h5 className="font-medium text-gray-900 border-b pb-1">
-                              {campo.label}
-                            </h5>
-                            
-                            {/* Kilometraje */}
-                            {campo.kmField && (
-                              <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">
-                                  Kilometraje
+                      {/* INTERFAZ MEJORADA - Datos Globales + Lista de Componentes */}
+                      
+                      {/* Datos Globales */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <h5 className="font-semibold text-blue-900 mb-3">
+                          📅 Datos Globales del Servicio
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Kilometraje */}
+                          <div>
+                            <label className="block text-sm font-medium text-blue-800 mb-2">
+                              Kilometraje
+                            </label>
+                            <div className="space-y-2">
+                              <div className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  id="usar-km-actual"
+                                  checked={datosGlobales.usarKmActual}
+                                  onChange={(e) => setDatosGlobales(prev => ({
+                                    ...prev,
+                                    usarKmActual: e.target.checked
+                                  }))}
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="usar-km-actual" className="ml-2 text-sm text-blue-700">
+                                  Usar km actual ({vehiculo?.kilometraje_actual?.toLocaleString() || 'No registrado'})
                                 </label>
+                              </div>
+                              {!datosGlobales.usarKmActual && (
                                 <input
                                   type="number"
-                                  value={datosSeccion[campo.kmField] || ''}
-                                  onChange={(e) => actualizarDatoSeccion(campo.kmField, e.target.value ? parseInt(e.target.value) : '')}
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                  placeholder="Km del servicio"
+                                  value={datosGlobales.kilometraje}
+                                  onChange={(e) => setDatosGlobales(prev => ({
+                                    ...prev,
+                                    kilometraje: e.target.value
+                                  }))}
+                                  className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  placeholder="Kilometraje del servicio"
                                 />
-                              </div>
-                            )}
-                            
-                            {/* Fecha */}
-                            {campo.dateField && (
-                              <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">
-                                  Fecha
-                                </label>
-                                <input
-                                  type="date"
-                                  value={datosSeccion[campo.dateField] || new Date().toISOString().split('T')[0]}
-                                  onChange={(e) => actualizarDatoSeccion(campo.dateField, e.target.value)}
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                />
-                              </div>
-                            )}
-                            
-                            {/* Modelo/Marca */}
-                            {campo.modelField && (
-                              <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">
-                                  Modelo/Marca
-                                </label>
-                                <input
-                                  type="text"
-                                  value={datosSeccion[campo.modelField] || ''}
-                                  onChange={(e) => actualizarDatoSeccion(campo.modelField, e.target.value)}
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                  placeholder="Marca y modelo del repuesto"
-                                />
-                              </div>
-                            )}
-                            
-                            {/* Litros */}
-                            {campo.litersField && (
-                              <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">
-                                  Litros
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  value={datosSeccion[campo.litersField] || ''}
-                                  onChange={(e) => actualizarDatoSeccion(campo.litersField, e.target.value ? parseFloat(e.target.value) : '')}
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                  placeholder="Cantidad en litros"
-                                />
-                              </div>
-                            )}
-                            
-                            {/* Horas */}
-                            {campo.hrField && (
-                              <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">
-                                  Horas
-                                </label>
-                                <input
-                                  type="number"
-                                  value={datosSeccion[campo.hrField] || ''}
-                                  onChange={(e) => actualizarDatoSeccion(campo.hrField, e.target.value ? parseInt(e.target.value) : '')}
-                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                  placeholder="Horas de motor"
-                                />
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        ))}
+                          
+                          {/* Fecha */}
+                          <div>
+                            <label className="block text-sm font-medium text-blue-800 mb-2">
+                              Fecha del Servicio
+                            </label>
+                            <input
+                              type="date"
+                              value={datosGlobales.fecha}
+                              onChange={(e) => setDatosGlobales(prev => ({
+                                ...prev,
+                                fecha: e.target.value
+                              }))}
+                              className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          
+                          {/* Resumen */}
+                          <div className="flex items-center">
+                            <div className="text-sm text-blue-700">
+                              <div className="font-medium">Resumen:</div>
+                              <div>Componentes: {componentesSeleccionados.size}</div>
+                              <div>Fecha: {new Date(datosGlobales.fecha).toLocaleDateString()}</div>
+                              <div>Km: {datosGlobales.usarKmActual ? 
+                                vehiculo?.kilometraje_actual?.toLocaleString() || 'N/A' : 
+                                (datosGlobales.kilometraje || 'No definido')}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Lista de Componentes */}
+                      <div className="bg-white border border-gray-200 rounded-lg">
+                        <div className="p-4 border-b border-gray-200">
+                          <h5 className="font-semibold text-gray-900">
+                            ☑️ Seleccionar Componentes a Cambiar
+                          </h5>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Marca los componentes que se cambiaron en este servicio
+                          </p>
+                        </div>
+                        <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
+                          {obtenerCamposFiltrados(seccionSeleccionada).map((campo, index) => {
+                            const componenteKey = mapearLabelAKey(campo.label)
+                            const isSelected = componentesSeleccionados.has(componenteKey)
+                            
+                            return (
+                              <div key={index} className={`p-3 border rounded-lg transition-colors ${
+                                isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
+                              }`}>
+                                <div className="flex items-start space-x-3">
+                                  <input
+                                    type="checkbox"
+                                    id={`componente-${index}`}
+                                    checked={isSelected}
+                                    onChange={() => toggleComponente(componenteKey)}
+                                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
+                                  />
+                                  <div className="flex-1">
+                                    <label htmlFor={`componente-${index}`} className="cursor-pointer">
+                                      <div className="font-medium text-gray-900">{campo.label}</div>
+                                      {campo.modelField && isSelected && (
+                                        <div className="mt-2">
+                                          <input
+                                            type="text"
+                                            value={modelosComponentes[componenteKey] || ''}
+                                            onChange={(e) => actualizarModeloComponente(componenteKey, e.target.value)}
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            placeholder="Marca y modelo del repuesto"
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
+                                        </div>
+                                      )}
+                                    </label>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
                       </div>
                     </div>
                   )}
