@@ -64,6 +64,19 @@ export default function RegistroServicioPage() {
   const [componentesSeleccionados, setComponentesSeleccionados] = useState<Set<string>>(new Set())
   const [modelosComponentes, setModelosComponentes] = useState<Record<string, string>>({})
 
+  // Actualizar descripción e items automáticamente cuando cambian los componentes
+  useEffect(() => {
+    if (clasificacion === 'mantenimiento' && seccionSeleccionada && componentesSeleccionados.size > 0) {
+      // Solo actualizar si los campos están vacíos (no sobrescribir texto manual)
+      if (!descripcion.trim()) {
+        setDescripcion(generarDescripcionAutomatica())
+      }
+      if (!items.trim()) {
+        setItems(generarItemsAutomaticos())
+      }
+    }
+  }, [componentesSeleccionados, modelosComponentes, seccionSeleccionada, clasificacion])
+
   const subclasificaciones = [
     'Motor', 'Transmisión', 'Frenos', 'Suspensión', 'Neumáticos', 
     'Eléctrico', 'Electrónico', 'Carrocería', 'Interior', 'Documentación',
@@ -275,6 +288,21 @@ export default function RegistroServicioPage() {
 
       // Determinar automáticamente quién reportó el problema
       const problemaReportadoPor = pendienteSeleccionado ? 'chofer' : 'mecanico'
+      
+      // Determinar kilometraje (desde formulario rápido o campo manual)
+      let kilometrajeFinal = kilometrajeServicio
+      if (clasificacion === 'mantenimiento' && seccionSeleccionada) {
+        const kmGlobal = datosGlobales.usarKmActual ? 
+          vehiculo.kilometraje_actual : 
+          (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : null)
+        kilometrajeFinal = kmGlobal
+      }
+      
+      // Usar descripción manual o generar automáticamente
+      const descripcionFinal = descripcion.trim() || generarDescripcionAutomatica()
+      
+      // Usar items manuales o generar automáticamente
+      const itemsFinal = items.trim() || generarItemsAutomaticos()
 
       const { error } = await supabase
         .from('historial')
@@ -282,9 +310,9 @@ export default function RegistroServicioPage() {
           id: vehiculo.id,
           clasificacion,
           subclasificacion: subclasificacion || null,
-          descripcion: descripcion.trim(),
-          items: items.trim() || null,
-          kilometraje_al_servicio: kilometrajeServicio || null,
+          descripcion: descripcionFinal,
+          items: itemsFinal || null,
+          kilometraje_al_servicio: kilometrajeFinal || null,
           problema_reportado_por: problemaReportadoPor,
           ocs_vehiculos: ocsVehiculosJson,
           fecha_servicio: new Date().toISOString().split('T')[0] // Fecha actual
@@ -603,6 +631,120 @@ export default function RegistroServicioPage() {
     })
     
     return datosGenerados
+  }
+
+  // Generar descripción automática del trabajo
+  const generarDescripcionAutomatica = (): string => {
+    if (componentesSeleccionados.size === 0) return ''
+    
+    const seccionActual = secciones.find(s => s.id === seccionSeleccionada)
+    const componentesArray = Array.from(componentesSeleccionados)
+    
+    // Mapear keys a labels legibles
+    const labelsComponentes = componentesArray.map(key => {
+      const labelMap: Record<string, string> = {
+        'aceite_motor': 'Aceite de Motor',
+        'filtro_aceite_motor': 'Filtro Aceite Motor',
+        'filtro_combustible': 'Filtro de Combustible',
+        'filtro_aire': 'Filtro de Aire',
+        'filtro_cabina': 'Filtro de Cabina',
+        'filtro_deshumidificador': 'Filtro Deshumidificador',
+        'filtro_secador': 'Filtro Secador',
+        'filtro_aire_secundario': 'Filtro de Aire Secundario',
+        'trampa_agua': 'Trampa de Agua',
+        'aceite_transmision': 'Aceite de Transmisión',
+        'liquido_refrigerante': 'Líquido Refrigerante',
+        'liquido_frenos': 'Líquido de Frenos',
+        'pastillas_freno_a': 'Pastillas Freno Delantero Izq.',
+        'pastillas_freno_b': 'Pastillas Freno Delantero Der.',
+        'pastillas_freno_c': 'Pastillas Freno Trasero Izq.',
+        'pastillas_freno_d': 'Pastillas Freno Trasero Der.',
+        'embrague': 'Embrague',
+        'suspension_a': 'Suspensión Delantera Izq.',
+        'suspension_b': 'Suspensión Delantera Der.',
+        'suspension_c': 'Suspensión Trasera Izq.',
+        'suspension_d': 'Suspensión Trasera Der.',
+        'correa_distribucion': 'Correa de Distribución',
+        'correa_alternador': 'Correa de Alternador',
+        'correa_direccion': 'Correa de Dirección',
+        'correa_aire_acondicionado': 'Correa de Aire Acondicionado',
+        'correa_polyv': 'Correa Poly-V',
+        'tensor_correa': 'Tensor de Correa',
+        'polea_tensora': 'Polea Tensora',
+        'bateria': 'Batería',
+        'escobillas': 'Escobillas',
+        'neumatico_modelo_marca': 'Modelo/Marca General Neumáticos',
+        'neumatico_a': 'Neumático Delantero Izq.',
+        'neumatico_b': 'Neumático Delantero Der.',
+        'neumatico_c': 'Neumático Trasero Izq.',
+        'neumatico_d': 'Neumático Trasero Der.',
+        'neumatico_e': 'Neumático Auxilio',
+        'neumatico_f': 'Neumático Extra',
+        'alineacion': 'Alineación de Neumáticos',
+        'rotacion': 'Rotación de Neumáticos'
+      }
+      return labelMap[key] || key
+    })
+    
+    const listaComponentes = labelsComponentes.join(', ')
+    
+    return `Mantenimiento de ${seccionActual?.nombre || 'Vehículo'} - Cambio/Servicio de: ${listaComponentes}`
+  }
+
+  // Generar items/materiales automáticamente
+  const generarItemsAutomaticos = (): string => {
+    if (componentesSeleccionados.size === 0) return ''
+    
+    const items: string[] = []
+    
+    componentesSeleccionados.forEach(componenteKey => {
+      const modelo = modelosComponentes[componenteKey]
+      if (modelo && modelo.trim()) {
+        const labelMap: Record<string, string> = {
+          'aceite_motor': 'Aceite Motor',
+          'filtro_aceite_motor': 'Filtro Aceite Motor',
+          'filtro_combustible': 'Filtro Combustible',
+          'filtro_aire': 'Filtro Aire',
+          'filtro_cabina': 'Filtro Cabina',
+          'filtro_deshumidificador': 'Filtro Deshumidificador',
+          'filtro_secador': 'Filtro Secador',
+          'filtro_aire_secundario': 'Filtro Aire Secundario',
+          'trampa_agua': 'Trampa Agua',
+          'aceite_transmision': 'Aceite Transmisión',
+          'liquido_refrigerante': 'Líquido Refrigerante',
+          'liquido_frenos': 'Líquido Frenos',
+          'pastillas_freno_a': 'Pastillas Freno Del. Izq.',
+          'pastillas_freno_b': 'Pastillas Freno Del. Der.',
+          'pastillas_freno_c': 'Pastillas Freno Tras. Izq.',
+          'pastillas_freno_d': 'Pastillas Freno Tras. Der.',
+          'embrague': 'Embrague',
+          'suspension_a': 'Amortiguador Del. Izq.',
+          'suspension_b': 'Amortiguador Del. Der.',
+          'suspension_c': 'Amortiguador Tras. Izq.',
+          'suspension_d': 'Amortiguador Tras. Der.',
+          'correa_distribucion': 'Correa Distribución',
+          'correa_alternador': 'Correa Alternador',
+          'correa_direccion': 'Correa Dirección',
+          'correa_aire_acondicionado': 'Correa A/C',
+          'correa_polyv': 'Correa Poly-V',
+          'tensor_correa': 'Tensor Correa',
+          'polea_tensora': 'Polea Tensora',
+          'bateria': 'Batería',
+          'escobillas': 'Escobillas',
+          'neumatico_a': 'Neumático Del. Izq.',
+          'neumatico_b': 'Neumático Del. Der.',
+          'neumatico_c': 'Neumático Tras. Izq.',
+          'neumatico_d': 'Neumático Tras. Der.',
+          'neumatico_e': 'Neumático Auxilio',
+          'neumatico_f': 'Neumático Extra'
+        }
+        
+        const nombreItem = labelMap[componenteKey] || componenteKey
+        items.push(`${nombreItem} ${modelo}`)
+      }
+    })
+    
+    return items.join(', ')
   }
 
   return (
@@ -1029,54 +1171,116 @@ export default function RegistroServicioPage() {
                 </div>
               )}
 
-              {/* Kilometraje al Servicio */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kilometraje al Momento del Servicio
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={kilometrajeServicio}
-                    onChange={(e) => setKilometrajeServicio(e.target.value ? parseInt(e.target.value) : '')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder={`Kilometraje actual: ${vehiculo?.kilometraje_actual?.toLocaleString() || 'No registrado'}`}
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 text-sm">km</span>
+              {/* Kilometraje al Servicio - Solo mostrar si NO se está usando formulario rápido */}
+              {!(clasificacion === 'mantenimiento' && seccionSeleccionada) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Kilometraje al Momento del Servicio
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={kilometrajeServicio}
+                      onChange={(e) => setKilometrajeServicio(e.target.value ? parseInt(e.target.value) : '')}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder={`Kilometraje actual: ${vehiculo?.kilometraje_actual?.toLocaleString() || 'No registrado'}`}
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 text-sm">km</span>
+                    </div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ingresa el kilometraje actual que muestra el odómetro del vehículo
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Ingresa el kilometraje actual que muestra el odómetro del vehículo
-                </p>
-              </div>
+              )}
+              
+              {/* Mostrar kilometraje automático cuando se usa formulario rápido */}
+              {clasificacion === 'mantenimiento' && seccionSeleccionada && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-green-800 mb-2">
+                    ✅ Kilometraje del Servicio (Automático)
+                  </h4>
+                  <p className="text-green-700">
+                    <span className="font-semibold">
+                      {datosGlobales.usarKmActual ? 
+                        `${vehiculo?.kilometraje_actual?.toLocaleString() || 'No definido'} km (actual del vehículo)` :
+                        `${datosGlobales.kilometraje || 'No definido'} km (ingresado)`
+                      }
+                    </span>
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    Se toma automáticamente de los datos globales del formulario rápido
+                  </p>
+                </div>
+              )}
 
               {/* Descripción */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descripción del Trabajo *
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Descripción del Trabajo *
+                  </label>
+                  {clasificacion === 'mantenimiento' && seccionSeleccionada && componentesSeleccionados.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDescripcion(generarDescripcionAutomatica())}
+                      className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                    >
+                      🤖 Regenerar automático
+                    </button>
+                  )}
+                </div>
                 <textarea
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Describir detalladamente el trabajo realizado..."
+                  placeholder={
+                    clasificacion === 'mantenimiento' && seccionSeleccionada ? 
+                      "Se generará automáticamente según componentes seleccionados..." :
+                      "Describir detalladamente el trabajo realizado..."
+                  }
                 />
+                {clasificacion === 'mantenimiento' && seccionSeleccionada && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    ✨ Se genera automáticamente. Puedes editarlo si necesitas agregar más detalles.
+                  </p>
+                )}
               </div>
 
               {/* Items */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Items Utilizados
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Items Utilizados
+                  </label>
+                  {clasificacion === 'mantenimiento' && seccionSeleccionada && componentesSeleccionados.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setItems(generarItemsAutomaticos())}
+                      className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 transition-colors"
+                    >
+                      🤖 Regenerar automático
+                    </button>
+                  )}
+                </div>
                 <textarea
                   value={items}
                   onChange={(e) => setItems(e.target.value)}
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Listar los items y repuestos utilizados..."
+                  placeholder={
+                    clasificacion === 'mantenimiento' && seccionSeleccionada ?
+                      "Se generará automáticamente: Filtro Aire Mann C123, Aceite Motor Mobil 1..." :
+                      "Listar los items y repuestos utilizados..."
+                  }
                 />
+                {clasificacion === 'mantenimiento' && seccionSeleccionada && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✨ Se genera automáticamente desde los modelos ingresados. Puedes agregar más items.
+                  </p>
+                )}
               </div>
 
               {/* Órdenes de Compra */}
