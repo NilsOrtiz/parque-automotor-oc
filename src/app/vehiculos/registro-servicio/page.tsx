@@ -455,24 +455,24 @@ export default function RegistroServicioPage() {
       'trampa_agua': '1.9'
     },
     'transmision-liquidos': {
-      'aceite_transmision': '2.1',
+      'aceite_transmicion': '2.1', // CORREGIDO
       'liquido_refrigerante': '2.2',
       'liquido_frenos': '2.3'
     },
     'frenos': {
-      'pastillas_freno_a': '3.1',
-      'pastillas_freno_b': '3.2',
-      'pastillas_freno_c': '3.3',
-      'pastillas_freno_d': '3.4'
+      'pastilla_cinta_freno_a': '3.1', // CORREGIDO
+      'pastilla_cinta_freno_b': '3.2', // CORREGIDO
+      'pastilla_cinta_freno_c': '3.3', // CORREGIDO
+      'pastilla_cinta_freno_d': '3.4'  // CORREGIDO
     },
     'motor-embrague': {
       'embrague': '4.1'
     },
     'suspension': {
-      'suspension_a': '5.1',
-      'suspension_b': '5.2',
-      'suspension_c': '5.3',
-      'suspension_d': '5.4'
+      'suspencion_a': '5.1', // CORREGIDO
+      'suspencion_b': '5.2', // CORREGIDO
+      'suspencion_c': '5.3', // CORREGIDO
+      'suspencion_d': '5.4'  // CORREGIDO
     },
     'correas': {
       'correa_distribucion': '6.1',
@@ -481,7 +481,7 @@ export default function RegistroServicioPage() {
       'correa_aire_acondicionado': '6.4',
       'correa_polyv': '6.5',
       'tensor_correa': '6.6',
-      'polea_tensora': '6.7'
+      'polea_tensora_correa': '6.7' // CORREGIDO
     },
     'electrico': {
       'bateria': '7.1',
@@ -495,8 +495,8 @@ export default function RegistroServicioPage() {
       'neumatico_d': '8.5',
       'neumatico_e': '8.6',
       'neumatico_f': '8.7',
-      'alineacion': '8.8',
-      'rotacion': '8.9'
+      'alineacion_neumaticos': '8.8', // CORREGIDO
+      'rotacion_neumaticos': '8.9'    // CORREGIDO
     }
   }
 
@@ -539,25 +539,25 @@ export default function RegistroServicioPage() {
       'Filtro Secador': 'filtro_secador',
       'Filtro de Aire Secundario': 'filtro_aire_secundario',
       'Trampa de Agua': 'trampa_agua',
-      'Aceite de Transmisión': 'aceite_transmision',
+      'Aceite de Transmisión': 'aceite_transmicion', // Nota: tabla usa 'transmicion'
       'Líquido Refrigerante': 'liquido_refrigerante',
       'Líquido de Frenos': 'liquido_frenos',
-      'Pastillas/Cintas Freno A': 'pastillas_freno_a',
-      'Pastillas/Cintas Freno B': 'pastillas_freno_b',
-      'Pastillas/Cintas Freno C': 'pastillas_freno_c',
-      'Pastillas/Cintas Freno D': 'pastillas_freno_d',
+      'Pastillas/Cintas Freno A': 'pastilla_cinta_freno_a', // CORREGIDO
+      'Pastillas/Cintas Freno B': 'pastilla_cinta_freno_b', // CORREGIDO
+      'Pastillas/Cintas Freno C': 'pastilla_cinta_freno_c', // CORREGIDO
+      'Pastillas/Cintas Freno D': 'pastilla_cinta_freno_d', // CORREGIDO
       'Embrague': 'embrague',
-      'Suspensión A': 'suspension_a',
-      'Suspensión B': 'suspension_b',
-      'Suspensión C': 'suspension_c',
-      'Suspensión D': 'suspension_d',
+      'Suspensión A': 'suspencion_a', // Nota: tabla usa 'suspencion'
+      'Suspensión B': 'suspencion_b', // Nota: tabla usa 'suspencion'
+      'Suspensión C': 'suspencion_c', // Nota: tabla usa 'suspencion'
+      'Suspensión D': 'suspencion_d', // Nota: tabla usa 'suspencion'
       'Correa de Distribución': 'correa_distribucion',
       'Correa de Alternador': 'correa_alternador',
       'Correa de Dirección': 'correa_direccion',
       'Correa de Aire Acondicionado': 'correa_aire_acondicionado',
       'Correa Poly-V': 'correa_polyv',
       'Tensor de Correa': 'tensor_correa',
-      'Polea Tensora': 'polea_tensora',
+      'Polea Tensora': 'polea_tensora_correa', // CORREGIDO
       'Batería': 'bateria',
       'Escobillas': 'escobillas',
       'Modelo/Marca General': 'neumatico_modelo_marca',
@@ -567,8 +567,8 @@ export default function RegistroServicioPage() {
       'Neumático D': 'neumatico_d',
       'Neumático E': 'neumatico_e',
       'Neumático F': 'neumatico_f',
-      'Alineación': 'alineacion',
-      'Rotación': 'rotacion'
+      'Alineación': 'alineacion_neumaticos', // CORREGIDO
+      'Rotación': 'rotacion_neumaticos' // CORREGIDO
     }
     return mapeo[label] || label.toLowerCase().replace(/[^a-z0-9]/g, '_')
   }
@@ -613,20 +613,29 @@ export default function RegistroServicioPage() {
     
     componentesSeleccionados.forEach(componenteKey => {
       const campoBase = componenteKey
+      const modelo = modelosComponentes[componenteKey] || ''
       
-      // Agregar campos según lo que esté disponible
-      if (campoBase.includes('aceite_motor')) {
+      // Generar campos según disponibilidad en la tabla
+      // Solo agregar si el campo tiene modelo (para evitar campos vacíos)
+      if (modelo) {
+        datosGenerados[`${campoBase}_modelo`] = modelo
+      }
+      
+      // Siempre agregar km y fecha si están definidos
+      if (kmFinal) {
         datosGenerados[`${campoBase}_km`] = kmFinal
+      }
+      
+      if (datosGlobales.fecha) {
         datosGenerados[`${campoBase}_fecha`] = datosGlobales.fecha
-        datosGenerados[`${campoBase}_modelo`] = modelosComponentes[componenteKey] || ''
-        if (campoBase === 'aceite_motor') {
-          datosGenerados[`${campoBase}_hr`] = vehiculo?.hora_actual || ''
+      }
+      
+      // Campos especiales para aceite motor
+      if (campoBase === 'aceite_motor') {
+        if (vehiculo?.hora_actual) {
+          datosGenerados[`${campoBase}_hr`] = vehiculo.hora_actual
         }
-      } else {
-        // Para otros componentes
-        datosGenerados[`${campoBase}_km`] = kmFinal
-        datosGenerados[`${campoBase}_fecha`] = datosGlobales.fecha
-        datosGenerados[`${campoBase}_modelo`] = modelosComponentes[componenteKey] || ''
+        // Añadir litros si está disponible (podríamos agregarlo como campo opcional)
       }
     })
     
