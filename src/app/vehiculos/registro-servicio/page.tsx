@@ -666,7 +666,7 @@ export default function RegistroServicioPage() {
     const seccionActual = secciones.find(s => s.id === seccionSeleccionada)
     const componentesArray = Array.from(componentesSeleccionados)
     
-    // Mapear keys a labels legibles
+    // Mapear keys a labels legibles con información de modelos si está disponible
     const labelsComponentes = componentesArray.map(key => {
       const labelMap: Record<string, string> = {
         'aceite_motor': 'Aceite de Motor',
@@ -709,12 +709,27 @@ export default function RegistroServicioPage() {
         'alineacion_neumaticos': 'Alineación de Neumáticos',
         'rotacion_neumaticos': 'Rotación de Neumáticos'
       }
-      return labelMap[key] || key
+      
+      const nombreComponente = labelMap[key] || key
+      const modelo = modelosComponentes[key]
+      
+      // Incluir modelo en la descripción si está disponible
+      return modelo && modelo.trim() ? `${nombreComponente} (${modelo})` : nombreComponente
     })
     
     const listaComponentes = labelsComponentes.join(', ')
     
-    return `Mantenimiento de ${seccionActual?.nombre || 'Vehículo'} - Cambio/Servicio de: ${listaComponentes}`
+    // Obtener kilometraje para incluir en descripción
+    const kmFinal: number | '' = datosGlobales.usarKmActual ? 
+      (vehiculo?.kilometraje_actual || '') : 
+      (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
+    
+    // Información adicional para contexto
+    const infoKilometraje = kmFinal ? ` - Kilometraje: ${kmFinal.toLocaleString()} km` : ''
+    const infoFecha = datosGlobales.fecha ? ` - Fecha: ${datosGlobales.fecha}` : ''
+    const infoVehiculo = vehiculo ? ` - Vehículo: ${vehiculo.Placa} (${vehiculo.Marca} ${vehiculo.Modelo})` : ''
+    
+    return `Mantenimiento de ${seccionActual?.nombre || 'Vehículo'} - Cambio/Servicio de: ${listaComponentes}${infoKilometraje}${infoFecha}${infoVehiculo}`
   }
 
   // Generar items/materiales automáticamente
