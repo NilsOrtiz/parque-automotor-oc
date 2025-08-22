@@ -1,0 +1,156 @@
+ANÁLISIS COMPLETO DE CAMPOS SQL vs MAPEO DE CÓDIGO
+
+=== CAMPOS EXTRAÍDOS DE LA TABLA SQL vehiculos ===
+
+1. ACEITE MOTOR:
+   - aceite_motor_km (integer)
+   - aceite_motor_fecha (date) 
+   - aceite_motor_modelo (text)
+   - aceite_motor_litros (integer)
+   - aceite_motor_hr (integer)
+
+2. FILTRO ACEITE MOTOR:
+   - filtro_aceite_motor_modelo (text)
+
+3. FILTRO COMBUSTIBLE:
+   - filtro_combustible_fecha (date)
+   - filtro_combustible_modelo (text) 
+   - filtro_combustible_km (integer)
+
+4. FILTRO AIRE:
+   - filtro_aire_fecha (date)
+   - filtro_aire_modelo (text)
+   - filtro_aire_km (integer)
+
+5. FILTRO CABINA:
+   - filtro_cabina_fecha (date)
+   - filtro_cabina_modelo (text)
+   - filtro_cabina_km (integer)
+
+6. ACEITE TRANSMISION:
+   - aceite_transmicion_fecha (date)  ← NOTA: "transmicion" con C
+   - aceite_transmicion_modelo (text)
+   - aceite_transmicion_km (integer)
+
+7. FILTRO DESHUMIDIFICADOR:
+   - filtro_deshumidificador_fecha (date)
+   - filtro_deshumidificador_modelo (text) 
+   - filtro_deshumidificador_km (integer)
+
+8. LIQUIDO REFRIGERANTE:
+   - liquido_refrigerante_fecha (date)
+   - liquido_refrigerante_modelo (text)
+   - liquido_refrigerante_km (integer)
+
+9. LIQUIDO FRENOS:
+   - liquido_frenos_fecha (date)
+   - liquido_frenos_modelo (text)
+   - liquido_frenos_km (integer)
+
+10. PASTILLA CINTA FRENO (A,B,C,D):
+    - pastilla_cinta_freno_fecha_a (date)
+    - pastilla_cinta_freno_modelo_a (text) 
+    - pastilla_cinta_freno_km_a (integer)
+    - pastilla_cinta_freno_fecha_b (date)
+    - pastilla_cinta_freno_modelo_b (text)
+    - pastilla_cinta_freno_km_b (integer)
+    - pastilla_cinta_freno_fecha_c (date)
+    - pastilla_cinta_freno_modelo_c (text)
+    - pastilla_cinta_freno_km_c (integer)
+    - pastilla_cinta_freno_fecha_d (date)
+    - pastilla_cinta_freno_modelo_d (text)
+    - pastilla_cinta_freno_km_d (integer)
+
+11. EMBRAGUE:
+    - embrague_fecha (date)
+    - embrague_modelo (text)
+    - embrague_km (integer)
+
+12. SUSPENSION (A,B,C,D):
+    - suspencion_fecha_a (date)  ← NOTA: "suspencion" con C
+    - suspencion_modelo_a (text)
+    - suspencion_km_a (integer)
+    - suspencion_fecha_b (date)
+    - suspencion_modelo_b (text)
+    - suspencion_km_b (integer)
+    - suspencion_fecha_c (date)
+    - suspencion_modelo_c (text)
+    - suspencion_km_c (integer)
+    - suspencion_fecha_d (date)
+    - suspencion_modelo_d (text)
+    - suspencion_km_d (integer)
+
+13. CORREAS:
+    - correa_distribucion_fecha (date)
+    - correa_distribucion_modelo (text)
+    - correa_distribucion_km (integer)
+    - correa_alternador_fecha (date)
+    - correa_alternador_modelo (text)
+    - correa_alternador_km (integer)
+    - correa_direccion_fecha (date)
+    - correa_direccion_modelo (text)
+    - correa_direccion_km (integer)
+    - correa_aire_acondicionado_fecha (date)
+    - correa_aire_acondicionado_modelo (text)
+    - correa_aire_acondicionado_km (integer)
+    - correa_polyv_fecha (date)
+    - correa_polyv_modelo (text)
+    - correa_polyv_km (integer)
+
+14. TENSOR Y POLEA:
+    - tensor_correa_fecha (date)
+    - tensor_correa_modelo (text)
+    - tensor_correa_km (integer)
+    - polea_tensora_correa_fecha (date)
+    - polea_tensora_correa_modelo (text)
+    - polea_tensora_correa_km (integer)
+
+15. BATERIA:
+    - bateria_fecha (date)
+    - bateria_modelo (text)
+    - bateria_km (integer)
+
+16. NEUMATICOS:
+    - neumatico_modelo_marca (text)  ← NOTA: campo especial
+    - neumatico_fecha_a (date)
+    - neumatico_km_a (integer)
+    - neumatico_fecha_b (date)
+    - neumatico_km_b (integer)
+    - neumatico_fecha_c (date)
+    - neumatico_km_c (integer)
+    - neumatico_fecha_d (date)
+    - neumatico_km_d (integer)
+    - neumatico_fecha_e (date)
+    - neumatico_km_e (integer)
+    - neumatico_fecha_f (date)
+    - neumatico_km_f (integer)
+
+17. ALINEACION Y ROTACION:
+    - alineacion_neumaticos_fecha (date)
+    - alineacion_neumaticos_km (integer)
+    - rotacion_neumaticos_fecha (date)
+    - rotacion_neumaticos_km (integer)
+
+18. ESCOBILLAS:
+    - escobillas_modelo (text)
+    - escobillas_fecha (date)
+    - escobillas_km (integer)
+
+19. FILTROS ADICIONALES:
+    - filtro_secador_fecha (date)
+    - filtro_secador_km (integer)
+    - filtro_secador_modelo (text)
+    - filtro_aire_secundario_fecha (date)
+    - filtro_aire_secundario_km (integer)
+    - filtro_aire_secundario_modelo (text)
+
+20. TRAMPA AGUA:
+    - trampa_agua_fecha (date)
+    - trampa_agua_km (integer)
+    - trampa_agua_modelo (text)
+
+NOTAS IMPORTANTES:
+- "transmicion" se escribe con C, no con S
+- "suspencion" se escribe con C, no con S  
+- Los campos con sufijos (a,b,c,d) siguen el patrón {base}_{tipo}_{letra}
+- neumatico_modelo_marca es un campo especial compartido por todos los neumáticos

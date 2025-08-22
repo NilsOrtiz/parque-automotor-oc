@@ -615,50 +615,44 @@ export default function RegistroServicioPage() {
       (vehiculo?.kilometraje_actual || '') : 
       (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
     
+    // Obtener definición de campos de la sección actual
+    const seccionActual = secciones.find(s => s.id === seccionSeleccionada)
+    const camposDeSeccion = camposPorSeccion[seccionSeleccionada || ''] || []
+    
     componentesSeleccionados.forEach(componenteKey => {
-      const campoBase = componenteKey
       const modelo = modelosComponentes[componenteKey] || ''
       
-      // Generar campos con el orden correcto de sufijos según la tabla SQL
-      // Patrón: {base}_{tipo}_{letra} donde tipo = fecha|modelo|km
+      // Encontrar la definición del campo en camposPorSeccion
+      const definicionCampo = camposDeSeccion.find(campo => 
+        mapearLabelAKey(campo.label) === componenteKey
+      )
       
-      if (modelo) {
-        // Casos especiales con sufijo de letra al final
-        if (campoBase.match(/_(a|b|c|d)$/)) {
-          const baseWithoutLetter = campoBase.replace(/_(a|b|c|d)$/, '')
-          const letter = campoBase.match(/_(a|b|c|d)$/)?.[1]
-          datosGenerados[`${baseWithoutLetter}_modelo_${letter}`] = modelo
-        } else {
-          datosGenerados[`${campoBase}_modelo`] = modelo
+      // Solo generar campos que están definidos en camposPorSeccion
+      if (definicionCampo) {
+        // Modelo - solo si existe modelField en la definición
+        if (definicionCampo.modelField && modelo) {
+          datosGenerados[definicionCampo.modelField] = modelo
         }
-      }
-      
-      if (kmFinal) {
-        if (campoBase.match(/_(a|b|c|d)$/)) {
-          const baseWithoutLetter = campoBase.replace(/_(a|b|c|d)$/, '')
-          const letter = campoBase.match(/_(a|b|c|d)$/)?.[1]
-          datosGenerados[`${baseWithoutLetter}_km_${letter}`] = kmFinal
-        } else {
-          datosGenerados[`${campoBase}_km`] = kmFinal
+        
+        // Kilometraje - solo si existe kmField en la definición
+        if (definicionCampo.kmField && kmFinal) {
+          datosGenerados[definicionCampo.kmField] = kmFinal
         }
-      }
-      
-      if (datosGlobales.fecha) {
-        if (campoBase.match(/_(a|b|c|d)$/)) {
-          const baseWithoutLetter = campoBase.replace(/_(a|b|c|d)$/, '')
-          const letter = campoBase.match(/_(a|b|c|d)$/)?.[1]
-          datosGenerados[`${baseWithoutLetter}_fecha_${letter}`] = datosGlobales.fecha
-        } else {
-          datosGenerados[`${campoBase}_fecha`] = datosGlobales.fecha
+        
+        // Fecha - solo si existe dateField en la definición
+        if (definicionCampo.dateField && datosGlobales.fecha) {
+          datosGenerados[definicionCampo.dateField] = datosGlobales.fecha
         }
-      }
-      
-      // Campos especiales para aceite motor
-      if (campoBase === 'aceite_motor') {
-        if (vehiculo?.hora_actual) {
-          datosGenerados[`${campoBase}_hr`] = vehiculo.hora_actual
+        
+        // Campos especiales
+        if (definicionCampo.hrField && vehiculo?.hora_actual) {
+          datosGenerados[definicionCampo.hrField] = vehiculo.hora_actual
         }
-        // Añadir litros si está disponible (podríamos agregarlo como campo opcional)
+        
+        if (definicionCampo.litersField) {
+          // Por ahora no tenemos interfaz para litros, pero el campo existe
+          // datosGenerados[definicionCampo.litersField] = litros
+        }
       }
     })
     
@@ -702,7 +696,7 @@ export default function RegistroServicioPage() {
         'correa_aire_acondicionado': 'Correa de Aire Acondicionado',
         'correa_polyv': 'Correa Poly-V',
         'tensor_correa': 'Tensor de Correa',
-        'polea_tensora': 'Polea Tensora',
+        'polea_tensora_correa': 'Polea Tensora',
         'bateria': 'Batería',
         'escobillas': 'Escobillas',
         'neumatico_modelo_marca': 'Modelo/Marca General Neumáticos',
@@ -712,8 +706,8 @@ export default function RegistroServicioPage() {
         'neumatico_d': 'Neumático Trasero Der.',
         'neumatico_e': 'Neumático Auxilio',
         'neumatico_f': 'Neumático Extra',
-        'alineacion': 'Alineación de Neumáticos',
-        'rotacion': 'Rotación de Neumáticos'
+        'alineacion_neumaticos': 'Alineación de Neumáticos',
+        'rotacion_neumaticos': 'Rotación de Neumáticos'
       }
       return labelMap[key] || key
     })
@@ -760,7 +754,7 @@ export default function RegistroServicioPage() {
           'correa_aire_acondicionado': 'Correa A/C',
           'correa_polyv': 'Correa Poly-V',
           'tensor_correa': 'Tensor Correa',
-          'polea_tensora': 'Polea Tensora',
+          'polea_tensora_correa': 'Polea Tensora',
           'bateria': 'Batería',
           'escobillas': 'Escobillas',
           'neumatico_a': 'Neumático Del. Izq.',
@@ -768,7 +762,10 @@ export default function RegistroServicioPage() {
           'neumatico_c': 'Neumático Tras. Izq.',
           'neumatico_d': 'Neumático Tras. Der.',
           'neumatico_e': 'Neumático Auxilio',
-          'neumatico_f': 'Neumático Extra'
+          'neumatico_f': 'Neumático Extra',
+          'neumatico_modelo_marca': 'Modelo/Marca Neumáticos',
+          'alineacion_neumaticos': 'Alineación Neumáticos',
+          'rotacion_neumaticos': 'Rotación Neumáticos'
         }
         
         const nombreItem = labelMap[componenteKey] || componenteKey
