@@ -338,6 +338,8 @@ export default function RegistroServicioPage() {
       
       // Si hay actualizaciones, aplicarlas al vehículo
       if (Object.keys(actualizacionesVehiculo).length > 0) {
+        console.log('Datos a actualizar en vehículo:', actualizacionesVehiculo)
+        
         const { error: errorVehiculo } = await supabase
           .from('vehiculos')
           .update(actualizacionesVehiculo)
@@ -345,7 +347,9 @@ export default function RegistroServicioPage() {
         
         if (errorVehiculo) {
           console.error('Error actualizando datos del vehículo:', errorVehiculo)
-          // No fallar el guardado por esto, pero informar al usuario
+          console.error('Campos que intentamos actualizar:', Object.keys(actualizacionesVehiculo))
+          setError(`Error actualizando vehículo: ${errorVehiculo.message}. Campos: ${Object.keys(actualizacionesVehiculo).join(', ')}`)
+          return // Detener el proceso si hay error en la actualización
         }
       }
 
