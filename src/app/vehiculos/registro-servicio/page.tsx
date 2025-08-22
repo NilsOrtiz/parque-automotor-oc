@@ -615,19 +615,38 @@ export default function RegistroServicioPage() {
       const campoBase = componenteKey
       const modelo = modelosComponentes[componenteKey] || ''
       
-      // Generar campos según disponibilidad en la tabla
-      // Solo agregar si el campo tiene modelo (para evitar campos vacíos)
+      // Generar campos con el orden correcto de sufijos según la tabla SQL
+      // Patrón: {base}_{tipo}_{letra} donde tipo = fecha|modelo|km
+      
       if (modelo) {
-        datosGenerados[`${campoBase}_modelo`] = modelo
+        // Casos especiales con sufijo de letra al final
+        if (campoBase.match(/_(a|b|c|d)$/)) {
+          const baseWithoutLetter = campoBase.replace(/_(a|b|c|d)$/, '')
+          const letter = campoBase.match(/_(a|b|c|d)$/)?.[1]
+          datosGenerados[`${baseWithoutLetter}_modelo_${letter}`] = modelo
+        } else {
+          datosGenerados[`${campoBase}_modelo`] = modelo
+        }
       }
       
-      // Siempre agregar km y fecha si están definidos
       if (kmFinal) {
-        datosGenerados[`${campoBase}_km`] = kmFinal
+        if (campoBase.match(/_(a|b|c|d)$/)) {
+          const baseWithoutLetter = campoBase.replace(/_(a|b|c|d)$/, '')
+          const letter = campoBase.match(/_(a|b|c|d)$/)?.[1]
+          datosGenerados[`${baseWithoutLetter}_km_${letter}`] = kmFinal
+        } else {
+          datosGenerados[`${campoBase}_km`] = kmFinal
+        }
       }
       
       if (datosGlobales.fecha) {
-        datosGenerados[`${campoBase}_fecha`] = datosGlobales.fecha
+        if (campoBase.match(/_(a|b|c|d)$/)) {
+          const baseWithoutLetter = campoBase.replace(/_(a|b|c|d)$/, '')
+          const letter = campoBase.match(/_(a|b|c|d)$/)?.[1]
+          datosGenerados[`${baseWithoutLetter}_fecha_${letter}`] = datosGlobales.fecha
+        } else {
+          datosGenerados[`${campoBase}_fecha`] = datosGlobales.fecha
+        }
       }
       
       // Campos especiales para aceite motor
