@@ -290,11 +290,11 @@ export default function RegistroServicioPage() {
       const problemaReportadoPor = pendienteSeleccionado ? 'chofer' : 'mecanico'
       
       // Determinar kilometraje (desde formulario rápido o campo manual)
-      let kilometrajeFinal = kilometrajeServicio
+      let kilometrajeFinal: number | '' = kilometrajeServicio
       if (clasificacion === 'mantenimiento' && seccionSeleccionada) {
         const kmGlobal = datosGlobales.usarKmActual ? 
-          vehiculo.kilometraje_actual : 
-          (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : null)
+          (vehiculo.kilometraje_actual || '') : 
+          (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
         kilometrajeFinal = kmGlobal
       }
       
@@ -607,7 +607,7 @@ export default function RegistroServicioPage() {
 
   const generarDatosSeccionMejorado = () => {
     const datosGenerados: Record<string, any> = {}
-    const kmFinal = datosGlobales.usarKmActual ? 
+    const kmFinal: number | '' = datosGlobales.usarKmActual ? 
       (vehiculo?.kilometraje_actual || '') : 
       (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
     
