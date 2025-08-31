@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle, List, Fuel, Circle } from 'lucide-react'
+import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle, List, Fuel, Circle, Droplets } from 'lucide-react'
 
 export default function VehiculosPage() {
   return (
@@ -288,6 +288,41 @@ export default function VehiculosPage() {
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
                   Información para operaciones
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Registro Manual de Carga de Combustible YPF */}
+          <Link href="/vehiculos/carga-combustible-manual" className="group">
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-yellow-500 group-hover:border-yellow-600">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="bg-yellow-100 p-3 rounded-lg mr-4">
+                    <Droplets className="h-8 w-8 text-yellow-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 group-hover:text-yellow-600">
+                      Registro Manual de Carga de Combustible YPF
+                    </h2>
+                    <p className="text-gray-500">Ingreso manual de cargas de combustible</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-6 w-6 text-gray-400 group-hover:text-yellow-600 transition-colors" />
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mr-3"></div>
+                  Registro manual de cargas YPF
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mr-3"></div>
+                  Control de odómetro y litros cargados
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mr-3"></div>
+                  Integración con análisis de consumo
                 </div>
               </div>
             </div>
