@@ -89,17 +89,23 @@ export default function CargaCombustibleManualPage() {
     setSuccess('')
 
     try {
-      // Insertar registro de carga de combustible
+      // Normalizar patente como lo hace el extractor automático (quitar espacios, mayúsculas)
+      const placaNormalizada = vehiculo.Placa.trim().replace(' ', '').toUpperCase()
+      
+      // Generar timestamp completo como lo hace el extractor automático
+      const fechaCargarTimestamp = `${fechaCarga} ${new Date().toTimeString().split(' ')[0]}`
+      
+      // Insertar registro de carga de combustible (compatible con extractor automático)
       const { error } = await supabase
         .from('cargas_combustible_ypf')
         .insert({
-          fecha_carga: fechaCarga,
-          placa: vehiculo.Placa,
+          fecha_carga: fechaCargarTimestamp,              // Timestamp completo como extractor
+          placa: placaNormalizada,                        // Patente normalizada como extractor  
           odometro: parseInt(odometro),
           litros_cargados: parseFloat(litrosCargados),
           tipo_combustible: tipoCombustible,
           monto_total: montoTotal ? parseFloat(montoTotal) : null,
-          fecha_extraccion: new Date().toISOString()
+          fecha_extraccion: new Date().toISOString().replace('T', ' ').slice(0, -5) // Sin Z, formato timestamp
         })
 
       if (error) throw error
