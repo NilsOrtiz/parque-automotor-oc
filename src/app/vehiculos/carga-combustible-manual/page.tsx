@@ -17,7 +17,9 @@ interface Vehiculo {
 }
 
 export default function CargaCombustibleManualPage() {
-  const [busquedaVehiculo, setBusquedaVehiculo] = useState('')
+  // Estados de búsqueda (igual que en /busqueda)
+  const [tipoBusqueda, setTipoBusqueda] = useState<'placa' | 'interno'>('placa')
+  const [termino, setTermino] = useState('')
   const [vehiculo, setVehiculo] = useState<Vehiculo | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -33,7 +35,7 @@ export default function CargaCombustibleManualPage() {
   const [observaciones, setObservaciones] = useState('')
 
   async function buscarVehiculo() {
-    if (!busquedaVehiculo.trim()) {
+    if (!termino.trim()) {
       setError('Por favor ingresa un término de búsqueda')
       return
     }
@@ -43,26 +45,45 @@ export default function CargaCombustibleManualPage() {
     setVehiculo(null)
 
     try {
+      // Sistema de búsqueda exacto como en /busqueda
+      const campo = tipoBusqueda === 'placa' ? 'Placa' : 'Nro_Interno'
+      const valor = tipoBusqueda === 'placa' ? termino.trim() : parseInt(termino)
+
       const { data, error } = await supabase
         .from('vehiculos')
         .select('*')
-        .or(`Placa.ilike.%${busquedaVehiculo}%,Nro_Interno.eq.${busquedaVehiculo}`)
-        .limit(1)
+        .eq(campo, valor)
         .single()
 
-      if (error) throw error
-
-      setVehiculo(data)
-      // Pre-llenar odómetro con kilometraje actual si está disponible
-      if (data.kilometraje_actual) {
-        setOdometro(data.kilometraje_actual.toString())
+      if (error) {
+        if (error.code === 'PGRST116') {
+          setError('No se encontró ningún vehículo con ese criterio')
+        } else {
+          throw error
+        }
+      } else {
+        setVehiculo(data)
+        // Pre-llenar odómetro con kilometraje actual si está disponible
+        if (data.kilometraje_actual) {
+          setOdometro(data.kilometraje_actual.toString())
+        }
       }
     } catch (error) {
-      console.error('Error buscando vehículo:', error)
-      setError('No se encontró el vehículo')
+      console.error('Error en búsqueda:', error)
+      setError('Error al buscar el vehículo')
     } finally {
       setLoading(false)
     }
+  }
+
+  function limpiarBusqueda() {
+    setVehiculo(null)
+    setTermino('')
+    setOdometro('')
+    setLitrosCargados('')
+    setMontoTotal('')
+    setError('')
+    setSuccess('')
   }
 
   async function guardarCarga() {
@@ -182,58 +203,104 @@ export default function CargaCombustibleManualPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Búsqueda de Vehículo */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-              <Search className="h-5 w-5 mr-2 text-blue-600" />
+        {!vehiculo ? (
+          // FASE 1: Búsqueda de Vehículo (igual que en /busqueda)
+          <div className="bg-white p-8 rounded-lg shadow-md max-w-2xl mx-auto">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
+              <Search className="h-6 w-6 mr-3 text-blue-600" />
               Buscar Vehículo
             </h2>
             
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Selector de tipo de búsqueda */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Tipo de búsqueda
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="placa"
+                      checked={tipoBusqueda === 'placa'}
+                      onChange={(e) => setTipoBusqueda(e.target.value as 'placa' | 'interno')}
+                      className="mr-2 text-blue-600"
+                    />
+                    Por Placa
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="interno"
+                      checked={tipoBusqueda === 'interno'}
+                      onChange={(e) => setTipoBusqueda(e.target.value as 'placa' | 'interno')}
+                      className="mr-2 text-blue-600"
+                    />
+                    Por Número Interno
+                  </label>
+                </div>
+              </div>
+
+              {/* Campo de búsqueda */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Buscar por placa o número interno
+                  {tipoBusqueda === 'placa' ? 'Placa del vehículo' : 'Número interno'}
                 </label>
                 <div className="flex gap-2">
                   <input
-                    type="text"
-                    value={busquedaVehiculo}
-                    onChange={(e) => setBusquedaVehiculo(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Ej: ABC123 o 15"
+                    type={tipoBusqueda === 'placa' ? 'text' : 'number'}
+                    value={termino}
+                    onChange={(e) => setTermino(e.target.value)}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                    placeholder={tipoBusqueda === 'placa' ? 'Ej: ABC123' : 'Ej: 15'}
                     onKeyPress={(e) => e.key === 'Enter' && buscarVehiculo()}
                   />
                   <button
                     onClick={buscarVehiculo}
                     disabled={loading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 flex items-center gap-2"
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 flex items-center gap-2 font-medium"
                   >
-                    <Search className="h-4 w-4" />
+                    <Search className="h-5 w-5" />
                     {loading ? 'Buscando...' : 'Buscar'}
                   </button>
                 </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  {tipoBusqueda === 'placa' 
+                    ? 'Ingresa la placa exacta del vehículo' 
+                    : 'Ingresa el número interno exacto'}
+                </p>
               </div>
-
-              {/* Información del vehículo encontrado */}
-              {vehiculo && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-blue-900 mb-2">Vehículo Seleccionado</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div><strong>Placa:</strong> {vehiculo.Placa}</div>
-                    <div><strong>Interno:</strong> {vehiculo.Nro_Interno}</div>
-                    <div><strong>Titular:</strong> {vehiculo.Titular}</div>
-                    <div><strong>Vehículo:</strong> {vehiculo.Marca} {vehiculo.Modelo}</div>
-                    <div><strong>Año:</strong> {vehiculo.Año}</div>
-                    <div><strong>Km Actual:</strong> {vehiculo.kilometraje_actual?.toLocaleString() || 'No registrado'}</div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
+        ) : (
+          // FASE 2: Información del Vehículo + Formulario de Carga
+          <div className="space-y-8">
+            {/* Información del vehículo encontrado */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-green-900">✅ Vehículo Encontrado</h3>
+                <button
+                  onClick={limpiarBusqueda}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm"
+                >
+                  Buscar Otro
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <div><strong>Placa:</strong> {vehiculo.Placa}</div>
+                <div><strong>Interno:</strong> {vehiculo.Nro_Interno}</div>
+                <div><strong>Titular:</strong> {vehiculo.Titular}</div>
+                <div><strong>Marca:</strong> {vehiculo.Marca}</div>
+                <div><strong>Modelo:</strong> {vehiculo.Modelo}</div>
+                <div><strong>Año:</strong> {vehiculo.Año}</div>
+                <div className="col-span-2 md:col-span-3">
+                  <strong>Kilometraje Actual:</strong> {vehiculo.kilometraje_actual?.toLocaleString() || 'No registrado'} km
+                </div>
+              </div>
+            </div>
 
-          {/* Formulario de Carga */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
+            {/* Formulario de Carga */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
               <FileText className="h-5 w-5 mr-2 text-yellow-600" />
               Datos de la Carga
@@ -332,6 +399,7 @@ export default function CargaCombustibleManualPage() {
               </p>
             </div>
           </div>
+        )}
         </div>
 
         {/* Información adicional */}
