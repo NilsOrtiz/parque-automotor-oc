@@ -131,18 +131,6 @@ export default function CargaCombustibleManualPage() {
 
       if (error) throw error
 
-      // Actualizar kilometraje actual del vehículo si es mayor
-      if (parseInt(odometro) > (vehiculo.kilometraje_actual || 0)) {
-        const { error: errorVehiculo } = await supabase
-          .from('vehiculos')
-          .update({ kilometraje_actual: parseInt(odometro) })
-          .eq('id', vehiculo.id)
-
-        if (errorVehiculo) {
-          console.error('Error actualizando kilometraje:', errorVehiculo)
-          // No fallar por esto, solo notificar
-        }
-      }
 
       setSuccess('Carga de combustible registrada correctamente')
       
@@ -407,7 +395,6 @@ export default function CargaCombustibleManualPage() {
           <h3 className="font-semibold text-blue-900 mb-2">💡 Información Importante</h3>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• Los datos se guardarán en la tabla cargas_combustible_ypf para análisis posteriores</li>
-            <li>• Si el odómetro es mayor al actual del vehículo, se actualizará automáticamente</li>
             <li>• Esta información se integrará con el sistema de análisis de consumo</li>
             <li>• Asegúrate de ingresar los datos correctamente antes de guardar</li>
           </ul>
