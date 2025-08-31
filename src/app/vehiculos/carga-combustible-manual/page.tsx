@@ -301,106 +301,106 @@ export default function CargaCombustibleManualPage() {
 
             {/* Formulario de Carga */}
             <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-              <FileText className="h-5 w-5 mr-2 text-yellow-600" />
-              Datos de la Carga
-            </h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <FileText className="h-5 w-5 mr-2 text-yellow-600" />
+                Datos de la Carga
+              </h2>
 
-            <div className="space-y-4">
-              {/* Fecha */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="h-4 w-4 inline mr-1" />
-                  Fecha de Carga *
-                </label>
-                <input
-                  type="date"
-                  value={fechaCarga}
-                  onChange={(e) => setFechaCarga(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                />
-              </div>
+              <div className="space-y-4">
+                {/* Fecha */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Calendar className="h-4 w-4 inline mr-1" />
+                    Fecha de Carga *
+                  </label>
+                  <input
+                    type="date"
+                    value={fechaCarga}
+                    onChange={(e) => setFechaCarga(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  />
+                </div>
 
-              {/* Odómetro */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Gauge className="h-4 w-4 inline mr-1" />
-                  Odómetro (km) *
-                </label>
-                <input
-                  type="number"
-                  value={odometro}
-                  onChange={(e) => setOdometro(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                  placeholder="Ej: 85420"
-                />
-              </div>
+                {/* Odómetro */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Gauge className="h-4 w-4 inline mr-1" />
+                    Odómetro (km) *
+                  </label>
+                  <input
+                    type="number"
+                    value={odometro}
+                    onChange={(e) => setOdometro(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    placeholder="Ej: 85420"
+                  />
+                </div>
 
-              {/* Litros */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Droplets className="h-4 w-4 inline mr-1" />
-                  Litros Cargados *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={litrosCargados}
-                  onChange={(e) => setLitrosCargados(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                  placeholder="Ej: 45.5"
-                />
-              </div>
+                {/* Litros */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Droplets className="h-4 w-4 inline mr-1" />
+                    Litros Cargados *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={litrosCargados}
+                    onChange={(e) => setLitrosCargados(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    placeholder="Ej: 45.5"
+                  />
+                </div>
 
-              {/* Tipo de Combustible */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Combustible
-                </label>
-                <select
-                  value={tipoCombustible}
-                  onChange={(e) => setTipoCombustible(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                {/* Tipo de Combustible */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de Combustible
+                  </label>
+                  <select
+                    value={tipoCombustible}
+                    onChange={(e) => setTipoCombustible(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  >
+                    <option value="Diesel">Diesel</option>
+                    <option value="Nafta">Nafta</option>
+                    <option value="GNC">GNC</option>
+                  </select>
+                </div>
+
+                {/* Monto Total */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <DollarSign className="h-4 w-4 inline mr-1" />
+                    Monto Total (opcional)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={montoTotal}
+                    onChange={(e) => setMontoTotal(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    placeholder="Ej: 15420.50"
+                  />
+                </div>
+
+                {/* Botón de Guardar */}
+                <button
+                  onClick={guardarCarga}
+                  disabled={!vehiculo || saving || !fechaCarga || !odometro || !litrosCargados}
+                  className="w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-300 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
                 >
-                  <option value="Diesel">Diesel</option>
-                  <option value="Nafta">Nafta</option>
-                  <option value="GNC">GNC</option>
-                </select>
+                  <Save className="h-4 w-4" />
+                  {saving ? 'Guardando...' : 'Guardar Carga de Combustible'}
+                </button>
+
+                <p className="text-xs text-gray-500 text-center">
+                  * Campos obligatorios
+                </p>
               </div>
-
-              {/* Monto Total */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <DollarSign className="h-4 w-4 inline mr-1" />
-                  Monto Total (opcional)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={montoTotal}
-                  onChange={(e) => setMontoTotal(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                  placeholder="Ej: 15420.50"
-                />
-              </div>
-
-              {/* Botón de Guardar */}
-              <button
-                onClick={guardarCarga}
-                disabled={!vehiculo || saving || !fechaCarga || !odometro || !litrosCargados}
-                className="w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-300 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
-              >
-                <Save className="h-4 w-4" />
-                {saving ? 'Guardando...' : 'Guardar Carga de Combustible'}
-              </button>
-
-              <p className="text-xs text-gray-500 text-center">
-                * Campos obligatorios
-              </p>
             </div>
           </div>
         )}
-        </div>
 
         {/* Información adicional */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
