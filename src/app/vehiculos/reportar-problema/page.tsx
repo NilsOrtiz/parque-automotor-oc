@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, AlertTriangle, Search, Clock, User } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Search, Clock, User, CheckCircle } from 'lucide-react'
 
 export default function ReportarProblemaPage() {
   const [tipoBusqueda, setTipoBusqueda] = useState<'placa' | 'interno'>('placa')
@@ -13,6 +13,8 @@ export default function ReportarProblemaPage() {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [lastReportedVehicle, setLastReportedVehicle] = useState<string>('')
   
   // Datos del formulario
   const [clasificacion, setClasificacion] = useState('')
@@ -122,7 +124,9 @@ export default function ReportarProblemaPage() {
 
       if (error) throw error
 
-      setExito(`Problema reportado exitosamente para ${vehiculoEncontrado.Placa}`)
+      // Mostrar modal de éxito
+      setLastReportedVehicle(`${vehiculoEncontrado.Placa} (${vehiculoEncontrado.Marca} ${vehiculoEncontrado.Modelo})`)
+      setShowSuccessModal(true)
       
       // Limpiar formulario completo para nuevo reporte
       setClasificacion('')
@@ -134,6 +138,7 @@ export default function ReportarProblemaPage() {
       setTipoReportador('chofer')
       setVehiculoEncontrado(null)
       setTermino('')
+      setExito('')
       
     } catch (error) {
       console.error('Error al enviar reporte:', error)
@@ -414,6 +419,35 @@ export default function ReportarProblemaPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de éxito */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="mb-4">
+                <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                ¡Problema Reportado Exitosamente!
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Se ha registrado el problema para:
+              </p>
+              <p className="text-lg font-semibold text-red-700 mb-6">
+                {lastReportedVehicle}
+              </p>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 mx-auto transition-colors"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

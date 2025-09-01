@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Search, Droplets, Calendar, Gauge, DollarSign, FileText, Save, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Search, Droplets, Calendar, Gauge, DollarSign, FileText, Save, AlertCircle, CheckCircle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface Vehiculo {
@@ -25,6 +25,8 @@ export default function CargaCombustibleManualPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [lastSavedVehicle, setLastSavedVehicle] = useState<string>('')
 
   // Datos del formulario de carga
   const [fechaCarga, setFechaCarga] = useState(new Date().toISOString().split('T')[0])
@@ -132,7 +134,9 @@ export default function CargaCombustibleManualPage() {
       if (error) throw error
 
 
-      setSuccess('Carga de combustible registrada correctamente')
+      // Mostrar modal de éxito
+      setLastSavedVehicle(`${vehiculo.Placa} (${vehiculo.Marca} ${vehiculo.Modelo})`)
+      setShowSuccessModal(true)
       
       // Limpiar formulario y volver a la búsqueda para nuevo registro
       setFechaCarga(new Date().toISOString().split('T')[0])
@@ -145,6 +149,7 @@ export default function CargaCombustibleManualPage() {
       // Limpiar vehículo seleccionado para permitir nuevo registro
       setVehiculo(null)
       setTermino('')
+      setSuccess('')
       
     } catch (error) {
       console.error('Error guardando carga:', error)
@@ -404,6 +409,35 @@ export default function CargaCombustibleManualPage() {
           </ul>
         </div>
       </div>
+
+      {/* Modal de éxito */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="mb-4">
+                <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                ¡Carga Registrada Exitosamente!
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Se ha guardado la carga de combustible para:
+              </p>
+              <p className="text-lg font-semibold text-green-700 mb-6">
+                {lastSavedVehicle}
+              </p>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 mx-auto transition-colors"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
