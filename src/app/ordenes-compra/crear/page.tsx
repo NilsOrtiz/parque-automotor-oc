@@ -42,6 +42,11 @@ export default function CrearOCPage() {
   const [cargandoVehiculos, setCargandoVehiculos] = useState(false)
   const [cargandoProveedores, setCargandoProveedores] = useState(false)
   
+  // TEMPORAL: Estados para protección por contraseña
+  const [passwordEntered, setPasswordEntered] = useState(false)
+  const [passwordInput, setPasswordInput] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  
   // Estados para OC múltiple 
   const [esOCMultiple, setEsOCMultiple] = useState(false)
   const [busquedaVehiculoItem, setBusquedaVehiculoItem] = useState('')
@@ -1596,6 +1601,68 @@ export default function CrearOCPage() {
     setOrdenCreada(null)
     setMostrandoFormulario(false)
     setPaso(1)
+  }
+
+  // TEMPORAL: Función para verificar contraseña simple
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (passwordInput === '1998') {
+      setPasswordEntered(true)
+      setPasswordError('')
+    } else {
+      setPasswordError('Contraseña incorrecta')
+      setPasswordInput('')
+    }
+  }
+
+  // TEMPORAL: Mostrar formulario de contraseña si no se ha ingresado
+  if (!passwordEntered) {
+    return (
+      <div className="container mx-auto p-6 max-w-md">
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Acceso Restringido</h1>
+            <p className="text-gray-600">Se requiere contraseña para crear órdenes de compra</p>
+          </div>
+          
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ingresa la contraseña"
+                required
+              />
+            </div>
+            
+            {passwordError && (
+              <div className="text-red-600 text-sm">{passwordError}</div>
+            )}
+            
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Acceder
+            </button>
+          </form>
+          
+          <div className="mt-6 text-center">
+            <Link 
+              href="/ordenes-compra" 
+              className="text-gray-600 hover:text-gray-900 transition-colors text-sm"
+            >
+              ← Volver a Órdenes de Compra
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
