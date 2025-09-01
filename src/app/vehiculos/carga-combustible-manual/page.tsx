@@ -134,13 +134,17 @@ export default function CargaCombustibleManualPage() {
 
       setSuccess('Carga de combustible registrada correctamente')
       
-      // Limpiar formulario
+      // Limpiar formulario y volver a la búsqueda para nuevo registro
       setFechaCarga(new Date().toISOString().split('T')[0])
       setOdometro('')
       setLitrosCargados('')
       setMontoTotal('')
       setObservaciones('')
       setTipoCombustible('Diesel')
+      
+      // Limpiar vehículo seleccionado para permitir nuevo registro
+      setVehiculo(null)
+      setTermino('')
       
     } catch (error) {
       console.error('Error guardando carga:', error)
