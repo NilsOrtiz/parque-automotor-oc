@@ -124,12 +124,14 @@ export default function ReportarProblemaPage() {
 
       setExito(`Problema reportado exitosamente para ${vehiculoEncontrado.Placa}`)
       
-      // Limpiar formulario
+      // Limpiar formulario completo para nuevo reporte
       setClasificacion('')
       setSubclasificacion('')
       setDescripcion('')
       setPrioridad('medio')
       setTiempoEstimado('')
+      setReportadoPor('')
+      setTipoReportador('chofer')
       setVehiculoEncontrado(null)
       setTermino('')
       
