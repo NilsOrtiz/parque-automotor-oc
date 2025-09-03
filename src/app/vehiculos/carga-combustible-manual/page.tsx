@@ -128,7 +128,8 @@ export default function CargaCombustibleManualPage() {
           litros_cargados: parseFloat(litrosCargados),
           tipo_combustible: tipoCombustible,
           monto_total: montoTotal ? parseFloat(montoTotal) : null,
-          fecha_extraccion: new Date().toISOString().replace('T', ' ').slice(0, -5) // Sin Z, formato timestamp
+          fecha_extraccion: new Date().toISOString().replace('T', ' ').slice(0, -5), // Sin Z, formato timestamp
+          origen: 'manual'                                // Identificar como registro manual
         })
 
       if (error) throw error
