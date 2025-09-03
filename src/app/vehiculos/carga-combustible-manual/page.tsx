@@ -118,6 +118,27 @@ export default function CargaCombustibleManualPage() {
       // Generar timestamp completo como lo hace el extractor automático
       const fechaCargarTimestamp = `${fechaCarga} ${new Date().toTimeString().split(' ')[0]}`
       
+      // Verificar duplicados antes de insertar (prevenir registros duplicados del extractor)
+      const { data: existingRecords, error: checkError } = await supabase
+        .from('cargas_combustible_ypf')
+        .select('id')
+        .eq('placa', placaNormalizada)
+        .gte('fecha_carga', `${fechaCarga} 00:00:00`)
+        .lte('fecha_carga', `${fechaCarga} 23:59:59`)
+        .eq('odometro', parseInt(odometro))
+        .eq('litros_cargados', parseFloat(litrosCargados))
+        .limit(1)
+
+      if (checkError) {
+        console.error('Error verificando duplicados:', checkError)
+        // Continúar con la inserción aunque falle la verificación
+      }
+
+      if (existingRecords && existingRecords.length > 0) {
+        setError(`Ya existe un registro de carga para ${placaNormalizada} en ${fechaCarga} con el mismo odómetro (${odometro} km) y litros (${litrosCargados}). Verifica los datos antes de continuar.`)
+        return
+      }
+      
       // Insertar registro de carga de combustible (compatible con extractor automático)
       const { error } = await supabase
         .from('cargas_combustible_ypf')
