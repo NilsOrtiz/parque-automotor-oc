@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Package, Filter, Droplets, Lightbulb, Edit, Save, X, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Package, Filter, Droplets, Lightbulb, Edit, Save, X, CheckCircle, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface Vehiculo {
@@ -43,6 +43,12 @@ export default function StockPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [lastEditedVehicle, setLastEditedVehicle] = useState('')
   const [resumenCantidades, setResumenCantidades] = useState<{modelo: string, cantidad: number, tipo: string}[]>([])
+  
+  // Estados para ordenamiento
+  const [sortField, setSortField] = useState<string>('Nro_Interno')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [sortFieldQuantity, setSortFieldQuantity] = useState<string>('cantidad')
+  const [sortDirectionQuantity, setSortDirectionQuantity] = useState<'asc' | 'desc'>('desc')
 
   useEffect(() => {
     if (categoria && tipoVista === 'modelo') {
@@ -273,6 +279,108 @@ export default function StockPage() {
     return campos[cat as keyof typeof campos]?.[index] || ''
   }
 
+  // Funciones de ordenamiento para tabla de modelos
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  function getSortIcon(field: string) {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400" />
+    }
+    return sortDirection === 'asc' ? 
+      <ArrowUp className="h-4 w-4 text-orange-600" /> : 
+      <ArrowDown className="h-4 w-4 text-orange-600" />
+  }
+
+  function getSortedVehiculos() {
+    return [...vehiculos].sort((a, b) => {
+      let aValue: any, bValue: any
+
+      switch (sortField) {
+        case 'Nro_Interno':
+          aValue = a.Nro_Interno || 0
+          bValue = b.Nro_Interno || 0
+          break
+        case 'Placa':
+          aValue = a.Placa || ''
+          bValue = b.Placa || ''
+          break
+        case 'Vehiculo':
+          aValue = `${a.Marca} ${a.Modelo}`
+          bValue = `${b.Marca} ${b.Modelo}`
+          break
+        default:
+          return 0
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue)
+        return sortDirection === 'asc' ? comparison : -comparison
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+  }
+
+  // Funciones de ordenamiento para tabla de cantidades
+  function handleSortQuantity(field: string) {
+    if (sortFieldQuantity === field) {
+      setSortDirectionQuantity(sortDirectionQuantity === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortFieldQuantity(field)
+      setSortDirectionQuantity(field === 'cantidad' ? 'desc' : 'asc') // Por defecto cantidad descendente
+    }
+  }
+
+  function getSortIconQuantity(field: string) {
+    if (sortFieldQuantity !== field) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400" />
+    }
+    return sortDirectionQuantity === 'asc' ? 
+      <ArrowUp className="h-4 w-4 text-orange-600" /> : 
+      <ArrowDown className="h-4 w-4 text-orange-600" />
+  }
+
+  function getSortedResumen() {
+    return [...resumenCantidades].sort((a, b) => {
+      let aValue: any, bValue: any
+
+      switch (sortFieldQuantity) {
+        case 'tipo':
+          aValue = a.tipo
+          bValue = b.tipo
+          break
+        case 'modelo':
+          aValue = a.modelo
+          bValue = b.modelo
+          break
+        case 'cantidad':
+          aValue = a.cantidad
+          bValue = b.cantidad
+          break
+        default:
+          return 0
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue)
+        return sortDirectionQuantity === 'asc' ? comparison : -comparison
+      }
+
+      if (aValue < bValue) return sortDirectionQuantity === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortDirectionQuantity === 'asc' ? 1 : -1
+      return 0
+    })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
@@ -398,14 +506,32 @@ export default function StockPage() {
                 <table className="min-w-full divide-y divide-gray-200" style={{minWidth: '1200px'}}>
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Nro. Interno
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSort('Nro_Interno')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Nro. Interno</span>
+                          {getSortIcon('Nro_Interno')}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Placa
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSort('Placa')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Placa</span>
+                          {getSortIcon('Placa')}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Vehículo
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSort('Vehiculo')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Vehículo</span>
+                          {getSortIcon('Vehiculo')}
+                        </div>
                       </th>
                       {getModelosCategoria(vehiculos[0] || {} as Vehiculo, categoria).map((item, index) => (
                         <th key={index} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -415,7 +541,7 @@ export default function StockPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {vehiculos.map((vehiculo) => (
+                    {getSortedVehiculos().map((vehiculo) => (
                       <tr key={vehiculo.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {vehiculo.Nro_Interno || '-'}
@@ -518,14 +644,32 @@ export default function StockPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Tipo de Componente
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSortQuantity('tipo')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Tipo de Componente</span>
+                          {getSortIconQuantity('tipo')}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Modelo / Código
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSortQuantity('modelo')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Modelo / Código</span>
+                          {getSortIconQuantity('modelo')}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Cantidad de Vehículos
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSortQuantity('cantidad')}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>Cantidad de Vehículos</span>
+                          {getSortIconQuantity('cantidad')}
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Porcentaje
@@ -533,7 +677,7 @@ export default function StockPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {resumenCantidades.map((item, index) => {
+                    {getSortedResumen().map((item, index) => {
                       const totalVehiculos = vehiculos.length
                       const porcentaje = totalVehiculos > 0 ? Math.round((item.cantidad / totalVehiculos) * 100) : 0
                       
