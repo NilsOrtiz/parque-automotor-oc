@@ -273,6 +273,11 @@ export default function StockPage() {
                 {categoria === 'aceite' && '🛢️ Modelos de Aceites y Líquidos por Vehículo'}
                 {categoria === 'focos' && '💡 Modelos de Componentes Eléctricos por Vehículo'}
               </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {categoria === 'filtros' && '7 tipos de filtros: Aceite Motor, Combustible, Aire, Cabina, Deshumidificador, Secador, Aire Secundario'}
+                {categoria === 'aceite' && '4 tipos de líquidos: Aceite Motor, Aceite Transmisión, Líquido Refrigerante, Líquido Frenos'}
+                {categoria === 'focos' && '2 tipos de componentes: Batería, Escobillas'}
+              </p>
             </div>
 
             {loading ? (
@@ -280,8 +285,11 @@ export default function StockPage() {
                 <div className="text-lg text-gray-600">Cargando información...</div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div className="overflow-x-auto border-l-4 border-orange-400">
+                <div className="inline-flex items-center px-4 py-2 bg-orange-50 text-orange-800 text-sm">
+                  <span>↔️ Desliza horizontalmente para ver todas las columnas</span>
+                </div>
+                <table className="min-w-full divide-y divide-gray-200" style={{minWidth: '1200px'}}>
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
