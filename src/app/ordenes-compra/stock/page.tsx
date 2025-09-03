@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Package, Filter, Droplets, Lightbulb } from 'lucide-react'
+import { ArrowLeft, Package, Filter, Droplets, Lightbulb, Edit, Save, X, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface Vehiculo {
@@ -36,6 +36,11 @@ export default function StockPage() {
   const [tipoVista, setTipoVista] = useState<'modelo' | 'cantidad'>('modelo')
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([])
   const [loading, setLoading] = useState(false)
+  const [editingCell, setEditingCell] = useState<{vehiculoId: number, campo: string} | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [lastEditedVehicle, setLastEditedVehicle] = useState('')
 
   useEffect(() => {
     if (categoria && tipoVista === 'modelo') {
@@ -93,6 +98,73 @@ export default function StockPage() {
       default:
         return []
     }
+  }
+
+  function startEditing(vehiculoId: number, campo: string, currentValue: string | undefined) {
+    setEditingCell({ vehiculoId, campo })
+    setEditValue(currentValue || '')
+  }
+
+  function cancelEditing() {
+    setEditingCell(null)
+    setEditValue('')
+  }
+
+  async function saveEdit() {
+    if (!editingCell) return
+    
+    setSaving(true)
+    try {
+      const { error } = await supabase
+        .from('vehiculos')
+        .update({ [editingCell.campo]: editValue.trim() || null })
+        .eq('id', editingCell.vehiculoId)
+
+      if (error) throw error
+
+      // Actualizar el vehículo localmente
+      setVehiculos(prev => prev.map(v => 
+        v.id === editingCell.vehiculoId 
+          ? { ...v, [editingCell.campo]: editValue.trim() || null }
+          : v
+      ))
+
+      const vehiculo = vehiculos.find(v => v.id === editingCell.vehiculoId)
+      setLastEditedVehicle(`${vehiculo?.Placa} (${vehiculo?.Marca} ${vehiculo?.Modelo})`)
+      setShowSuccessModal(true)
+      
+      setEditingCell(null)
+      setEditValue('')
+    } catch (error) {
+      console.error('Error actualizando modelo:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function getCampoFromIndex(index: number, cat: string): string {
+    const campos = {
+      'filtros': [
+        'filtro_aceite_motor_modelo',
+        'filtro_combustible_modelo', 
+        'filtro_aire_modelo',
+        'filtro_cabina_modelo',
+        'filtro_deshumidificador_modelo',
+        'filtro_secador_modelo',
+        'filtro_aire_secundario_modelo'
+      ],
+      'aceite': [
+        'aceite_motor_modelo',
+        'aceite_transmicion_modelo',
+        'liquido_refrigerante_modelo', 
+        'liquido_frenos_modelo'
+      ],
+      'focos': [
+        'bateria_modelo',
+        'escobillas_modelo'
+      ]
+    }
+    return campos[cat as keyof typeof campos]?.[index] || ''
   }
 
   return (
@@ -241,21 +313,60 @@ export default function StockPage() {
                           <div className="font-medium">{vehiculo.Marca} {vehiculo.Modelo}</div>
                           <div className="text-gray-500">{vehiculo.Año}</div>
                         </td>
-                        {getModelosCategoria(vehiculo, categoria).map((item, index) => (
-                          <td key={index} className="px-4 py-4 text-sm text-gray-900">
-                            <div className="max-w-[120px]">
-                              {item.modelo ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  {item.modelo}
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                                  Sin modelo
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        ))}
+                        {getModelosCategoria(vehiculo, categoria).map((item, index) => {
+                          const campo = getCampoFromIndex(index, categoria)
+                          const isEditing = editingCell?.vehiculoId === vehiculo.id && editingCell?.campo === campo
+                          
+                          return (
+                            <td key={index} className="px-4 py-4 text-sm text-gray-900">
+                              <div className="max-w-[140px] relative">
+                                {isEditing ? (
+                                  <div className="flex items-center space-x-1">
+                                    <input
+                                      type="text"
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      className="w-20 px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                      placeholder="Modelo..."
+                                      autoFocus
+                                    />
+                                    <button
+                                      onClick={saveEdit}
+                                      disabled={saving}
+                                      className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                                    >
+                                      <Save className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      onClick={cancelEditing}
+                                      className="p-1 text-red-600 hover:text-red-800"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="group relative">
+                                    {item.modelo ? (
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 cursor-pointer group-hover:bg-green-200">
+                                        {item.modelo}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 cursor-pointer group-hover:bg-gray-200">
+                                        Sin modelo
+                                      </span>
+                                    )}
+                                    <button
+                                      onClick={() => startEditing(vehiculo.id, campo, item.modelo)}
+                                      className="absolute -right-1 -top-1 opacity-0 group-hover:opacity-100 p-1 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-opacity"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          )
+                        })}
                       </tr>
                     ))}
                   </tbody>
@@ -303,6 +414,35 @@ export default function StockPage() {
               <p className="text-gray-600">
                 Elige entre Filtros, Aceite o Focos para comenzar a gestionar el inventario
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de éxito */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-md mx-4 shadow-2xl">
+              <div className="text-center">
+                <div className="mb-4">
+                  <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  ¡Modelo Actualizado!
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Se ha actualizado el modelo del componente para:
+                </p>
+                <p className="text-lg font-semibold text-orange-700 mb-6">
+                  {lastEditedVehicle}
+                </p>
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 mx-auto transition-colors"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Continuar
+                </button>
+              </div>
             </div>
           </div>
         )}
