@@ -42,10 +42,13 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [lastEditedVehicle, setLastEditedVehicle] = useState('')
+  const [resumenCantidades, setResumenCantidades] = useState<{modelo: string, cantidad: number, tipo: string}[]>([])
 
   useEffect(() => {
     if (categoria && tipoVista === 'modelo') {
       fetchVehiculos()
+    } else if (categoria && tipoVista === 'cantidad') {
+      fetchVehiculosYResumen()
     }
   }, [categoria, tipoVista])
 
@@ -67,6 +70,106 @@ export default function StockPage() {
       setVehiculos(data || [])
     } catch (error) {
       console.error('Error fetching vehiculos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function fetchVehiculosYResumen() {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('vehiculos')
+        .select(`
+          id, Nro_Interno, Placa, Titular, Marca, Modelo, Año,
+          filtro_aceite_motor_modelo, filtro_combustible_modelo, filtro_aire_modelo,
+          filtro_cabina_modelo, filtro_deshumidificador_modelo, filtro_secador_modelo,
+          filtro_aire_secundario_modelo, trampa_agua_modelo, aceite_motor_modelo, aceite_transmicion_modelo,
+          liquido_refrigerante_modelo, liquido_frenos_modelo, bateria_modelo, escobillas_modelo
+        `)
+        .order('Nro_Interno', { ascending: true })
+
+      if (error) throw error
+      
+      setVehiculos(data || [])
+      
+      // Generar resumen de cantidades
+      const contadores: Record<string, {cantidad: number, tipo: string}> = {}
+      
+      data?.forEach(vehiculo => {
+        const modelos = getModelosCategoria(vehiculo, categoria!)
+        
+        modelos.forEach(item => {
+          if (item.modelo && item.modelo.trim()) {
+            const key = item.modelo.trim()
+            if (!contadores[key]) {
+              contadores[key] = { cantidad: 0, tipo: item.nombre }
+            }
+            contadores[key].cantidad += 1
+          }
+        })
+      })
+
+      const resumen = Object.entries(contadores)
+        .map(([modelo, datos]) => ({
+          modelo,
+          cantidad: datos.cantidad,
+          tipo: datos.tipo
+        }))
+        .sort((a, b) => b.cantidad - a.cantidad)
+
+      setResumenCantidades(resumen)
+    } catch (error) {
+      console.error('Error fetching resumen:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function fetchResumenCantidades() {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('vehiculos')
+        .select(`
+          filtro_aceite_motor_modelo, filtro_combustible_modelo, filtro_aire_modelo,
+          filtro_cabina_modelo, filtro_deshumidificador_modelo, filtro_secador_modelo,
+          filtro_aire_secundario_modelo, trampa_agua_modelo, aceite_motor_modelo, aceite_transmicion_modelo,
+          liquido_refrigerante_modelo, liquido_frenos_modelo, bateria_modelo, escobillas_modelo
+        `)
+
+      if (error) throw error
+
+      // Procesar datos para generar resumen de cantidades
+      const contadores: Record<string, {cantidad: number, tipo: string}> = {}
+      
+      data?.forEach(vehiculo => {
+        // Procesar según la categoría seleccionada
+        const modelos = getModelosCategoria(vehiculo, categoria!)
+        
+        modelos.forEach(item => {
+          if (item.modelo && item.modelo.trim()) {
+            const key = item.modelo.trim()
+            if (!contadores[key]) {
+              contadores[key] = { cantidad: 0, tipo: item.nombre }
+            }
+            contadores[key].cantidad += 1
+          }
+        })
+      })
+
+      // Convertir a array y ordenar por cantidad descendente
+      const resumen = Object.entries(contadores)
+        .map(([modelo, datos]) => ({
+          modelo,
+          cantidad: datos.cantidad,
+          tipo: datos.tipo
+        }))
+        .sort((a, b) => b.cantidad - a.cantidad)
+
+      setResumenCantidades(resumen)
+    } catch (error) {
+      console.error('Error fetching resumen cantidades:', error)
     } finally {
       setLoading(false)
     }
@@ -394,25 +497,106 @@ export default function StockPage() {
           </div>
         )}
 
-        {/* Vista de cantidad (placeholder) */}
+        {/* Vista de cantidad - Resumen por modelo */}
         {categoria && tipoVista === 'cantidad' && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              📊 Vista por Cantidades
-            </h2>
-            <div className="text-center py-8">
-              <div className="text-6xl mb-4">📊</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Control de Stock por Cantidades
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Esta vista mostrará inventario disponible y stock mínimo
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">
+                📊 Resumen de Uso por Modelo
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Cuántos vehículos utilizan cada modelo específico de {categoria}
               </p>
-              <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg">
-                <Package className="h-4 w-4 mr-2" />
-                Próximamente
-              </div>
             </div>
+
+            {loading ? (
+              <div className="p-8 text-center">
+                <div className="text-lg text-gray-600">Calculando resumen...</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tipo de Componente
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Modelo / Código
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Cantidad de Vehículos
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Porcentaje
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {resumenCantidades.map((item, index) => {
+                      const totalVehiculos = vehiculos.length
+                      const porcentaje = totalVehiculos > 0 ? Math.round((item.cantidad / totalVehiculos) * 100) : 0
+                      
+                      return (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {item.tipo}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                            <div className="max-w-xs">
+                              <div className="font-medium">{item.modelo}</div>
+                              <div className="text-xs text-gray-500">Código: {item.modelo}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <div className="flex items-center">
+                              <span className="text-2xl font-bold text-orange-600 mr-2">
+                                {item.cantidad}
+                              </span>
+                              <span className="text-gray-500">
+                                {item.cantidad === 1 ? 'vehículo' : 'vehículos'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <div className="flex items-center">
+                              <div className="w-16 bg-gray-200 rounded-full h-2.5 mr-3">
+                                <div 
+                                  className="bg-orange-600 h-2.5 rounded-full" 
+                                  style={{width: `${Math.min(porcentaje, 100)}%`}}
+                                ></div>
+                              </div>
+                              <span className="font-medium">{porcentaje}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {resumenCantidades.length === 0 && !loading && (
+              <div className="text-center py-12">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">No hay modelos registrados</p>
+                <p className="text-gray-400 text-sm mt-2">
+                  Los modelos aparecerán aquí una vez que sean agregados a los vehículos
+                </p>
+              </div>
+            )}
+
+            {resumenCantidades.length > 0 && (
+              <div className="px-6 py-4 bg-gray-50 border-t">
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>Total de modelos únicos: <strong>{resumenCantidades.length}</strong></span>
+                  <span>Total de vehículos evaluados: <strong>{vehiculos.length}</strong></span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
