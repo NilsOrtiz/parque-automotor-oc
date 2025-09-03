@@ -29,6 +29,7 @@ interface Vehiculo {
   // Otros componentes (para focos si los hay)
   bateria_modelo?: string
   escobillas_modelo?: string
+  trampa_agua_modelo?: string
 }
 
 export default function StockPage() {
@@ -57,7 +58,7 @@ export default function StockPage() {
           id, Nro_Interno, Placa, Titular, Marca, Modelo, Año,
           filtro_aceite_motor_modelo, filtro_combustible_modelo, filtro_aire_modelo,
           filtro_cabina_modelo, filtro_deshumidificador_modelo, filtro_secador_modelo,
-          filtro_aire_secundario_modelo, aceite_motor_modelo, aceite_transmicion_modelo,
+          filtro_aire_secundario_modelo, trampa_agua_modelo, aceite_motor_modelo, aceite_transmicion_modelo,
           liquido_refrigerante_modelo, liquido_frenos_modelo, bateria_modelo, escobillas_modelo
         `)
         .order('Nro_Interno', { ascending: true })
@@ -81,7 +82,8 @@ export default function StockPage() {
           { nombre: 'Filtro Cabina', modelo: vehiculo.filtro_cabina_modelo },
           { nombre: 'Filtro Deshumidificador', modelo: vehiculo.filtro_deshumidificador_modelo },
           { nombre: 'Filtro Secador', modelo: vehiculo.filtro_secador_modelo },
-          { nombre: 'Filtro Aire Secundario', modelo: vehiculo.filtro_aire_secundario_modelo }
+          { nombre: 'Filtro Aire Secundario', modelo: vehiculo.filtro_aire_secundario_modelo },
+          { nombre: 'Trampa Agua', modelo: vehiculo.trampa_agua_modelo }
         ]
       case 'aceite':
         return [
@@ -151,7 +153,8 @@ export default function StockPage() {
         'filtro_cabina_modelo',
         'filtro_deshumidificador_modelo',
         'filtro_secador_modelo',
-        'filtro_aire_secundario_modelo'
+        'filtro_aire_secundario_modelo',
+        'trampa_agua_modelo'
       ],
       'aceite': [
         'aceite_motor_modelo',
@@ -274,7 +277,7 @@ export default function StockPage() {
                 {categoria === 'focos' && '💡 Modelos de Componentes Eléctricos por Vehículo'}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                {categoria === 'filtros' && '7 tipos de filtros: Aceite Motor, Combustible, Aire, Cabina, Deshumidificador, Secador, Aire Secundario'}
+                {categoria === 'filtros' && '8 tipos de filtros: Aceite Motor, Combustible, Aire, Cabina, Deshumidificador, Secador, Aire Secundario, Trampa Agua'}
                 {categoria === 'aceite' && '4 tipos de líquidos: Aceite Motor, Aceite Transmisión, Líquido Refrigerante, Líquido Frenos'}
                 {categoria === 'focos' && '2 tipos de componentes: Batería, Escobillas'}
               </p>
