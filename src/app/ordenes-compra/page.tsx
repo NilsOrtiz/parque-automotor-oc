@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Plus, FileText, ArrowRight, BarChart3 } from 'lucide-react'
+import { Plus, FileText, ArrowRight, BarChart3, Package } from 'lucide-react'
 
 export default function OrdenesCompraPage() {
   return (
@@ -12,7 +12,7 @@ export default function OrdenesCompraPage() {
           <p className="text-gray-600">Gestión completa de órdenes de compra del parque automotor</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Crear OC */}
           <Link href="/ordenes-compra/crear" className="group">
             <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-green-500 group-hover:border-green-600">
@@ -125,6 +125,45 @@ export default function OrdenesCompraPage() {
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-purple-400 rounded-full mr-3"></div>
                   Acceso directo a PDFs
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Stock */}
+          <Link href="/ordenes-compra/stock" className="group">
+            <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-orange-500 group-hover:border-orange-600">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="bg-orange-100 p-3 rounded-lg mr-4">
+                    <Package className="h-8 w-8 text-orange-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 group-hover:text-orange-600">
+                      Stock
+                    </h2>
+                    <p className="text-gray-500">Inventario y suministros</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-6 w-6 text-gray-400 group-hover:text-orange-600 transition-colors" />
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
+                  Filtros y aceites
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
+                  Control de inventario
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
+                  Repuestos y consumibles
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mr-3"></div>
+                  Alertas de stock mínimo
                 </div>
               </div>
             </div>
