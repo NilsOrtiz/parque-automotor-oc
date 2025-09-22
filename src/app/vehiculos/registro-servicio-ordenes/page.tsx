@@ -24,7 +24,7 @@ interface OrdenPendiente {
 export default function RegistroServicioOrdenesPage() {
   const [ordenesPendientes, setOrdenesPendientes] = useState<OrdenPendiente[]>([])
   const [loading, setLoading] = useState(true)
-  const [ordenSeleccionada, setOrdenSeleccionada] = useState<OrdenPendiente | null>(null)
+  const [ordenesSeleccionadas, setOrdenesSeleccionadas] = useState<OrdenPendiente[]>([])
   const [vehiculoSeleccionado, setVehiculoSeleccionado] = useState<Vehiculo | null>(null)
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEmergencia, setFiltroEmergencia] = useState<'todas' | 'emergencia' | 'normal'>('todas')
@@ -113,22 +113,68 @@ export default function RegistroServicioOrdenesPage() {
   }
 
   function seleccionarOrden(orden: OrdenPendiente) {
-    setOrdenSeleccionada(orden)
-    setVehiculoSeleccionado(orden.vehiculo || null)
+    // Si es la primera orden o es del mismo vehículo, agregar a la selección
+    if (ordenesSeleccionadas.length === 0 || ordenesSeleccionadas[0].placa === orden.placa) {
+      // Verificar si ya está seleccionada
+      if (ordenesSeleccionadas.some(o => o.id === orden.id)) {
+        // Deseleccionar
+        const nuevasSeleccionadas = ordenesSeleccionadas.filter(o => o.id !== orden.id)
+        setOrdenesSeleccionadas(nuevasSeleccionadas)
 
-    // Llenar automáticamente el formulario
-    setSubclasificacion('Documentación') // Porque tiene OC
-    setDescripcion(`Servicio realizado según OC ${orden.codigo_oc} - ${orden.proveedor}${orden.items ? ` - Items: ${orden.items}` : ''}`)
-    setItems(orden.items || '')
-    setKilometrajeServicio(orden.vehiculo?.kilometraje_actual || '')
+        // Si queda vacío, limpiar vehículo
+        if (nuevasSeleccionadas.length === 0) {
+          setVehiculoSeleccionado(null)
+          limpiarFormulario()
+        } else {
+          // Actualizar formulario con las órdenes restantes
+          actualizarFormularioConOrdenes(nuevasSeleccionadas)
+        }
+      } else {
+        // Seleccionar nueva orden
+        const nuevasSeleccionadas = [...ordenesSeleccionadas, orden]
+        setOrdenesSeleccionadas(nuevasSeleccionadas)
+        setVehiculoSeleccionado(orden.vehiculo || null)
+        actualizarFormularioConOrdenes(nuevasSeleccionadas)
+      }
+    } else {
+      // Si es de otro vehículo, empezar nueva selección
+      setOrdenesSeleccionadas([orden])
+      setVehiculoSeleccionado(orden.vehiculo || null)
+      actualizarFormularioConOrdenes([orden])
+    }
 
     // Limpiar mensajes
     setError('')
     setSuccess('')
   }
 
+  function actualizarFormularioConOrdenes(ordenes: OrdenPendiente[]) {
+    if (ordenes.length === 0) return
+
+    // Generar descripción combinada
+    const codigosOC = ordenes.map(o => o.codigo_oc).join(', ')
+    const proveedoresUnicos = [...new Set(ordenes.map(o => o.proveedor).filter(Boolean))]
+    const proveedoresTexto = proveedoresUnicos.join(', ')
+
+    setSubclasificacion('Documentación')
+    setDescripcion(`Servicio realizado según OCs: ${codigosOC} - Proveedores: ${proveedoresTexto}`)
+
+    // Combinar todos los items
+    const todosLosItems = ordenes
+      .map(o => o.items || '')
+      .filter(Boolean)
+      .join(', ')
+    setItems(todosLosItems)
+
+    setKilometrajeServicio(ordenes[0].vehiculo?.kilometraje_actual || '')
+  }
+
+  function obtenerOrdenesDelMismoVehiculo(placaVehiculo: string): OrdenPendiente[] {
+    return ordenesPendientes.filter(orden => orden.placa === placaVehiculo)
+  }
+
   async function guardarServicio() {
-    if (!ordenSeleccionada || !vehiculoSeleccionado) return
+    if (ordenesSeleccionadas.length === 0 || !vehiculoSeleccionado) return
 
     if (!descripcion.trim()) {
       setError('La descripción es obligatoria')
@@ -140,6 +186,9 @@ export default function RegistroServicioOrdenesPage() {
     setSuccess('')
 
     try {
+      // Obtener IDs de todas las órdenes seleccionadas
+      const idsOrdenesSeleccionadas = ordenesSeleccionadas.map(o => o.id)
+
       // Registrar en historial
       const { error: errorHistorial } = await supabase
         .from('historial')
@@ -151,13 +200,15 @@ export default function RegistroServicioOrdenesPage() {
           items: items.trim() || null,
           kilometraje_al_servicio: kilometrajeServicio || null,
           problema_reportado_por: 'mecanico',
-          ocs_vehiculos: JSON.stringify([ordenSeleccionada.id]),
+          ocs_vehiculos: JSON.stringify(idsOrdenesSeleccionadas),
           fecha_servicio: new Date().toISOString().split('T')[0]
         })
 
       if (errorHistorial) throw errorHistorial
 
-      setSuccess(`Servicio registrado correctamente para OC ${ordenSeleccionada.codigo_oc}`)
+      const codigosOC = ordenesSeleccionadas.map(o => o.codigo_oc).join(', ')
+      const cantidadOrdenes = ordenesSeleccionadas.length
+      setSuccess(`Servicio registrado correctamente para ${cantidadOrdenes} órden${cantidadOrdenes > 1 ? 'es' : ''}: ${codigosOC}`)
 
       // Limpiar formulario y recargar órdenes
       limpiarFormulario()
@@ -172,7 +223,7 @@ export default function RegistroServicioOrdenesPage() {
   }
 
   function limpiarFormulario() {
-    setOrdenSeleccionada(null)
+    setOrdenesSeleccionadas([])
     setVehiculoSeleccionado(null)
     setClasificacion('mantenimiento')
     setSubclasificacion('')
@@ -267,14 +318,25 @@ export default function RegistroServicioOrdenesPage() {
             <div className="flex-1 overflow-y-auto">
               {ordenesFiltradas.length > 0 ? (
                 <div className="divide-y divide-gray-200">
-                  {ordenesFiltradas.map((orden) => (
-                    <div
-                      key={orden.id}
-                      onClick={() => seleccionarOrden(orden)}
-                      className={`p-4 cursor-pointer transition-colors hover:bg-blue-50 ${
-                        ordenSeleccionada?.id === orden.id ? 'bg-blue-100 border-r-4 border-blue-500' : ''
-                      }`}
-                    >
+                  {ordenesFiltradas.map((orden) => {
+                    const estaSeleccionada = ordenesSeleccionadas.some(o => o.id === orden.id)
+                    const haySeleccionDeOtroVehiculo = ordenesSeleccionadas.length > 0 && ordenesSeleccionadas[0].placa !== orden.placa
+                    const ordenesDelMismoVehiculo = obtenerOrdenesDelMismoVehiculo(orden.placa)
+                    const tieneMultiplesOrdenes = ordenesDelMismoVehiculo.length > 1
+
+                    return (
+                      <div
+                        key={orden.id}
+                        onClick={() => seleccionarOrden(orden)}
+                        className={`p-4 cursor-pointer transition-colors relative ${
+                          estaSeleccionada
+                            ? 'bg-green-100 border-r-4 border-green-500'
+                            : haySeleccionDeOtroVehiculo
+                              ? 'bg-gray-50 opacity-50 cursor-not-allowed'
+                              : 'hover:bg-blue-50'
+                        } ${tieneMultiplesOrdenes && !haySeleccionDeOtroVehiculo ? 'border-l-4 border-l-orange-300' : ''}`}
+                        title={haySeleccionDeOtroVehiculo ? 'Selecciona primero las órdenes del vehículo actual' : ''}
+                      >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -319,12 +381,64 @@ export default function RegistroServicioOrdenesPage() {
                           )}
                         </div>
 
-                        {ordenSeleccionada?.id === orden.id && (
-                          <ArrowRight className="h-5 w-5 text-blue-500 mt-1" />
-                        )}
+                        <div className="flex items-center gap-2">
+                          {estaSeleccionada && (
+                            <div className="flex items-center bg-green-600 text-white px-2 py-1 rounded-full text-xs">
+                              ✓ Seleccionada
+                            </div>
+                          )}
+                          {tieneMultiplesOrdenes && !haySeleccionDeOtroVehiculo && (
+                            <div className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                              +{ordenesDelMismoVehiculo.length - 1} más
+                            </div>
+                          )}
+                          {estaSeleccionada && (
+                            <ArrowRight className="h-5 w-5 text-green-500 mt-1" />
+                          )}
+                        </div>
                       </div>
+
+                      {/* Mostrar órdenes adicionales del mismo vehículo cuando hay selección */}
+                      {estaSeleccionada && tieneMultiplesOrdenes && (
+                        <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="text-sm font-medium text-orange-800 mb-2">
+                            📦 Otras órdenes del mismo vehículo ({orden.placa}):
+                          </div>
+                          <div className="space-y-1">
+                            {ordenesDelMismoVehiculo
+                              .filter(o => o.id !== orden.id)
+                              .map(otraOrden => {
+                                const estaOtraSeleccionada = ordenesSeleccionadas.some(o => o.id === otraOrden.id)
+                                return (
+                                  <div
+                                    key={otraOrden.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      seleccionarOrden(otraOrden)
+                                    }}
+                                    className={`text-xs p-2 rounded cursor-pointer transition-colors ${
+                                      estaOtraSeleccionada
+                                        ? 'bg-green-200 text-green-800'
+                                        : 'bg-white hover:bg-green-50 text-gray-700'
+                                    }`}
+                                  >
+                                    <span className="font-medium">{otraOrden.codigo_oc}</span>
+                                    {estaOtraSeleccionada && <span className="ml-2">✓</span>}
+                                    <span className="ml-2 text-gray-600">- {otraOrden.proveedor}</span>
+                                    {otraOrden.monto_vehiculo && (
+                                      <span className="ml-2 text-green-600 font-medium">
+                                        ${otraOrden.monto_vehiculo.toLocaleString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500">
@@ -340,22 +454,47 @@ export default function RegistroServicioOrdenesPage() {
 
           {/* Panel Derecho - Formulario de Registro */}
           <div className="bg-white rounded-lg shadow-md">
-            {ordenSeleccionada ? (
+            {ordenesSeleccionadas.length > 0 ? (
               <div className="p-6 h-full flex flex-col">
                 <div className="border-b border-gray-200 pb-4 mb-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     Registrar Servicio
                   </h3>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
+                    {ordenesSeleccionadas.length === 1 ? (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-medium text-blue-900">{ordenesSeleccionadas[0].codigo_oc}</span>
+                          <span className="text-blue-700 ml-2">{ordenesSeleccionadas[0].placa}</span>
+                        </div>
+                        <div className="text-sm text-blue-600">
+                          ${ordenesSeleccionadas[0].monto_vehiculo?.toLocaleString()} {ordenesSeleccionadas[0].moneda}
+                        </div>
+                      </div>
+                    ) : (
                       <div>
-                        <span className="font-medium text-blue-900">{ordenSeleccionada.codigo_oc}</span>
-                        <span className="text-blue-700 ml-2">{ordenSeleccionada.placa}</span>
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <span className="font-medium text-blue-900">{ordenesSeleccionadas.length} Órdenes Seleccionadas</span>
+                            <span className="text-blue-700 ml-2">{ordenesSeleccionadas[0].placa}</span>
+                          </div>
+                          <div className="text-sm text-blue-600">
+                            ${ordenesSeleccionadas.reduce((total, orden) => total + (orden.monto_vehiculo || 0), 0).toLocaleString()} {ordenesSeleccionadas[0].moneda}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {ordenesSeleccionadas.map((orden) => (
+                            <div key={orden.id} className="bg-white border border-blue-200 rounded p-2 text-sm">
+                              <div className="font-medium text-blue-800">{orden.codigo_oc}</div>
+                              <div className="text-blue-600">{orden.proveedor}</div>
+                              <div className="text-xs text-blue-500">
+                                ${orden.monto_vehiculo?.toLocaleString()} {orden.moneda}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="text-sm text-blue-600">
-                        ${ordenSeleccionada.monto_vehiculo?.toLocaleString()} {ordenSeleccionada.moneda}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 
