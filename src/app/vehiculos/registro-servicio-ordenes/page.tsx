@@ -711,14 +711,25 @@ export default function RegistroServicioOrdenesPage() {
                                         : 'bg-white hover:bg-green-50 text-gray-700'
                                     }`}
                                   >
-                                    <span className="font-medium">{otraOrden.codigo_oc}</span>
-                                    {estaOtraSeleccionada && <span className="ml-2">✓</span>}
-                                    <span className="ml-2 text-gray-600">- {otraOrden.proveedor}</span>
-                                    {otraOrden.monto_vehiculo && (
-                                      <span className="ml-2 text-green-600 font-medium">
-                                        ${otraOrden.monto_vehiculo.toLocaleString()}
-                                      </span>
-                                    )}
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center">
+                                          <span className="font-medium">{otraOrden.codigo_oc}</span>
+                                          {estaOtraSeleccionada && <span className="ml-2">✓</span>}
+                                          <span className="ml-2 text-gray-600">- {otraOrden.proveedor}</span>
+                                        </div>
+                                        {otraOrden.items && (
+                                          <div className="mt-1 text-gray-600 text-xs">
+                                            <span className="font-medium">Items:</span> {otraOrden.items}
+                                          </div>
+                                        )}
+                                      </div>
+                                      {otraOrden.monto_vehiculo && (
+                                        <div className="ml-2 text-green-600 font-medium text-xs">
+                                          ${otraOrden.monto_vehiculo.toLocaleString()}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 )
                               })}
