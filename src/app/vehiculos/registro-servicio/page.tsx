@@ -803,8 +803,19 @@ export default function RegistroServicioPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver a Vehículos
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Registro de Servicio</h1>
-          <p className="text-gray-600">Documentar trabajos realizados en el taller</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Registro de Servicio</h1>
+              <p className="text-gray-600">Documentar trabajos realizados en el taller</p>
+            </div>
+            <Link
+              href="/vehiculos/registro-servicio-ordenes"
+              className="opacity-20 hover:opacity-100 transition-opacity duration-300 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg"
+              title="Registro por Órdenes Pendientes"
+            >
+              📋 Órdenes
+            </Link>
+          </div>
         </div>
 
         {/* Búsqueda de Vehículo */}
