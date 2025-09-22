@@ -53,6 +53,7 @@ export default function RegistroServicioPage() {
 
   // Estados para formularios rápidos por sección
   const [seccionSeleccionada, setSeccionSeleccionada] = useState<string | null>(null)
+  const [seccionesSeleccionadas, setSeccionesSeleccionadas] = useState<Set<string>>(new Set())
   const [datosSeccion, setDatosSeccion] = useState<Record<string, any>>({})
   
   // Estados para interfaz mejorada con datos globales
@@ -291,9 +292,9 @@ export default function RegistroServicioPage() {
       
       // Determinar kilometraje (desde formulario rápido o campo manual)
       let kilometrajeFinal: number | '' = kilometrajeServicio
-      if (clasificacion === 'mantenimiento' && seccionSeleccionada) {
-        const kmGlobal = datosGlobales.usarKmActual ? 
-          (vehiculo.kilometraje_actual || '') : 
+      if (clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0)) {
+        const kmGlobal = datosGlobales.usarKmActual ?
+          (vehiculo.kilometraje_actual || '') :
           (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
         kilometrajeFinal = kmGlobal
       }
@@ -377,6 +378,7 @@ export default function RegistroServicioPage() {
       setOrdenesSeleccionadas([])
       setPendienteSeleccionado(null)
       setSeccionSeleccionada(null)
+      setSeccionesSeleccionadas(new Set())
       setDatosSeccion({})
       limpiarFormularioMejorado()
       
@@ -406,8 +408,30 @@ export default function RegistroServicioPage() {
     setSubclasificacion(secciones.find(s => s.id === seccionId)?.nombre || '')
   }
 
+  const toggleSeccionMultiple = (seccionId: string) => {
+    const nuevasSecciones = new Set(seccionesSeleccionadas)
+    if (nuevasSecciones.has(seccionId)) {
+      nuevasSecciones.delete(seccionId)
+    } else {
+      nuevasSecciones.add(seccionId)
+    }
+    setSeccionesSeleccionadas(nuevasSecciones)
+
+    // Actualizar subclasificación con sistemas seleccionados
+    if (nuevasSecciones.size > 0) {
+      const nombresSecciones = Array.from(nuevasSecciones)
+        .map(id => secciones.find(s => s.id === id)?.nombre)
+        .filter(Boolean)
+        .join(', ')
+      setSubclasificacion(nombresSecciones)
+    } else {
+      setSubclasificacion('')
+    }
+  }
+
   const volverASeecciones = () => {
     setSeccionSeleccionada(null)
+    setSeccionesSeleccionadas(new Set())
     setDatosSeccion({})
   }
 
@@ -927,37 +951,110 @@ export default function RegistroServicioPage() {
               {/* Formularios Rápidos por Sección - Solo para Mantenimiento */}
               {clasificacion === 'mantenimiento' && (
                 <div className="border-t pt-6">
-                  {!seccionSeleccionada ? (
-                    // Selección de Sección
+                  {!seccionSeleccionada && seccionesSeleccionadas.size === 0 ? (
+                    // Selección de Sección (Modo Simple y Múltiple)
                     <>
                       <h4 className="text-lg font-semibold text-gray-900 mb-4">
                         🚀 Formulario Rápido por Sistema
                       </h4>
-                      <p className="text-sm text-gray-600 mb-6">
-                        Selecciona el sistema del vehículo para un formulario especializado:
+                      <p className="text-sm text-gray-600 mb-4">
+                        Selecciona uno o varios sistemas del vehículo:
                       </p>
+
+                      {/* Modo de selección */}
+                      <div className="mb-6 flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700">Modo:</span>
+                          <button
+                            onClick={() => {
+                              setSeccionesSeleccionadas(new Set())
+                              setSeccionSeleccionada(null)
+                            }}
+                            className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                              seccionesSeleccionadas.size === 0
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            🎯 Sistema único
+                          </button>
+                          <button
+                            onClick={() => setSeccionSeleccionada(null)}
+                            className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                              seccionesSeleccionadas.size > 0
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            ☑️ Múltiples sistemas
+                          </button>
+                        </div>
+                        {seccionesSeleccionadas.size > 0 && (
+                          <div className="text-sm text-green-600 font-medium">
+                            {seccionesSeleccionadas.size} sistema{seccionesSeleccionadas.size > 1 ? 's' : ''} seleccionado{seccionesSeleccionadas.size > 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                         {secciones.map((seccion) => {
                           const IconoComponente = seccion.icono
+                          const estaSeleccionada = seccionesSeleccionadas.has(seccion.id)
+
                           return (
-                            <button
-                              key={seccion.id}
-                              onClick={() => seleccionarSeccion(seccion.id)}
-                              className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md ${
-                                obtenerColorSeccion(seccion.color)
-                              }`}
-                              title={seccion.nombre}
-                            >
-                              <IconoComponente className="h-6 w-6 mb-2" />
-                              <span className="text-xs font-medium text-center leading-tight">
-                                {seccion.nombre.split(' ').map((palabra, i) => (
-                                  <div key={i}>{palabra}</div>
-                                ))}
-                              </span>
-                            </button>
+                            <div key={seccion.id} className="relative">
+                              <button
+                                onClick={() => {
+                                  if (seccionesSeleccionadas.size === 0) {
+                                    // Modo simple - selección única
+                                    seleccionarSeccion(seccion.id)
+                                  } else {
+                                    // Modo múltiple - toggle
+                                    toggleSeccionMultiple(seccion.id)
+                                  }
+                                }}
+                                className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md w-full ${
+                                  estaSeleccionada
+                                    ? 'border-green-500 bg-green-50 shadow-md'
+                                    : obtenerColorSeccion(seccion.color)
+                                }`}
+                                title={seccion.nombre}
+                              >
+                                {/* Checkbox para modo múltiple */}
+                                {seccionesSeleccionadas.size > 0 && (
+                                  <div className="absolute -top-2 -right-2 bg-white rounded-full border-2 border-gray-300 w-6 h-6 flex items-center justify-center">
+                                    {estaSeleccionada ? (
+                                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                    ) : (
+                                      <div className="w-3 h-3 border border-gray-400 rounded-full"></div>
+                                    )}
+                                  </div>
+                                )}
+
+                                <IconoComponente className="h-6 w-6 mb-2" />
+                                <span className="text-xs font-medium text-center leading-tight">
+                                  {seccion.nombre.split(' ').map((palabra, i) => (
+                                    <div key={i}>{palabra}</div>
+                                  ))}
+                                </span>
+                              </button>
+                            </div>
                           )
                         })}
                       </div>
+
+                      {/* Botón para continuar con selección múltiple */}
+                      {seccionesSeleccionadas.size > 0 && (
+                        <div className="mt-6 flex justify-center">
+                          <button
+                            onClick={() => setSeccionSeleccionada('multiple')}
+                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+                          >
+                            ✨ Continuar con {seccionesSeleccionadas.size} sistema{seccionesSeleccionadas.size > 1 ? 's' : ''}
+                          </button>
+                        </div>
+                      )}
+
                       <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-800">
                           💡 <strong>Ventaja:</strong> Al usar estos formularios, los datos del vehículo se actualizarán automáticamente
@@ -972,29 +1069,65 @@ export default function RegistroServicioPage() {
                       </div>
                     </>
                   ) : (
-                    // Formulario de Sección Específica
+                    // Formulario de Sección(es) Específica(s)
                     <div>
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                          {(() => {
-                            const seccion = secciones.find(s => s.id === seccionSeleccionada)
-                            const IconoComponente = seccion?.icono || Circle
-                            return (
-                              <>
-                                <div className={`p-2 rounded-lg ${obtenerColorSeccion(seccion?.color || 'gray')}`}>
-                                  <IconoComponente className="h-6 w-6" />
-                                </div>
-                                <div>
-                                  <h4 className="text-lg font-semibold text-gray-900">
-                                    {seccion?.nombre}
-                                  </h4>
-                                  <p className="text-sm text-gray-600">
-                                    Formulario especializado para este sistema
-                                  </p>
-                                </div>
-                              </>
-                            )
-                          })()} 
+                          {seccionSeleccionada === 'multiple' ? (
+                            // Mostrar múltiples sistemas
+                            <>
+                              <div className="flex -space-x-2">
+                                {Array.from(seccionesSeleccionadas).slice(0, 3).map(seccionId => {
+                                  const seccion = secciones.find(s => s.id === seccionId)
+                                  const IconoComponente = seccion?.icono || Circle
+                                  return (
+                                    <div
+                                      key={seccionId}
+                                      className={`p-2 rounded-lg border-2 border-white ${obtenerColorSeccion(seccion?.color || 'gray')}`}
+                                    >
+                                      <IconoComponente className="h-5 w-5" />
+                                    </div>
+                                  )
+                                })}
+                                {seccionesSeleccionadas.size > 3 && (
+                                  <div className="p-2 rounded-lg bg-gray-100 text-gray-600 border-2 border-white text-xs font-medium flex items-center justify-center">
+                                    +{seccionesSeleccionadas.size - 3}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="text-lg font-semibold text-gray-900">
+                                  Formulario Múltiple ({seccionesSeleccionadas.size} sistemas)
+                                </h4>
+                                <p className="text-sm text-gray-600">
+                                  {Array.from(seccionesSeleccionadas)
+                                    .map(id => secciones.find(s => s.id === id)?.nombre)
+                                    .join(', ')}
+                                </p>
+                              </div>
+                            </>
+                          ) : (
+                            // Mostrar sistema único
+                            (() => {
+                              const seccion = secciones.find(s => s.id === seccionSeleccionada)
+                              const IconoComponente = seccion?.icono || Circle
+                              return (
+                                <>
+                                  <div className={`p-2 rounded-lg ${obtenerColorSeccion(seccion?.color || 'gray')}`}>
+                                    <IconoComponente className="h-6 w-6" />
+                                  </div>
+                                  <div>
+                                    <h4 className="text-lg font-semibold text-gray-900">
+                                      {seccion?.nombre}
+                                    </h4>
+                                    <p className="text-sm text-gray-600">
+                                      Formulario especializado para este sistema
+                                    </p>
+                                  </div>
+                                </>
+                              )
+                            })()
+                          )}
                         </div>
                         <button
                           onClick={volverASeecciones}
@@ -1089,44 +1222,107 @@ export default function RegistroServicioPage() {
                             Marca los componentes que se cambiaron en este servicio
                           </p>
                         </div>
-                        <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
-                          {obtenerCamposFiltrados(seccionSeleccionada).map((campo, index) => {
-                            const componenteKey = mapearLabelAKey(campo.label)
-                            const isSelected = componentesSeleccionados.has(componenteKey)
-                            
-                            return (
-                              <div key={index} className={`p-3 border rounded-lg transition-colors ${
-                                isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
-                              }`}>
-                                <div className="flex items-start space-x-3">
-                                  <input
-                                    type="checkbox"
-                                    id={`componente-${index}`}
-                                    checked={isSelected}
-                                    onChange={() => toggleComponente(componenteKey)}
-                                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
-                                  />
-                                  <div className="flex-1">
-                                    <label htmlFor={`componente-${index}`} className="cursor-pointer">
-                                      <div className="font-medium text-gray-900">{campo.label}</div>
-                                      {campo.modelField && isSelected && (
-                                        <div className="mt-2">
-                                          <input
-                                            type="text"
-                                            value={modelosComponentes[componenteKey] || ''}
-                                            onChange={(e) => actualizarModeloComponente(componenteKey, e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                            placeholder="Marca y modelo del repuesto"
-                                            onClick={(e) => e.stopPropagation()}
-                                          />
+                        <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
+                          {seccionSeleccionada === 'multiple' ? (
+                            // Mostrar componentes agrupados por sistema
+                            Array.from(seccionesSeleccionadas).map(seccionId => {
+                              const seccion = secciones.find(s => s.id === seccionId)
+                              const campos = obtenerCamposFiltrados(seccionId)
+                              const IconoComponente = seccion?.icono || Circle
+
+                              return (
+                                <div key={seccionId} className="border border-gray-200 rounded-lg overflow-hidden">
+                                  <div className={`p-3 ${obtenerColorSeccion(seccion?.color || 'gray')} border-b`}>
+                                    <div className="flex items-center gap-2">
+                                      <IconoComponente className="h-5 w-5" />
+                                      <h6 className="font-semibold">{seccion?.nombre}</h6>
+                                      <span className="text-xs bg-white bg-opacity-30 px-2 py-1 rounded-full">
+                                        {campos.length} componentes
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="p-3 space-y-2">
+                                    {campos.map((campo, index) => {
+                                      const componenteKey = mapearLabelAKey(campo.label)
+                                      const isSelected = componentesSeleccionados.has(componenteKey)
+
+                                      return (
+                                        <div key={`${seccionId}-${index}`} className={`p-2 border rounded-lg transition-colors ${
+                                          isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
+                                        }`}>
+                                          <div className="flex items-start space-x-3">
+                                            <input
+                                              type="checkbox"
+                                              id={`componente-${seccionId}-${index}`}
+                                              checked={isSelected}
+                                              onChange={() => toggleComponente(componenteKey)}
+                                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
+                                            />
+                                            <div className="flex-1">
+                                              <label htmlFor={`componente-${seccionId}-${index}`} className="cursor-pointer">
+                                                <div className="font-medium text-gray-900 text-sm">{campo.label}</div>
+                                                {campo.modelField && isSelected && (
+                                                  <div className="mt-2">
+                                                    <input
+                                                      type="text"
+                                                      value={modelosComponentes[componenteKey] || ''}
+                                                      onChange={(e) => actualizarModeloComponente(componenteKey, e.target.value)}
+                                                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                      placeholder="Marca y modelo del repuesto"
+                                                      onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                  </div>
+                                                )}
+                                              </label>
+                                            </div>
+                                          </div>
                                         </div>
-                                      )}
-                                    </label>
+                                      )
+                                    })}
                                   </div>
                                 </div>
-                              </div>
-                            )
-                          })}
+                              )
+                            })
+                          ) : (
+                            // Mostrar componentes de un solo sistema (modo original)
+                            obtenerCamposFiltrados(seccionSeleccionada).map((campo, index) => {
+                              const componenteKey = mapearLabelAKey(campo.label)
+                              const isSelected = componentesSeleccionados.has(componenteKey)
+
+                              return (
+                                <div key={index} className={`p-3 border rounded-lg transition-colors ${
+                                  isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
+                                }`}>
+                                  <div className="flex items-start space-x-3">
+                                    <input
+                                      type="checkbox"
+                                      id={`componente-${index}`}
+                                      checked={isSelected}
+                                      onChange={() => toggleComponente(componenteKey)}
+                                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
+                                    />
+                                    <div className="flex-1">
+                                      <label htmlFor={`componente-${index}`} className="cursor-pointer">
+                                        <div className="font-medium text-gray-900">{campo.label}</div>
+                                        {campo.modelField && isSelected && (
+                                          <div className="mt-2">
+                                            <input
+                                              type="text"
+                                              value={modelosComponentes[componenteKey] || ''}
+                                              onChange={(e) => actualizarModeloComponente(componenteKey, e.target.value)}
+                                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                              placeholder="Marca y modelo del repuesto"
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                          </div>
+                                        )}
+                                      </label>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1135,7 +1331,7 @@ export default function RegistroServicioPage() {
               )}
 
               {/* Subclasificación - Solo si no se está usando formulario rápido */}
-              {!(clasificacion === 'mantenimiento' && seccionSeleccionada) && (
+              {!(clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0)) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Subclasificación
@@ -1227,7 +1423,7 @@ export default function RegistroServicioPage() {
               )}
 
               {/* Kilometraje al Servicio - Solo mostrar si NO se está usando formulario rápido */}
-              {!(clasificacion === 'mantenimiento' && seccionSeleccionada) && (
+              {!(clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0)) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Kilometraje al Momento del Servicio
@@ -1251,7 +1447,7 @@ export default function RegistroServicioPage() {
               )}
               
               {/* Mostrar kilometraje automático cuando se usa formulario rápido */}
-              {clasificacion === 'mantenimiento' && seccionSeleccionada && (
+              {clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0) && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <h4 className="text-sm font-medium text-green-800 mb-2">
                     ✅ Kilometraje del Servicio (Automático)
@@ -1276,7 +1472,7 @@ export default function RegistroServicioPage() {
                   <label className="block text-sm font-medium text-gray-700">
                     Descripción del Trabajo *
                   </label>
-                  {clasificacion === 'mantenimiento' && seccionSeleccionada && componentesSeleccionados.size > 0 && (
+                  {clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0) && componentesSeleccionados.size > 0 && (
                     <button
                       type="button"
                       onClick={() => setDescripcion(generarDescripcionAutomatica())}
@@ -1297,7 +1493,7 @@ export default function RegistroServicioPage() {
                       "Describir detalladamente el trabajo realizado..."
                   }
                 />
-                {clasificacion === 'mantenimiento' && seccionSeleccionada && (
+                {clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0) && (
                   <p className="text-xs text-blue-600 mt-1">
                     ✨ Se genera automáticamente. Puedes editarlo si necesitas agregar más detalles.
                   </p>
@@ -1310,7 +1506,7 @@ export default function RegistroServicioPage() {
                   <label className="block text-sm font-medium text-gray-700">
                     Items Utilizados
                   </label>
-                  {clasificacion === 'mantenimiento' && seccionSeleccionada && componentesSeleccionados.size > 0 && (
+                  {clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0) && componentesSeleccionados.size > 0 && (
                     <button
                       type="button"
                       onClick={() => setItems(generarItemsAutomaticos())}
@@ -1331,7 +1527,7 @@ export default function RegistroServicioPage() {
                       "Listar los items y repuestos utilizados..."
                   }
                 />
-                {clasificacion === 'mantenimiento' && seccionSeleccionada && (
+                {clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0) && (
                   <p className="text-xs text-green-600 mt-1">
                     ✨ Se genera automáticamente desde los modelos ingresados. Puedes agregar más items.
                   </p>
