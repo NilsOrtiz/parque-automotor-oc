@@ -165,26 +165,35 @@ export default function RegistroServicioOrdenesPage() {
         !ordenesUtilizadas.has(orden.id)
       )
 
-      // Cargar datos de vehículos para cada orden
-      const ordenesConVehiculos = await Promise.all(
-        pendientes.map(async (orden) => {
-          try {
-            const { data: vehiculo } = await supabase
-              .from('vehiculos')
-              .select('*')
-              .eq('Placa', orden.placa)
-              .single()
+      // Obtener placas únicas para evitar consultas duplicadas
+      const placasUnicas = [...new Set(pendientes.map(orden => orden.placa))]
 
-            return {
-              ...orden,
-              vehiculo: vehiculo || undefined
-            }
-          } catch (error) {
-            console.error(`Error cargando vehículo para placa ${orden.placa}:`, error)
-            return orden
-          }
+      // Cargar datos de vehículos en una sola consulta por lotes
+      const { data: vehiculos, error: errorVehiculos } = await supabase
+        .from('vehiculos')
+        .select('*')
+        .in('Placa', placasUnicas)
+
+      if (errorVehiculos) {
+        console.error('Error cargando vehículos:', errorVehiculos)
+      }
+
+      // Crear mapa de vehículos por placa para acceso rápido
+      const vehiculosPorPlaca = new Map()
+      if (vehiculos) {
+        vehiculos.forEach(vehiculo => {
+          vehiculosPorPlaca.set(vehiculo.Placa, vehiculo)
         })
-      )
+      }
+
+      // Asociar cada orden con su vehículo correspondiente
+      const ordenesConVehiculos = pendientes.map((orden) => {
+        const vehiculo = vehiculosPorPlaca.get(orden.placa)
+        return {
+          ...orden,
+          vehiculo: vehiculo || undefined
+        }
+      })
 
       setOrdenesPendientes(ordenesConVehiculos)
     } catch (error) {
