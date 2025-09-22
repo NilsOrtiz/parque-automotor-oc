@@ -35,6 +35,27 @@ export default function MantenimientosPage() {
     }
   }
 
+  function getTiempoRelativo(fecha?: string | null) {
+    if (!fecha) return null
+
+    const fechaKm = new Date(fecha)
+    const hoy = new Date()
+
+    // Normalizar las fechas para comparar solo el día
+    fechaKm.setHours(0, 0, 0, 0)
+    hoy.setHours(0, 0, 0, 0)
+
+    const diferenciaDias = Math.floor((hoy.getTime() - fechaKm.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diferenciaDias === 0) return 'hoy'
+    if (diferenciaDias === 1) return 'ayer'
+    if (diferenciaDias > 1) return `hace ${diferenciaDias} d`
+    if (diferenciaDias === -1) return 'mañana'
+    if (diferenciaDias < -1) return `en ${Math.abs(diferenciaDias)} d`
+
+    return null
+  }
+
   function getEstadoMantenimiento(
     kilometrajeActual?: number, 
     aceiteMotorKm?: number, 
@@ -436,11 +457,16 @@ export default function MantenimientosPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex flex-col">
                           <span className="font-medium">
-                            {vehiculo.kilometraje_actual 
+                            {vehiculo.kilometraje_actual
                               ? vehiculo.kilometraje_actual.toLocaleString() + ' km'
                               : 'No registrado'
                             }
                           </span>
+                          {vehiculo.kilometraje_actual_fecha && (
+                            <span className="text-xs text-gray-500">
+                              {getTiempoRelativo(vehiculo.kilometraje_actual_fecha)}
+                            </span>
+                          )}
                           {vehiculo.hora_actual && (
                             <span className="text-xs text-gray-500 italic">
                               {vehiculo.hora_actual.toLocaleString()} hrs
