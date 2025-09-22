@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type Vehiculo } from '@/lib/supabase'
-import { ArrowLeft, Search, Save, AlertCircle, Package, Truck, Clock, CheckCircle2, ArrowRight } from 'lucide-react'
+import { ArrowLeft, Search, Save, AlertCircle, Package, Truck, Clock, CheckCircle2, ArrowRight, Droplets, Settings, Disc, Cog, Wrench, Zap, Circle } from 'lucide-react'
 
 interface OrdenPendiente {
   id: number
@@ -38,6 +38,89 @@ export default function RegistroServicioOrdenesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  // Estados para formularios rápidos por sección (toggles)
+  const [seccionesSeleccionadas, setSeccionesSeleccionadas] = useState<Set<string>>(new Set())
+  const [componentesSeleccionados, setComponentesSeleccionados] = useState<Set<string>>(new Set())
+  const [modelosComponentes, setModelosComponentes] = useState<Record<string, string>>({})
+
+  // Estados para datos globales
+  const [datosGlobales, setDatosGlobales] = useState({
+    kilometraje: '',
+    fecha: new Date().toISOString().split('T')[0],
+    usarKmActual: false
+  })
+
+  // Configuración de secciones con iconos
+  const secciones = [
+    { id: 'aceites-filtros', nombre: 'Aceites y Filtros', icono: Droplets, color: 'blue' },
+    { id: 'transmision-liquidos', nombre: 'Transmisión y Líquidos', icono: Settings, color: 'green' },
+    { id: 'frenos', nombre: 'Sistema de Frenos', icono: Disc, color: 'red' },
+    { id: 'motor-embrague', nombre: 'Motor y Embrague', icono: Cog, color: 'orange' },
+    { id: 'suspension', nombre: 'Suspensión', icono: Truck, color: 'purple' },
+    { id: 'correas', nombre: 'Correas', icono: Wrench, color: 'yellow' },
+    { id: 'electrico', nombre: 'Sistema Eléctrico', icono: Zap, color: 'indigo' },
+    { id: 'neumaticos', nombre: 'Neumáticos', icono: Circle, color: 'gray' }
+  ]
+
+  // Configuración de campos por sección
+  const camposPorSeccion: Record<string, any[]> = {
+    'aceites-filtros': [
+      { label: "Aceite de Motor", kmField: "aceite_motor_km", dateField: "aceite_motor_fecha", modelField: "aceite_motor_modelo", litersField: "aceite_motor_litros", hrField: "aceite_motor_hr" },
+      { label: "Filtro Aceite Motor", modelField: "filtro_aceite_motor_modelo" },
+      { label: "Filtro de Combustible", kmField: "filtro_combustible_km", dateField: "filtro_combustible_fecha", modelField: "filtro_combustible_modelo" },
+      { label: "Filtro de Aire", kmField: "filtro_aire_km", dateField: "filtro_aire_fecha", modelField: "filtro_aire_modelo" },
+      { label: "Filtro de Cabina", kmField: "filtro_cabina_km", dateField: "filtro_cabina_fecha", modelField: "filtro_cabina_modelo" },
+      { label: "Filtro Deshumidificador", kmField: "filtro_deshumidificador_km", dateField: "filtro_deshumidificador_fecha", modelField: "filtro_deshumidificador_modelo" },
+      { label: "Filtro Secador", kmField: "filtro_secador_km", dateField: "filtro_secador_fecha", modelField: "filtro_secador_modelo" },
+      { label: "Filtro de Aire Secundario", kmField: "filtro_aire_secundario_km", dateField: "filtro_aire_secundario_fecha", modelField: "filtro_aire_secundario_modelo" },
+      { label: "Trampa de Agua", kmField: "trampa_agua_km", dateField: "trampa_agua_fecha", modelField: "trampa_agua_modelo" }
+    ],
+    'transmision-liquidos': [
+      { label: "Aceite de Transmisión", kmField: "aceite_transmicion_km", dateField: "aceite_transmicion_fecha", modelField: "aceite_transmicion_modelo" },
+      { label: "Líquido Refrigerante", kmField: "liquido_refrigerante_km", dateField: "liquido_refrigerante_fecha", modelField: "liquido_refrigerante_modelo" },
+      { label: "Líquido de Frenos", kmField: "liquido_frenos_km", dateField: "liquido_frenos_fecha", modelField: "liquido_frenos_modelo" }
+    ],
+    'frenos': [
+      { label: "Pastillas/Cintas Freno A", kmField: "pastilla_cinta_freno_km_a", dateField: "pastilla_cinta_freno_fecha_a", modelField: "pastilla_cinta_freno_modelo_a" },
+      { label: "Pastillas/Cintas Freno B", kmField: "pastilla_cinta_freno_km_b", dateField: "pastilla_cinta_freno_fecha_b", modelField: "pastilla_cinta_freno_modelo_b" },
+      { label: "Pastillas/Cintas Freno C", kmField: "pastilla_cinta_freno_km_c", dateField: "pastilla_cinta_freno_fecha_c", modelField: "pastilla_cinta_freno_modelo_c" },
+      { label: "Pastillas/Cintas Freno D", kmField: "pastilla_cinta_freno_km_d", dateField: "pastilla_cinta_freno_fecha_d", modelField: "pastilla_cinta_freno_modelo_d" }
+    ],
+    'motor-embrague': [
+      { label: "Embrague", kmField: "embrague_km", dateField: "embrague_fecha", modelField: "embrague_modelo" }
+    ],
+    'suspension': [
+      { label: "Suspensión A", kmField: "suspencion_km_a", dateField: "suspencion_fecha_a", modelField: "suspencion_modelo_a" },
+      { label: "Suspensión B", kmField: "suspencion_km_b", dateField: "suspencion_fecha_b", modelField: "suspencion_modelo_b" },
+      { label: "Suspensión C", kmField: "suspencion_km_c", dateField: "suspencion_fecha_c", modelField: "suspencion_modelo_c" },
+      { label: "Suspensión D", kmField: "suspencion_km_d", dateField: "suspencion_fecha_d", modelField: "suspencion_modelo_d" }
+    ],
+    'correas': [
+      { label: "Correa de Distribución", kmField: "correa_distribucion_km", dateField: "correa_distribucion_fecha", modelField: "correa_distribucion_modelo" },
+      { label: "Correa de Alternador", kmField: "correa_alternador_km", dateField: "correa_alternador_fecha", modelField: "correa_alternador_modelo" },
+      { label: "Correa de Dirección", kmField: "correa_direccion_km", dateField: "correa_direccion_fecha", modelField: "correa_direccion_modelo" },
+      { label: "Correa de Aire Acondicionado", kmField: "correa_aire_acondicionado_km", dateField: "correa_aire_acondicionado_fecha", modelField: "correa_aire_acondicionado_modelo" },
+      { label: "Correa Poly-V", kmField: "correa_polyv_km", dateField: "correa_polyv_fecha", modelField: "correa_polyv_modelo" },
+      { label: "Tensor de Correa", kmField: "tensor_correa_km", dateField: "tensor_correa_fecha", modelField: "tensor_correa_modelo" },
+      { label: "Polea Tensora", kmField: "polea_tensora_correa_km", dateField: "polea_tensora_correa_fecha", modelField: "polea_tensora_correa_modelo" }
+    ],
+    'electrico': [
+      { label: "Batería", kmField: "bateria_km", dateField: "bateria_fecha", modelField: "bateria_modelo" },
+      { label: "Escobillas", kmField: "escobillas_km", dateField: "escobillas_fecha", modelField: "escobillas_modelo" }
+    ],
+    'neumaticos': [
+      { label: "Modelo/Marca General", modelField: "neumatico_modelo_marca" },
+      { label: "Neumático A", kmField: "neumatico_km_a", dateField: "neumatico_fecha_a" },
+      { label: "Neumático B", kmField: "neumatico_km_b", dateField: "neumatico_fecha_b" },
+      { label: "Neumático C", kmField: "neumatico_km_c", dateField: "neumatico_fecha_c" },
+      { label: "Neumático D", kmField: "neumatico_km_d", dateField: "neumatico_fecha_d" },
+      { label: "Neumático E", kmField: "neumatico_km_e", dateField: "neumatico_fecha_e" },
+      { label: "Neumático F", kmField: "neumatico_km_f", dateField: "neumatico_fecha_f" },
+      { label: "Alineación", kmField: "alineacion_neumaticos_km", dateField: "alineacion_neumaticos_fecha" },
+      { label: "Rotación", kmField: "rotacion_neumaticos_km", dateField: "rotacion_neumaticos_fecha" }
+    ]
+  }
 
   useEffect(() => {
     cargarOrdenesPendientes()
@@ -189,6 +272,15 @@ export default function RegistroServicioOrdenesPage() {
       // Obtener IDs de todas las órdenes seleccionadas
       const idsOrdenesSeleccionadas = ordenesSeleccionadas.map(o => o.id)
 
+      // Determinar kilometraje (desde formulario rápido o campo manual)
+      let kilometrajeFinal: number | '' = kilometrajeServicio
+      if (clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0) {
+        const kmGlobal = datosGlobales.usarKmActual ?
+          (vehiculoSeleccionado.kilometraje_actual || '') :
+          (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
+        kilometrajeFinal = kmGlobal
+      }
+
       // Registrar en historial
       const { error: errorHistorial } = await supabase
         .from('historial')
@@ -198,13 +290,34 @@ export default function RegistroServicioOrdenesPage() {
           subclasificacion: subclasificacion || null,
           descripcion: descripcion.trim(),
           items: items.trim() || null,
-          kilometraje_al_servicio: kilometrajeServicio || null,
+          kilometraje_al_servicio: kilometrajeFinal || null,
           problema_reportado_por: 'mecanico',
           ocs_vehiculos: JSON.stringify(idsOrdenesSeleccionadas),
           fecha_servicio: new Date().toISOString().split('T')[0]
         })
 
       if (errorHistorial) throw errorHistorial
+
+      // Actualizar campos específicos del vehículo si se usó formulario rápido
+      if (componentesSeleccionados.size > 0) {
+        const actualizacionesVehiculo = generarDatosComponentes()
+
+        if (Object.keys(actualizacionesVehiculo).length > 0) {
+          console.log('Datos a actualizar en vehículo:', actualizacionesVehiculo)
+
+          const { error: errorVehiculo } = await supabase
+            .from('vehiculos')
+            .update(actualizacionesVehiculo)
+            .eq('id', vehiculoSeleccionado.id)
+
+          if (errorVehiculo) {
+            console.error('Error actualizando datos del vehículo:', errorVehiculo)
+            console.error('Campos que intentamos actualizar:', Object.keys(actualizacionesVehiculo))
+            setError(`Error actualizando vehículo: ${errorVehiculo.message}. Campos: ${Object.keys(actualizacionesVehiculo).join(', ')}`)
+            return // Detener el proceso si hay error en la actualización
+          }
+        }
+      }
 
       const codigosOC = ordenesSeleccionadas.map(o => o.codigo_oc).join(', ')
       const cantidadOrdenes = ordenesSeleccionadas.length
@@ -230,6 +343,173 @@ export default function RegistroServicioOrdenesPage() {
     setDescripcion('')
     setItems('')
     setKilometrajeServicio('')
+    // Limpiar datos de formulario rápido
+    setSeccionesSeleccionadas(new Set())
+    setComponentesSeleccionados(new Set())
+    setModelosComponentes({})
+    setDatosGlobales({
+      kilometraje: '',
+      fecha: new Date().toISOString().split('T')[0],
+      usarKmActual: false
+    })
+  }
+
+  // Funciones para interfaz de toggles
+  const toggleSeccionMultiple = (seccionId: string) => {
+    const nuevasSecciones = new Set(seccionesSeleccionadas)
+    if (nuevasSecciones.has(seccionId)) {
+      nuevasSecciones.delete(seccionId)
+    } else {
+      nuevasSecciones.add(seccionId)
+    }
+    setSeccionesSeleccionadas(nuevasSecciones)
+
+    // Actualizar subclasificación con sistemas seleccionados
+    if (nuevasSecciones.size > 0) {
+      const nombresSecciones = Array.from(nuevasSecciones)
+        .map(id => secciones.find(s => s.id === id)?.nombre)
+        .filter(Boolean)
+        .join(', ')
+      setSubclasificacion(nombresSecciones)
+    }
+  }
+
+  const toggleComponente = (componenteKey: string) => {
+    const nuevosSeleccionados = new Set(componentesSeleccionados)
+    if (nuevosSeleccionados.has(componenteKey)) {
+      nuevosSeleccionados.delete(componenteKey)
+      // Limpiar modelo si se deselecciona
+      const nuevosModelos = { ...modelosComponentes }
+      delete nuevosModelos[componenteKey]
+      setModelosComponentes(nuevosModelos)
+    } else {
+      nuevosSeleccionados.add(componenteKey)
+    }
+    setComponentesSeleccionados(nuevosSeleccionados)
+  }
+
+  const actualizarModeloComponente = (componenteKey: string, modelo: string) => {
+    setModelosComponentes(prev => ({
+      ...prev,
+      [componenteKey]: modelo
+    }))
+  }
+
+  const obtenerColorSeccion = (color: string) => {
+    const colores = {
+      blue: 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700',
+      green: 'border-green-200 bg-green-50 hover:bg-green-100 text-green-700',
+      red: 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700',
+      orange: 'border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700',
+      purple: 'border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700',
+      yellow: 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100 text-yellow-700',
+      indigo: 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700',
+      gray: 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700'
+    }
+    return colores[color as keyof typeof colores] || colores.gray
+  }
+
+  // Función helper para mapear labels a keys
+  const mapearLabelAKey = (label: string): string => {
+    const mapeo: Record<string, string> = {
+      'Aceite de Motor': 'aceite_motor',
+      'Filtro Aceite Motor': 'filtro_aceite_motor',
+      'Filtro de Combustible': 'filtro_combustible',
+      'Filtro de Aire': 'filtro_aire',
+      'Filtro de Cabina': 'filtro_cabina',
+      'Filtro Deshumidificador': 'filtro_deshumidificador',
+      'Filtro Secador': 'filtro_secador',
+      'Filtro de Aire Secundario': 'filtro_aire_secundario',
+      'Trampa de Agua': 'trampa_agua',
+      'Aceite de Transmisión': 'aceite_transmicion',
+      'Líquido Refrigerante': 'liquido_refrigerante',
+      'Líquido de Frenos': 'liquido_frenos',
+      'Pastillas/Cintas Freno A': 'pastilla_cinta_freno_a',
+      'Pastillas/Cintas Freno B': 'pastilla_cinta_freno_b',
+      'Pastillas/Cintas Freno C': 'pastilla_cinta_freno_c',
+      'Pastillas/Cintas Freno D': 'pastilla_cinta_freno_d',
+      'Embrague': 'embrague',
+      'Suspensión A': 'suspencion_a',
+      'Suspensión B': 'suspencion_b',
+      'Suspensión C': 'suspencion_c',
+      'Suspensión D': 'suspencion_d',
+      'Correa de Distribución': 'correa_distribucion',
+      'Correa de Alternador': 'correa_alternador',
+      'Correa de Dirección': 'correa_direccion',
+      'Correa de Aire Acondicionado': 'correa_aire_acondicionado',
+      'Correa Poly-V': 'correa_polyv',
+      'Tensor de Correa': 'tensor_correa',
+      'Polea Tensora': 'polea_tensora_correa',
+      'Batería': 'bateria',
+      'Escobillas': 'escobillas',
+      'Modelo/Marca General': 'neumatico_modelo_marca',
+      'Neumático A': 'neumatico_a',
+      'Neumático B': 'neumatico_b',
+      'Neumático C': 'neumatico_c',
+      'Neumático D': 'neumatico_d',
+      'Neumático E': 'neumatico_e',
+      'Neumático F': 'neumatico_f',
+      'Alineación': 'alineacion_neumaticos',
+      'Rotación': 'rotacion_neumaticos'
+    }
+    return mapeo[label] || label.toLowerCase().replace(/[^a-z0-9]/g, '_')
+  }
+
+  // Función para filtrar campos por configuración
+  const obtenerCamposFiltrados = (seccionId: string) => {
+    return camposPorSeccion[seccionId] || []
+  }
+
+  // Generar datos de componentes para actualizar vehículo
+  const generarDatosComponentes = () => {
+    const datosGenerados: Record<string, any> = {}
+    const kmFinal: number | '' = datosGlobales.usarKmActual ?
+      (vehiculoSeleccionado?.kilometraje_actual || '') :
+      (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
+
+    componentesSeleccionados.forEach(componenteKey => {
+      const modelo = modelosComponentes[componenteKey] || ''
+
+      // Buscar la definición del campo en todas las secciones activas
+      let definicionCampo: any = null
+
+      // Iterar sobre todas las secciones seleccionadas
+      for (const seccionId of seccionesSeleccionadas) {
+        const camposDeSeccion = camposPorSeccion[seccionId] || []
+        const campo = camposDeSeccion.find(campo =>
+          mapearLabelAKey(campo.label) === componenteKey
+        )
+        if (campo) {
+          definicionCampo = campo
+          break
+        }
+      }
+
+      // Solo generar campos que están definidos en camposPorSeccion
+      if (definicionCampo) {
+        // Modelo - solo si existe modelField en la definición
+        if (definicionCampo.modelField && modelo) {
+          datosGenerados[definicionCampo.modelField] = modelo
+        }
+
+        // Kilometraje - solo si existe kmField en la definición
+        if (definicionCampo.kmField && kmFinal) {
+          datosGenerados[definicionCampo.kmField] = kmFinal
+        }
+
+        // Fecha - solo si existe dateField en la definición
+        if (definicionCampo.dateField && datosGlobales.fecha) {
+          datosGenerados[definicionCampo.dateField] = datosGlobales.fecha
+        }
+
+        // Campos especiales
+        if (definicionCampo.hrField && vehiculoSeleccionado?.hora_actual) {
+          datosGenerados[definicionCampo.hrField] = vehiculoSeleccionado.hora_actual
+        }
+      }
+    })
+
+    return datosGenerados
   }
 
   const ordenesFiltradas = ordenesPendientes.filter(orden => {
@@ -521,33 +801,267 @@ export default function RegistroServicioOrdenesPage() {
                     </div>
                   </div>
 
-                  {/* Subclasificación */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Subclasificación
-                    </label>
-                    <input
-                      type="text"
-                      value={subclasificacion}
-                      onChange={(e) => setSubclasificacion(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="Ej: Motor, Frenos, Documentación..."
-                    />
-                  </div>
+                  {/* Formularios Rápidos por Sección - Solo para Mantenimiento */}
+                  {clasificacion === 'mantenimiento' && (
+                    <div className="border-t pt-4">
+                      <h4 className="text-md font-semibold text-gray-900 mb-3">
+                        🚀 Formulario Rápido por Sistema
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Activa los sistemas en los que trabajarás:
+                      </p>
 
-                  {/* Kilometraje */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Kilometraje al Servicio
-                    </label>
-                    <input
-                      type="number"
-                      value={kilometrajeServicio}
-                      onChange={(e) => setKilometrajeServicio(e.target.value ? parseInt(e.target.value) : '')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder={`Actual: ${vehiculoSeleccionado?.kilometraje_actual?.toLocaleString() || 'No registrado'} km`}
-                    />
-                  </div>
+                      {/* Iconos Permanentes como Toggles */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                        {secciones.map((seccion) => {
+                          const IconoComponente = seccion.icono
+                          const estaActiva = seccionesSeleccionadas.has(seccion.id)
+
+                          return (
+                            <button
+                              key={seccion.id}
+                              onClick={() => toggleSeccionMultiple(seccion.id)}
+                              className={`flex flex-col items-center p-2 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md text-xs ${
+                                estaActiva
+                                  ? 'border-green-500 bg-green-100 shadow-lg transform scale-105'
+                                  : obtenerColorSeccion(seccion.color) + ' hover:shadow-md'
+                              }`}
+                              title={`${seccion.nombre} - ${estaActiva ? 'Activo' : 'Inactivo'}`}
+                            >
+                              <IconoComponente className={`h-5 w-5 mb-1 transition-all ${
+                                estaActiva ? 'text-green-700 scale-110' : ''
+                              }`} />
+                              <span className={`font-medium text-center leading-tight transition-all ${
+                                estaActiva ? 'text-green-800 font-bold' : ''
+                              }`}>
+                                {seccion.nombre.split(' ').map((palabra, i) => (
+                                  <div key={i}>{palabra}</div>
+                                ))}
+                              </span>
+                              {/* Indicador de estado */}
+                              <div className={`mt-1 w-1.5 h-1.5 rounded-full transition-all ${
+                                estaActiva ? 'bg-green-500' : 'bg-gray-300'
+                              }`}></div>
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {/* Estado actual */}
+                      {seccionesSeleccionadas.size > 0 && (
+                        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h5 className="font-semibold text-green-800 text-sm">
+                                ✅ {seccionesSeleccionadas.size} Sistema{seccionesSeleccionadas.size > 1 ? 's' : ''} Activo{seccionesSeleccionadas.size > 1 ? 's' : ''}
+                              </h5>
+                              <p className="text-xs text-green-700">
+                                {Array.from(seccionesSeleccionadas)
+                                  .map(id => secciones.find(s => s.id === id)?.nombre)
+                                  .join(', ')}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setSeccionesSeleccionadas(new Set())}
+                              className="text-xs text-green-600 hover:text-green-800 underline"
+                            >
+                              Limpiar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Formulario de Sistemas Activos */}
+                      {seccionesSeleccionadas.size > 0 && (
+                        <div className="space-y-4">
+                          {/* Datos Globales */}
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <h5 className="font-semibold text-blue-900 mb-2 text-sm">
+                              📅 Datos Globales del Servicio
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {/* Kilometraje */}
+                              <div>
+                                <label className="block text-xs font-medium text-blue-800 mb-1">
+                                  Kilometraje
+                                </label>
+                                <div className="space-y-2">
+                                  <div className="flex items-center">
+                                    <input
+                                      type="checkbox"
+                                      id="usar-km-actual-ordenes"
+                                      checked={datosGlobales.usarKmActual}
+                                      onChange={(e) => setDatosGlobales(prev => ({
+                                        ...prev,
+                                        usarKmActual: e.target.checked
+                                      }))}
+                                      className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+                                    <label htmlFor="usar-km-actual-ordenes" className="ml-2 text-xs text-blue-700">
+                                      Usar km actual ({vehiculoSeleccionado?.kilometraje_actual?.toLocaleString() || 'N/A'})
+                                    </label>
+                                  </div>
+                                  {!datosGlobales.usarKmActual && (
+                                    <input
+                                      type="number"
+                                      value={datosGlobales.kilometraje}
+                                      onChange={(e) => setDatosGlobales(prev => ({
+                                        ...prev,
+                                        kilometraje: e.target.value
+                                      }))}
+                                      className="w-full px-2 py-1 text-sm border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                      placeholder="Kilometraje del servicio"
+                                    />
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Fecha */}
+                              <div>
+                                <label className="block text-xs font-medium text-blue-800 mb-1">
+                                  Fecha del Servicio
+                                </label>
+                                <input
+                                  type="date"
+                                  value={datosGlobales.fecha}
+                                  onChange={(e) => setDatosGlobales(prev => ({
+                                    ...prev,
+                                    fecha: e.target.value
+                                  }))}
+                                  className="w-full px-2 py-1 text-sm border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Lista de Componentes */}
+                          <div className="bg-white border border-gray-200 rounded-lg">
+                            <div className="p-3 border-b border-gray-200">
+                              <h5 className="font-semibold text-gray-900 text-sm">
+                                ☑️ Seleccionar Componentes a Cambiar
+                              </h5>
+                              <p className="text-xs text-gray-600 mt-1">
+                                Marca los componentes que se cambiaron
+                              </p>
+                            </div>
+                            <div className="p-3 space-y-3 max-h-60 overflow-y-auto">
+                              {/* Mostrar componentes agrupados por sistema */}
+                              {Array.from(seccionesSeleccionadas).map(seccionId => {
+                                const seccion = secciones.find(s => s.id === seccionId)
+                                const campos = obtenerCamposFiltrados(seccionId)
+                                const IconoComponente = seccion?.icono || Circle
+
+                                return (
+                                  <div key={seccionId} className="border border-gray-200 rounded-lg overflow-hidden">
+                                    <div className={`p-2 ${obtenerColorSeccion(seccion?.color || 'gray')} border-b`}>
+                                      <div className="flex items-center gap-2">
+                                        <IconoComponente className="h-4 w-4" />
+                                        <h6 className="font-semibold text-sm">{seccion?.nombre}</h6>
+                                        <span className="text-xs bg-white bg-opacity-30 px-1 py-0.5 rounded">
+                                          {campos.length}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="p-2 space-y-1">
+                                      {campos.map((campo, index) => {
+                                        const componenteKey = mapearLabelAKey(campo.label)
+                                        const isSelected = componentesSeleccionados.has(componenteKey)
+
+                                        return (
+                                          <div key={`${seccionId}-${index}`} className={`p-2 border rounded transition-colors ${
+                                            isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
+                                          }`}>
+                                            <div className="flex items-start space-x-2">
+                                              <input
+                                                type="checkbox"
+                                                id={`comp-ordenes-${seccionId}-${index}`}
+                                                checked={isSelected}
+                                                onChange={() => toggleComponente(componenteKey)}
+                                                className="h-3 w-3 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
+                                              />
+                                              <div className="flex-1">
+                                                <label htmlFor={`comp-ordenes-${seccionId}-${index}`} className="cursor-pointer">
+                                                  <div className="font-medium text-gray-900 text-xs">{campo.label}</div>
+                                                  {campo.modelField && isSelected && (
+                                                    <div className="mt-1">
+                                                      <input
+                                                        type="text"
+                                                        value={modelosComponentes[componenteKey] || ''}
+                                                        onChange={(e) => actualizarModeloComponente(componenteKey, e.target.value)}
+                                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                                                        placeholder="Marca y modelo"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                      />
+                                                    </div>
+                                                  )}
+                                                </label>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Subclasificación - Solo si no se está usando formulario rápido */}
+                  {!(clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Subclasificación
+                      </label>
+                      <input
+                        type="text"
+                        value={subclasificacion}
+                        onChange={(e) => setSubclasificacion(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Ej: Motor, Frenos, Documentación..."
+                      />
+                    </div>
+                  )}
+
+                  {/* Kilometraje - Solo mostrar si NO se está usando formulario rápido */}
+                  {!(clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Kilometraje al Servicio
+                      </label>
+                      <input
+                        type="number"
+                        value={kilometrajeServicio}
+                        onChange={(e) => setKilometrajeServicio(e.target.value ? parseInt(e.target.value) : '')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder={`Actual: ${vehiculoSeleccionado?.kilometraje_actual?.toLocaleString() || 'No registrado'} km`}
+                      />
+                    </div>
+                  )}
+
+                  {/* Mostrar kilometraje automático cuando se usa formulario rápido */}
+                  {clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <h4 className="text-sm font-medium text-green-800 mb-2">
+                        ✅ Kilometraje del Servicio (Automático)
+                      </h4>
+                      <p className="text-green-700 text-sm">
+                        <span className="font-semibold">
+                          {datosGlobales.usarKmActual ?
+                            `${vehiculoSeleccionado?.kilometraje_actual?.toLocaleString() || 'No definido'} km (actual del vehículo)` :
+                            `${datosGlobales.kilometraje || 'No definido'} km (ingresado)`
+                          }
+                        </span>
+                      </p>
+                      <p className="text-xs text-green-600 mt-1">
+                        Se toma automáticamente de los datos globales del formulario rápido
+                      </p>
+                    </div>
+                  )}
 
                   {/* Descripción */}
                   <div>
