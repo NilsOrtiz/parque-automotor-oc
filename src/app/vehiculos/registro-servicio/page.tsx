@@ -635,61 +635,71 @@ export default function RegistroServicioPage() {
 
   const generarDatosSeccionMejorado = () => {
     const datosGenerados: Record<string, any> = {}
-    const kmFinal: number | '' = datosGlobales.usarKmActual ? 
-      (vehiculo?.kilometraje_actual || '') : 
+    const kmFinal: number | '' = datosGlobales.usarKmActual ?
+      (vehiculo?.kilometraje_actual || '') :
       (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
-    
-    // Obtener definición de campos de la sección actual
-    const seccionActual = secciones.find(s => s.id === seccionSeleccionada)
-    const camposDeSeccion = camposPorSeccion[seccionSeleccionada || ''] || []
-    
+
     componentesSeleccionados.forEach(componenteKey => {
       const modelo = modelosComponentes[componenteKey] || ''
-      
-      // Encontrar la definición del campo en camposPorSeccion
-      const definicionCampo = camposDeSeccion.find(campo => 
-        mapearLabelAKey(campo.label) === componenteKey
-      )
-      
+
+      // Buscar la definición del campo en todas las secciones activas
+      let definicionCampo: any = null
+
+      // Iterar sobre todas las secciones seleccionadas
+      for (const seccionId of seccionesSeleccionadas) {
+        const camposDeSeccion = camposPorSeccion[seccionId] || []
+        const campo = camposDeSeccion.find(campo =>
+          mapearLabelAKey(campo.label) === componenteKey
+        )
+        if (campo) {
+          definicionCampo = campo
+          break
+        }
+      }
+
       // Solo generar campos que están definidos en camposPorSeccion
       if (definicionCampo) {
         // Modelo - solo si existe modelField en la definición
         if (definicionCampo.modelField && modelo) {
           datosGenerados[definicionCampo.modelField] = modelo
         }
-        
+
         // Kilometraje - solo si existe kmField en la definición
         if (definicionCampo.kmField && kmFinal) {
           datosGenerados[definicionCampo.kmField] = kmFinal
         }
-        
+
         // Fecha - solo si existe dateField en la definición
         if (definicionCampo.dateField && datosGlobales.fecha) {
           datosGenerados[definicionCampo.dateField] = datosGlobales.fecha
         }
-        
+
         // Campos especiales
         if (definicionCampo.hrField && vehiculo?.hora_actual) {
           datosGenerados[definicionCampo.hrField] = vehiculo.hora_actual
         }
-        
+
         if (definicionCampo.litersField) {
           // Por ahora no tenemos interfaz para litros, pero el campo existe
           // datosGenerados[definicionCampo.litersField] = litros
         }
       }
     })
-    
+
     return datosGenerados
   }
 
   // Generar descripción automática del trabajo
   const generarDescripcionAutomatica = (): string => {
     if (componentesSeleccionados.size === 0) return ''
-    
-    const seccionActual = secciones.find(s => s.id === seccionSeleccionada)
+
+    const sistemasActivos = Array.from(seccionesSeleccionadas)
+      .map(id => secciones.find(s => s.id === id)?.nombre)
+      .filter(Boolean)
+      .join(', ')
+
     const componentesArray = Array.from(componentesSeleccionados)
-    
+
     // Mapear keys a labels legibles con información de modelos si está disponible
     const labelsComponentes = componentesArray.map(key => {
       const labelMap: Record<string, string> = {
@@ -733,27 +743,27 @@ export default function RegistroServicioPage() {
         'alineacion_neumaticos': 'Alineación de Neumáticos',
         'rotacion_neumaticos': 'Rotación de Neumáticos'
       }
-      
+
       const nombreComponente = labelMap[key] || key
       const modelo = modelosComponentes[key]
-      
+
       // Incluir modelo en la descripción si está disponible
       return modelo && modelo.trim() ? `${nombreComponente} (${modelo})` : nombreComponente
     })
-    
+
     const listaComponentes = labelsComponentes.join(', ')
-    
+
     // Obtener kilometraje para incluir en descripción
-    const kmFinal: number | '' = datosGlobales.usarKmActual ? 
-      (vehiculo?.kilometraje_actual || '') : 
+    const kmFinal: number | '' = datosGlobales.usarKmActual ?
+      (vehiculo?.kilometraje_actual || '') :
       (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
-    
+
     // Información adicional para contexto
     const infoKilometraje = kmFinal ? ` - Kilometraje: ${kmFinal.toLocaleString()} km` : ''
     const infoFecha = datosGlobales.fecha ? ` - Fecha: ${datosGlobales.fecha}` : ''
     const infoVehiculo = vehiculo ? ` - Vehículo: ${vehiculo.Placa} (${vehiculo.Marca} ${vehiculo.Modelo})` : ''
-    
-    return `Mantenimiento de ${seccionActual?.nombre || 'Vehículo'} - Cambio/Servicio de: ${listaComponentes}${infoKilometraje}${infoFecha}${infoVehiculo}`
+
+    return `Mantenimiento de ${sistemasActivos || 'Múltiples Sistemas'} - Cambio/Servicio de: ${listaComponentes}${infoKilometraje}${infoFecha}${infoVehiculo}`
   }
 
   // Generar items/materiales automáticamente
@@ -951,194 +961,110 @@ export default function RegistroServicioPage() {
               {/* Formularios Rápidos por Sección - Solo para Mantenimiento */}
               {clasificacion === 'mantenimiento' && (
                 <div className="border-t pt-6">
-                  {!seccionSeleccionada && seccionesSeleccionadas.size === 0 ? (
-                    // Selección de Sección (Modo Simple y Múltiple)
-                    <>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                        🚀 Formulario Rápido por Sistema
-                      </h4>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Selecciona uno o varios sistemas del vehículo:
-                      </p>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                    🚀 Formulario Rápido por Sistema
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Activa los sistemas en los que trabajarás - puedes seleccionar múltiples:
+                  </p>
 
-                      {/* Modo de selección */}
-                      <div className="mb-6 flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-700">Modo:</span>
-                          <button
-                            onClick={() => {
-                              setSeccionesSeleccionadas(new Set())
-                              setSeccionSeleccionada(null)
-                            }}
-                            className={`px-3 py-1 rounded-full text-xs transition-colors ${
-                              seccionesSeleccionadas.size === 0
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            🎯 Sistema único
-                          </button>
-                          <button
-                            onClick={() => setSeccionSeleccionada(null)}
-                            className={`px-3 py-1 rounded-full text-xs transition-colors ${
-                              seccionesSeleccionadas.size > 0
-                                ? 'bg-green-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            ☑️ Múltiples sistemas
-                          </button>
-                        </div>
-                        {seccionesSeleccionadas.size > 0 && (
-                          <div className="text-sm text-green-600 font-medium">
-                            {seccionesSeleccionadas.size} sistema{seccionesSeleccionadas.size > 1 ? 's' : ''} seleccionado{seccionesSeleccionadas.size > 1 ? 's' : ''}
-                          </div>
-                        )}
-                      </div>
+                  {/* Iconos Permanentes como Toggles */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+                    {secciones.map((seccion) => {
+                      const IconoComponente = seccion.icono
+                      const estaActiva = seccionesSeleccionadas.has(seccion.id)
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                        {secciones.map((seccion) => {
-                          const IconoComponente = seccion.icono
-                          const estaSeleccionada = seccionesSeleccionadas.has(seccion.id)
+                      return (
+                        <button
+                          key={seccion.id}
+                          onClick={() => toggleSeccionMultiple(seccion.id)}
+                          className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md ${
+                            estaActiva
+                              ? 'border-green-500 bg-green-100 shadow-lg transform scale-105'
+                              : obtenerColorSeccion(seccion.color) + ' hover:shadow-md'
+                          }`}
+                          title={`${seccion.nombre} - ${estaActiva ? 'Activo' : 'Inactivo'}`}
+                        >
+                          <IconoComponente className={`h-6 w-6 mb-2 transition-all ${
+                            estaActiva ? 'text-green-700 scale-110' : ''
+                          }`} />
+                          <span className={`text-xs font-medium text-center leading-tight transition-all ${
+                            estaActiva ? 'text-green-800 font-bold' : ''
+                          }`}>
+                            {seccion.nombre.split(' ').map((palabra, i) => (
+                              <div key={i}>{palabra}</div>
+                            ))}
+                          </span>
+                          {/* Indicador de estado */}
+                          <div className={`mt-1 w-2 h-2 rounded-full transition-all ${
+                            estaActiva ? 'bg-green-500' : 'bg-gray-300'
+                          }`}></div>
+                        </button>
+                      )
+                    })}
+                  </div>
 
-                          return (
-                            <div key={seccion.id} className="relative">
-                              <button
-                                onClick={() => {
-                                  if (seccionesSeleccionadas.size === 0) {
-                                    // Modo simple - selección única
-                                    seleccionarSeccion(seccion.id)
-                                  } else {
-                                    // Modo múltiple - toggle
-                                    toggleSeccionMultiple(seccion.id)
-                                  }
-                                }}
-                                className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md w-full ${
-                                  estaSeleccionada
-                                    ? 'border-green-500 bg-green-50 shadow-md'
-                                    : obtenerColorSeccion(seccion.color)
-                                }`}
-                                title={seccion.nombre}
-                              >
-                                {/* Checkbox para modo múltiple */}
-                                {seccionesSeleccionadas.size > 0 && (
-                                  <div className="absolute -top-2 -right-2 bg-white rounded-full border-2 border-gray-300 w-6 h-6 flex items-center justify-center">
-                                    {estaSeleccionada ? (
-                                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                    ) : (
-                                      <div className="w-3 h-3 border border-gray-400 rounded-full"></div>
-                                    )}
-                                  </div>
-                                )}
-
-                                <IconoComponente className="h-6 w-6 mb-2" />
-                                <span className="text-xs font-medium text-center leading-tight">
-                                  {seccion.nombre.split(' ').map((palabra, i) => (
-                                    <div key={i}>{palabra}</div>
-                                  ))}
-                                </span>
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
-
-                      {/* Botón para continuar con selección múltiple */}
-                      {seccionesSeleccionadas.size > 0 && (
-                        <div className="mt-6 flex justify-center">
-                          <button
-                            onClick={() => setSeccionSeleccionada('multiple')}
-                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
-                          >
-                            ✨ Continuar con {seccionesSeleccionadas.size} sistema{seccionesSeleccionadas.size > 1 ? 's' : ''}
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                          💡 <strong>Ventaja:</strong> Al usar estos formularios, los datos del vehículo se actualizarán automáticamente
-                        </p>
-                        {configuracionVehiculo && (
-                          <p className="text-xs text-blue-600 mt-2">
-                            🔧 <strong>Configuración activa:</strong> {configuracionVehiculo.nombre_configuracion}
-                            <br />
-                            Solo se muestran los componentes relevantes para este tipo de vehículo
+                  {/* Estado actual */}
+                  {seccionesSeleccionadas.size > 0 && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="font-semibold text-green-800">
+                            ✅ {seccionesSeleccionadas.size} Sistema{seccionesSeleccionadas.size > 1 ? 's' : ''} Activo{seccionesSeleccionadas.size > 1 ? 's' : ''}
+                          </h5>
+                          <p className="text-sm text-green-700">
+                            {Array.from(seccionesSeleccionadas)
+                              .map(id => secciones.find(s => s.id === id)?.nombre)
+                              .join(', ')}
                           </p>
-                        )}
+                        </div>
+                        <button
+                          onClick={() => setSeccionesSeleccionadas(new Set())}
+                          className="text-sm text-green-600 hover:text-green-800 underline"
+                        >
+                          Limpiar todo
+                        </button>
                       </div>
-                    </>
-                  ) : (
-                    // Formulario de Sección(es) Específica(s)
+                    </div>
+                  )}
+
+                  {/* Formulario de Sistemas Activos */}
+                  {seccionesSeleccionadas.size > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                          {seccionSeleccionada === 'multiple' ? (
-                            // Mostrar múltiples sistemas
-                            <>
-                              <div className="flex -space-x-2">
-                                {Array.from(seccionesSeleccionadas).slice(0, 3).map(seccionId => {
-                                  const seccion = secciones.find(s => s.id === seccionId)
-                                  const IconoComponente = seccion?.icono || Circle
-                                  return (
-                                    <div
-                                      key={seccionId}
-                                      className={`p-2 rounded-lg border-2 border-white ${obtenerColorSeccion(seccion?.color || 'gray')}`}
-                                    >
-                                      <IconoComponente className="h-5 w-5" />
-                                    </div>
-                                  )
-                                })}
-                                {seccionesSeleccionadas.size > 3 && (
-                                  <div className="p-2 rounded-lg bg-gray-100 text-gray-600 border-2 border-white text-xs font-medium flex items-center justify-center">
-                                    +{seccionesSeleccionadas.size - 3}
-                                  </div>
-                                )}
-                              </div>
-                              <div>
-                                <h4 className="text-lg font-semibold text-gray-900">
-                                  Formulario Múltiple ({seccionesSeleccionadas.size} sistemas)
-                                </h4>
-                                <p className="text-sm text-gray-600">
-                                  {Array.from(seccionesSeleccionadas)
-                                    .map(id => secciones.find(s => s.id === id)?.nombre)
-                                    .join(', ')}
-                                </p>
-                              </div>
-                            </>
-                          ) : (
-                            // Mostrar sistema único
-                            (() => {
-                              const seccion = secciones.find(s => s.id === seccionSeleccionada)
+                          <div className="flex -space-x-2">
+                            {Array.from(seccionesSeleccionadas).slice(0, 3).map(seccionId => {
+                              const seccion = secciones.find(s => s.id === seccionId)
                               const IconoComponente = seccion?.icono || Circle
                               return (
-                                <>
-                                  <div className={`p-2 rounded-lg ${obtenerColorSeccion(seccion?.color || 'gray')}`}>
-                                    <IconoComponente className="h-6 w-6" />
-                                  </div>
-                                  <div>
-                                    <h4 className="text-lg font-semibold text-gray-900">
-                                      {seccion?.nombre}
-                                    </h4>
-                                    <p className="text-sm text-gray-600">
-                                      Formulario especializado para este sistema
-                                    </p>
-                                  </div>
-                                </>
+                                <div
+                                  key={seccionId}
+                                  className={`p-2 rounded-lg border-2 border-white ${obtenerColorSeccion(seccion?.color || 'gray')}`}
+                                >
+                                  <IconoComponente className="h-5 w-5" />
+                                </div>
                               )
-                            })()
-                          )}
+                            })}
+                            {seccionesSeleccionadas.size > 3 && (
+                              <div className="p-2 rounded-lg bg-gray-100 text-gray-600 border-2 border-white text-xs font-medium flex items-center justify-center">
+                                +{seccionesSeleccionadas.size - 3}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-900">
+                              Formulario de Mantenimiento ({seccionesSeleccionadas.size} sistemas)
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {Array.from(seccionesSeleccionadas)
+                                .map(id => secciones.find(s => s.id === id)?.nombre)
+                                .join(', ')}
+                            </p>
+                          </div>
                         </div>
-                        <button
-                          onClick={volverASeecciones}
-                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                        >
-                          ← Volver a Secciones
-                        </button>
                       </div>
 
-                      {/* INTERFAZ MEJORADA - Datos Globales + Lista de Componentes */}
-                      
                       {/* Datos Globales */}
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                         <h5 className="font-semibold text-blue-900 mb-3">
@@ -1180,7 +1106,7 @@ export default function RegistroServicioPage() {
                               )}
                             </div>
                           </div>
-                          
+
                           {/* Fecha */}
                           <div>
                             <label className="block text-sm font-medium text-blue-800 mb-2">
@@ -1196,15 +1122,15 @@ export default function RegistroServicioPage() {
                               className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                           </div>
-                          
+
                           {/* Resumen */}
                           <div className="flex items-center">
                             <div className="text-sm text-blue-700">
                               <div className="font-medium">Resumen:</div>
                               <div>Componentes: {componentesSeleccionados.size}</div>
                               <div>Fecha: {new Date(datosGlobales.fecha).toLocaleDateString()}</div>
-                              <div>Km: {datosGlobales.usarKmActual ? 
-                                vehiculo?.kilometraje_actual?.toLocaleString() || 'N/A' : 
+                              <div>Km: {datosGlobales.usarKmActual ?
+                                vehiculo?.kilometraje_actual?.toLocaleString() || 'N/A' :
                                 (datosGlobales.kilometraje || 'No definido')}
                               </div>
                             </div>
@@ -1223,106 +1149,65 @@ export default function RegistroServicioPage() {
                           </p>
                         </div>
                         <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
-                          {seccionSeleccionada === 'multiple' ? (
-                            // Mostrar componentes agrupados por sistema
-                            Array.from(seccionesSeleccionadas).map(seccionId => {
-                              const seccion = secciones.find(s => s.id === seccionId)
-                              const campos = obtenerCamposFiltrados(seccionId)
-                              const IconoComponente = seccion?.icono || Circle
+                          {/* Mostrar componentes agrupados por sistema */}
+                          {Array.from(seccionesSeleccionadas).map(seccionId => {
+                            const seccion = secciones.find(s => s.id === seccionId)
+                            const campos = obtenerCamposFiltrados(seccionId)
+                            const IconoComponente = seccion?.icono || Circle
 
-                              return (
-                                <div key={seccionId} className="border border-gray-200 rounded-lg overflow-hidden">
-                                  <div className={`p-3 ${obtenerColorSeccion(seccion?.color || 'gray')} border-b`}>
-                                    <div className="flex items-center gap-2">
-                                      <IconoComponente className="h-5 w-5" />
-                                      <h6 className="font-semibold">{seccion?.nombre}</h6>
-                                      <span className="text-xs bg-white bg-opacity-30 px-2 py-1 rounded-full">
-                                        {campos.length} componentes
-                                      </span>
-                                    </div>
+                            return (
+                              <div key={seccionId} className="border border-gray-200 rounded-lg overflow-hidden">
+                                <div className={`p-3 ${obtenerColorSeccion(seccion?.color || 'gray')} border-b`}>
+                                  <div className="flex items-center gap-2">
+                                    <IconoComponente className="h-5 w-5" />
+                                    <h6 className="font-semibold">{seccion?.nombre}</h6>
+                                    <span className="text-xs bg-white bg-opacity-30 px-2 py-1 rounded-full">
+                                      {campos.length} componentes
+                                    </span>
                                   </div>
-                                  <div className="p-3 space-y-2">
-                                    {campos.map((campo, index) => {
-                                      const componenteKey = mapearLabelAKey(campo.label)
-                                      const isSelected = componentesSeleccionados.has(componenteKey)
+                                </div>
+                                <div className="p-3 space-y-2">
+                                  {campos.map((campo, index) => {
+                                    const componenteKey = mapearLabelAKey(campo.label)
+                                    const isSelected = componentesSeleccionados.has(componenteKey)
 
-                                      return (
-                                        <div key={`${seccionId}-${index}`} className={`p-2 border rounded-lg transition-colors ${
-                                          isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
-                                        }`}>
-                                          <div className="flex items-start space-x-3">
-                                            <input
-                                              type="checkbox"
-                                              id={`componente-${seccionId}-${index}`}
-                                              checked={isSelected}
-                                              onChange={() => toggleComponente(componenteKey)}
-                                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
-                                            />
-                                            <div className="flex-1">
-                                              <label htmlFor={`componente-${seccionId}-${index}`} className="cursor-pointer">
-                                                <div className="font-medium text-gray-900 text-sm">{campo.label}</div>
-                                                {campo.modelField && isSelected && (
-                                                  <div className="mt-2">
-                                                    <input
-                                                      type="text"
-                                                      value={modelosComponentes[componenteKey] || ''}
-                                                      onChange={(e) => actualizarModeloComponente(componenteKey, e.target.value)}
-                                                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                                      placeholder="Marca y modelo del repuesto"
-                                                      onClick={(e) => e.stopPropagation()}
-                                                    />
-                                                  </div>
-                                                )}
-                                              </label>
-                                            </div>
+                                    return (
+                                      <div key={`${seccionId}-${index}`} className={`p-2 border rounded-lg transition-colors ${
+                                        isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
+                                      }`}>
+                                        <div className="flex items-start space-x-3">
+                                          <input
+                                            type="checkbox"
+                                            id={`componente-${seccionId}-${index}`}
+                                            checked={isSelected}
+                                            onChange={() => toggleComponente(componenteKey)}
+                                            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
+                                          />
+                                          <div className="flex-1">
+                                            <label htmlFor={`componente-${seccionId}-${index}`} className="cursor-pointer">
+                                              <div className="font-medium text-gray-900 text-sm">{campo.label}</div>
+                                              {campo.modelField && isSelected && (
+                                                <div className="mt-2">
+                                                  <input
+                                                    type="text"
+                                                    value={modelosComponentes[componenteKey] || ''}
+                                                    onChange={(e) => actualizarModeloComponente(componenteKey, e.target.value)}
+                                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                    placeholder="Marca y modelo del repuesto"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                  />
+                                                </div>
+                                              )}
+                                            </label>
                                           </div>
                                         </div>
-                                      )
-                                    })}
-                                  </div>
+                                      </div>
+                                    )
+                                  })}
                                 </div>
-                              )
-                            })
-                          ) : (
-                            // Mostrar componentes de un solo sistema (modo original)
-                            obtenerCamposFiltrados(seccionSeleccionada).map((campo, index) => {
-                              const componenteKey = mapearLabelAKey(campo.label)
-                              const isSelected = componentesSeleccionados.has(componenteKey)
-
-                              return (
-                                <div key={index} className={`p-3 border rounded-lg transition-colors ${
-                                  isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
-                                }`}>
-                                  <div className="flex items-start space-x-3">
-                                    <input
-                                      type="checkbox"
-                                      id={`componente-${index}`}
-                                      checked={isSelected}
-                                      onChange={() => toggleComponente(componenteKey)}
-                                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-1"
-                                    />
-                                    <div className="flex-1">
-                                      <label htmlFor={`componente-${index}`} className="cursor-pointer">
-                                        <div className="font-medium text-gray-900">{campo.label}</div>
-                                        {campo.modelField && isSelected && (
-                                          <div className="mt-2">
-                                            <input
-                                              type="text"
-                                              value={modelosComponentes[componenteKey] || ''}
-                                              onChange={(e) => actualizarModeloComponente(componenteKey, e.target.value)}
-                                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                              placeholder="Marca y modelo del repuesto"
-                                              onClick={(e) => e.stopPropagation()}
-                                            />
-                                          </div>
-                                        )}
-                                      </label>
-                                    </div>
-                                  </div>
-                                </div>
-                              )
-                            })
-                          )}
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     </div>
