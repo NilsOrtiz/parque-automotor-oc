@@ -42,7 +42,6 @@ export default function RegistroServicioOrdenesPage() {
   // Estados para formularios rápidos por sección (toggles)
   const [seccionesSeleccionadas, setSeccionesSeleccionadas] = useState<Set<string>>(new Set())
   const [componentesSeleccionados, setComponentesSeleccionados] = useState<Set<string>>(new Set())
-  const [modelosComponentes, setModelosComponentes] = useState<Record<string, string>>({})
 
   // Estados para datos globales
   const [datosGlobales, setDatosGlobales] = useState({
@@ -143,7 +142,7 @@ export default function RegistroServicioOrdenesPage() {
         setItems(itemsComponentes)
       }
     }
-  }, [componentesSeleccionados, modelosComponentes, seccionesSeleccionadas, clasificacion, ordenesSeleccionadas])
+  }, [componentesSeleccionados, seccionesSeleccionadas, clasificacion, ordenesSeleccionadas])
 
   async function cargarOrdenesPendientes() {
     setLoading(true)
@@ -374,7 +373,6 @@ export default function RegistroServicioOrdenesPage() {
     // Limpiar datos de formulario rápido
     setSeccionesSeleccionadas(new Set())
     setComponentesSeleccionados(new Set())
-    setModelosComponentes({})
     setDatosGlobales({
       kilometraje: '',
       fecha: new Date().toISOString().split('T')[0],
@@ -406,22 +404,12 @@ export default function RegistroServicioOrdenesPage() {
     const nuevosSeleccionados = new Set(componentesSeleccionados)
     if (nuevosSeleccionados.has(componenteKey)) {
       nuevosSeleccionados.delete(componenteKey)
-      // Limpiar modelo si se deselecciona
-      const nuevosModelos = { ...modelosComponentes }
-      delete nuevosModelos[componenteKey]
-      setModelosComponentes(nuevosModelos)
     } else {
       nuevosSeleccionados.add(componenteKey)
     }
     setComponentesSeleccionados(nuevosSeleccionados)
   }
 
-  const actualizarModeloComponente = (componenteKey: string, modelo: string) => {
-    setModelosComponentes(prev => ({
-      ...prev,
-      [componenteKey]: modelo
-    }))
-  }
 
   const obtenerColorSeccion = (color: string) => {
     const colores = {
@@ -547,53 +535,50 @@ export default function RegistroServicioOrdenesPage() {
     const items: string[] = []
 
     componentesSeleccionados.forEach(componenteKey => {
-      const modelo = modelosComponentes[componenteKey]
-      if (modelo && modelo.trim()) {
-        const labelMap: Record<string, string> = {
-          'aceite_motor': 'Aceite Motor',
-          'filtro_aceite_motor': 'Filtro Aceite Motor',
-          'filtro_combustible': 'Filtro Combustible',
-          'filtro_aire': 'Filtro Aire',
-          'filtro_cabina': 'Filtro Cabina',
-          'filtro_deshumidificador': 'Filtro Deshumidificador',
-          'filtro_secador': 'Filtro Secador',
-          'filtro_aire_secundario': 'Filtro Aire Secundario',
-          'trampa_agua': 'Trampa Agua',
-          'aceite_transmicion': 'Aceite Transmisión',
-          'liquido_refrigerante': 'Líquido Refrigerante',
-          'liquido_frenos': 'Líquido Frenos',
-          'pastilla_cinta_freno_a': 'Pastillas Freno Del. Izq.',
-          'pastilla_cinta_freno_b': 'Pastillas Freno Del. Der.',
-          'pastilla_cinta_freno_c': 'Pastillas Freno Tras. Izq.',
-          'pastilla_cinta_freno_d': 'Pastillas Freno Tras. Der.',
-          'embrague': 'Embrague',
-          'suspencion_a': 'Amortiguador Del. Izq.',
-          'suspencion_b': 'Amortiguador Del. Der.',
-          'suspencion_c': 'Amortiguador Tras. Izq.',
-          'suspencion_d': 'Amortiguador Tras. Der.',
-          'correa_distribucion': 'Correa Distribución',
-          'correa_alternador': 'Correa Alternador',
-          'correa_direccion': 'Correa Dirección',
-          'correa_aire_acondicionado': 'Correa A/C',
-          'correa_polyv': 'Correa Poly-V',
-          'tensor_correa': 'Tensor Correa',
-          'polea_tensora_correa': 'Polea Tensora',
-          'bateria': 'Batería',
-          'escobillas': 'Escobillas',
-          'neumatico_a': 'Neumático Del. Izq.',
-          'neumatico_b': 'Neumático Del. Der.',
-          'neumatico_c': 'Neumático Tras. Izq.',
-          'neumatico_d': 'Neumático Tras. Der.',
-          'neumatico_e': 'Neumático Auxilio',
-          'neumatico_f': 'Neumático Extra',
-          'neumatico_modelo_marca': 'Modelo/Marca Neumáticos',
-          'alineacion_neumaticos': 'Alineación Neumáticos',
-          'rotacion_neumaticos': 'Rotación Neumáticos'
-        }
-
-        const nombreItem = labelMap[componenteKey] || componenteKey
-        items.push(`${nombreItem} ${modelo}`)
+      const labelMap: Record<string, string> = {
+        'aceite_motor': 'Aceite Motor',
+        'filtro_aceite_motor': 'Filtro Aceite Motor',
+        'filtro_combustible': 'Filtro Combustible',
+        'filtro_aire': 'Filtro Aire',
+        'filtro_cabina': 'Filtro Cabina',
+        'filtro_deshumidificador': 'Filtro Deshumidificador',
+        'filtro_secador': 'Filtro Secador',
+        'filtro_aire_secundario': 'Filtro Aire Secundario',
+        'trampa_agua': 'Trampa Agua',
+        'aceite_transmicion': 'Aceite Transmisión',
+        'liquido_refrigerante': 'Líquido Refrigerante',
+        'liquido_frenos': 'Líquido Frenos',
+        'pastilla_cinta_freno_a': 'Pastillas Freno Del. Izq.',
+        'pastilla_cinta_freno_b': 'Pastillas Freno Del. Der.',
+        'pastilla_cinta_freno_c': 'Pastillas Freno Tras. Izq.',
+        'pastilla_cinta_freno_d': 'Pastillas Freno Tras. Der.',
+        'embrague': 'Embrague',
+        'suspencion_a': 'Amortiguador Del. Izq.',
+        'suspencion_b': 'Amortiguador Del. Der.',
+        'suspencion_c': 'Amortiguador Tras. Izq.',
+        'suspencion_d': 'Amortiguador Tras. Der.',
+        'correa_distribucion': 'Correa Distribución',
+        'correa_alternador': 'Correa Alternador',
+        'correa_direccion': 'Correa Dirección',
+        'correa_aire_acondicionado': 'Correa A/C',
+        'correa_polyv': 'Correa Poly-V',
+        'tensor_correa': 'Tensor Correa',
+        'polea_tensora_correa': 'Polea Tensora',
+        'bateria': 'Batería',
+        'escobillas': 'Escobillas',
+        'neumatico_a': 'Neumático Del. Izq.',
+        'neumatico_b': 'Neumático Del. Der.',
+        'neumatico_c': 'Neumático Tras. Izq.',
+        'neumatico_d': 'Neumático Tras. Der.',
+        'neumatico_e': 'Neumático Auxilio',
+        'neumatico_f': 'Neumático Extra',
+        'neumatico_modelo_marca': 'Modelo/Marca Neumáticos',
+        'alineacion_neumaticos': 'Alineación Neumáticos',
+        'rotacion_neumaticos': 'Rotación Neumáticos'
       }
+
+      const nombreItem = labelMap[componenteKey] || componenteKey
+      items.push(nombreItem)
     })
 
     return items.join(', ')
@@ -1152,18 +1137,6 @@ export default function RegistroServicioOrdenesPage() {
                                               <div className="flex-1">
                                                 <label htmlFor={`comp-ordenes-${seccionId}-${index}`} className="cursor-pointer">
                                                   <div className="font-medium text-gray-900 text-xs">{campo.label}</div>
-                                                  {campo.modelField && isSelected && (
-                                                    <div className="mt-1">
-                                                      <input
-                                                        type="text"
-                                                        value={modelosComponentes[componenteKey] || ''}
-                                                        onChange={(e) => actualizarModeloComponente(componenteKey, e.target.value)}
-                                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-green-500 focus:border-transparent"
-                                                        placeholder="Marca y modelo"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                      />
-                                                    </div>
-                                                  )}
                                                 </label>
                                               </div>
                                             </div>
