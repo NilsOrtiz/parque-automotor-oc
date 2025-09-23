@@ -126,6 +126,25 @@ export default function RegistroServicioOrdenesPage() {
     cargarOrdenesPendientes()
   }, [])
 
+  // Actualizar descripción e items automáticamente cuando cambian los componentes
+  useEffect(() => {
+    if (clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0) {
+      // Actualizar en tiempo real cuando se usa formulario rápido
+      if (componentesSeleccionados.size > 0) {
+        // Mantener información de órdenes y generar descripción con componentes
+        const codigosOC = ordenesSeleccionadas.map(o => o.codigo_oc).join(', ')
+        const proveedoresUnicos = [...new Set(ordenesSeleccionadas.map(o => o.proveedor).filter(Boolean))]
+        const proveedoresTexto = proveedoresUnicos.join(', ')
+
+        const descripcionBase = `Servicio realizado según OCs: ${codigosOC} - Proveedores: ${proveedoresTexto}`
+        const itemsComponentes = generarItemsAutomaticos()
+
+        setDescripcion(descripcionBase + (itemsComponentes ? ` - Componentes: ${itemsComponentes}` : ''))
+        setItems(itemsComponentes)
+      }
+    }
+  }, [componentesSeleccionados, modelosComponentes, seccionesSeleccionadas, clasificacion, ordenesSeleccionadas])
+
   async function cargarOrdenesPendientes() {
     setLoading(true)
     try {
@@ -519,6 +538,65 @@ export default function RegistroServicioOrdenesPage() {
     })
 
     return datosGenerados
+  }
+
+  // Generar items/materiales automáticamente
+  const generarItemsAutomaticos = (): string => {
+    if (componentesSeleccionados.size === 0) return ''
+
+    const items: string[] = []
+
+    componentesSeleccionados.forEach(componenteKey => {
+      const modelo = modelosComponentes[componenteKey]
+      if (modelo && modelo.trim()) {
+        const labelMap: Record<string, string> = {
+          'aceite_motor': 'Aceite Motor',
+          'filtro_aceite_motor': 'Filtro Aceite Motor',
+          'filtro_combustible': 'Filtro Combustible',
+          'filtro_aire': 'Filtro Aire',
+          'filtro_cabina': 'Filtro Cabina',
+          'filtro_deshumidificador': 'Filtro Deshumidificador',
+          'filtro_secador': 'Filtro Secador',
+          'filtro_aire_secundario': 'Filtro Aire Secundario',
+          'trampa_agua': 'Trampa Agua',
+          'aceite_transmicion': 'Aceite Transmisión',
+          'liquido_refrigerante': 'Líquido Refrigerante',
+          'liquido_frenos': 'Líquido Frenos',
+          'pastilla_cinta_freno_a': 'Pastillas Freno Del. Izq.',
+          'pastilla_cinta_freno_b': 'Pastillas Freno Del. Der.',
+          'pastilla_cinta_freno_c': 'Pastillas Freno Tras. Izq.',
+          'pastilla_cinta_freno_d': 'Pastillas Freno Tras. Der.',
+          'embrague': 'Embrague',
+          'suspencion_a': 'Amortiguador Del. Izq.',
+          'suspencion_b': 'Amortiguador Del. Der.',
+          'suspencion_c': 'Amortiguador Tras. Izq.',
+          'suspencion_d': 'Amortiguador Tras. Der.',
+          'correa_distribucion': 'Correa Distribución',
+          'correa_alternador': 'Correa Alternador',
+          'correa_direccion': 'Correa Dirección',
+          'correa_aire_acondicionado': 'Correa A/C',
+          'correa_polyv': 'Correa Poly-V',
+          'tensor_correa': 'Tensor Correa',
+          'polea_tensora_correa': 'Polea Tensora',
+          'bateria': 'Batería',
+          'escobillas': 'Escobillas',
+          'neumatico_a': 'Neumático Del. Izq.',
+          'neumatico_b': 'Neumático Del. Der.',
+          'neumatico_c': 'Neumático Tras. Izq.',
+          'neumatico_d': 'Neumático Tras. Der.',
+          'neumatico_e': 'Neumático Auxilio',
+          'neumatico_f': 'Neumático Extra',
+          'neumatico_modelo_marca': 'Modelo/Marca Neumáticos',
+          'alineacion_neumaticos': 'Alineación Neumáticos',
+          'rotacion_neumaticos': 'Rotación Neumáticos'
+        }
+
+        const nombreItem = labelMap[componenteKey] || componenteKey
+        items.push(`${nombreItem} ${modelo}`)
+      }
+    })
+
+    return items.join(', ')
   }
 
   const ordenesFiltradas = ordenesPendientes.filter(orden => {
@@ -1085,30 +1163,62 @@ export default function RegistroServicioOrdenesPage() {
 
                   {/* Descripción */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Descripción del Trabajo *
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Descripción del Trabajo *
+                      </label>
+                      {clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 && componentesSeleccionados.size > 0 && (
+                        <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          ✨ Se actualiza automáticamente
+                        </div>
+                      )}
+                    </div>
                     <textarea
                       value={descripcion}
                       onChange={(e) => setDescripcion(e.target.value)}
                       rows={4}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="Descripción detallada del trabajo realizado..."
+                      placeholder={
+                        clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 ?
+                          "Se actualiza automáticamente según componentes seleccionados..." :
+                          "Descripción detallada del trabajo realizado..."
+                      }
                     />
+                    {clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        ✨ Se actualiza automáticamente. Puedes editarlo si necesitas agregar más detalles.
+                      </p>
+                    )}
                   </div>
 
                   {/* Items */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Items Utilizados
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Items Utilizados
+                      </label>
+                      {clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 && componentesSeleccionados.size > 0 && (
+                        <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                          ✨ Se actualiza automáticamente
+                        </div>
+                      )}
+                    </div>
                     <textarea
                       value={items}
                       onChange={(e) => setItems(e.target.value)}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="Repuestos y materiales utilizados..."
+                      placeholder={
+                        clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 ?
+                          "Se actualiza automáticamente: Filtro Aire Mann C123, Aceite Motor Mobil 1..." :
+                          "Repuestos y materiales utilizados..."
+                      }
                     />
+                    {clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✨ Se actualiza automáticamente desde los modelos ingresados. Puedes agregar más items.
+                      </p>
+                    )}
                   </div>
                 </div>
 

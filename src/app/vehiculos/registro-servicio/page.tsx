@@ -67,16 +67,18 @@ export default function RegistroServicioPage() {
 
   // Actualizar descripción e items automáticamente cuando cambian los componentes
   useEffect(() => {
-    if (clasificacion === 'mantenimiento' && seccionSeleccionada && componentesSeleccionados.size > 0) {
-      // Solo actualizar si los campos están vacíos (no sobrescribir texto manual)
-      if (!descripcion.trim()) {
+    if (clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0) {
+      // Actualizar en tiempo real cuando se usa formulario rápido
+      if (componentesSeleccionados.size > 0) {
         setDescripcion(generarDescripcionAutomatica())
-      }
-      if (!items.trim()) {
         setItems(generarItemsAutomaticos())
+      } else {
+        // Limpiar cuando no hay componentes seleccionados
+        setDescripcion('')
+        setItems('')
       }
     }
-  }, [componentesSeleccionados, modelosComponentes, seccionSeleccionada, clasificacion])
+  }, [componentesSeleccionados, modelosComponentes, seccionesSeleccionadas, clasificacion, datosGlobales, vehiculo])
 
   const subclasificaciones = [
     'Motor', 'Transmisión', 'Frenos', 'Suspensión', 'Neumáticos', 
@@ -1357,14 +1359,10 @@ export default function RegistroServicioPage() {
                   <label className="block text-sm font-medium text-gray-700">
                     Descripción del Trabajo *
                   </label>
-                  {clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0) && componentesSeleccionados.size > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setDescripcion(generarDescripcionAutomatica())}
-                      className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      🤖 Regenerar automático
-                    </button>
+                  {clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 && componentesSeleccionados.size > 0 && (
+                    <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      ✨ Se actualiza automáticamente
+                    </div>
                   )}
                 </div>
                 <textarea
@@ -1373,8 +1371,8 @@ export default function RegistroServicioPage() {
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder={
-                    clasificacion === 'mantenimiento' && seccionSeleccionada ? 
-                      "Se generará automáticamente según componentes seleccionados..." :
+                    clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 ?
+                      "Se actualiza automáticamente según componentes seleccionados..." :
                       "Describir detalladamente el trabajo realizado..."
                   }
                 />
@@ -1391,14 +1389,10 @@ export default function RegistroServicioPage() {
                   <label className="block text-sm font-medium text-gray-700">
                     Items Utilizados
                   </label>
-                  {clasificacion === 'mantenimiento' && (seccionSeleccionada || seccionesSeleccionadas.size > 0) && componentesSeleccionados.size > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setItems(generarItemsAutomaticos())}
-                      className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 transition-colors"
-                    >
-                      🤖 Regenerar automático
-                    </button>
+                  {clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 && componentesSeleccionados.size > 0 && (
+                    <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                      ✨ Se actualiza automáticamente
+                    </div>
                   )}
                 </div>
                 <textarea
@@ -1407,8 +1401,8 @@ export default function RegistroServicioPage() {
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder={
-                    clasificacion === 'mantenimiento' && seccionSeleccionada ?
-                      "Se generará automáticamente: Filtro Aire Mann C123, Aceite Motor Mobil 1..." :
+                    clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 ?
+                      "Se actualiza automáticamente: Filtro Aire Mann C123, Aceite Motor Mobil 1..." :
                       "Listar los items y repuestos utilizados..."
                   }
                 />
