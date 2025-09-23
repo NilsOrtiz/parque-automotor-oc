@@ -691,81 +691,76 @@ export default function RegistroServicioPage() {
     return datosGenerados
   }
 
-  // Generar descripción automática del trabajo
+  // Generar descripción automática del trabajo (narrativa)
   const generarDescripcionAutomatica = (): string => {
     if (componentesSeleccionados.size === 0) return ''
 
     const sistemasActivos = Array.from(seccionesSeleccionadas)
       .map(id => secciones.find(s => s.id === id)?.nombre)
       .filter(Boolean)
-      .join(', ')
 
     const componentesArray = Array.from(componentesSeleccionados)
 
-    // Mapear keys a labels legibles con información de modelos si está disponible
-    const labelsComponentes = componentesArray.map(key => {
-      const labelMap: Record<string, string> = {
-        'aceite_motor': 'Aceite de Motor',
-        'filtro_aceite_motor': 'Filtro Aceite Motor',
-        'filtro_combustible': 'Filtro de Combustible',
-        'filtro_aire': 'Filtro de Aire',
-        'filtro_cabina': 'Filtro de Cabina',
-        'filtro_deshumidificador': 'Filtro Deshumidificador',
-        'filtro_secador': 'Filtro Secador',
-        'filtro_aire_secundario': 'Filtro de Aire Secundario',
-        'trampa_agua': 'Trampa de Agua',
-        'aceite_transmicion': 'Aceite de Transmisión',
-        'liquido_refrigerante': 'Líquido Refrigerante',
-        'liquido_frenos': 'Líquido de Frenos',
-        'pastilla_cinta_freno_a': 'Pastillas Freno Delantero Izq.',
-        'pastilla_cinta_freno_b': 'Pastillas Freno Delantero Der.',
-        'pastilla_cinta_freno_c': 'Pastillas Freno Trasero Izq.',
-        'pastilla_cinta_freno_d': 'Pastillas Freno Trasero Der.',
-        'embrague': 'Embrague',
-        'suspencion_a': 'Suspensión Delantera Izq.',
-        'suspencion_b': 'Suspensión Delantera Der.',
-        'suspencion_c': 'Suspensión Trasera Izq.',
-        'suspencion_d': 'Suspensión Trasera Der.',
-        'correa_distribucion': 'Correa de Distribución',
-        'correa_alternador': 'Correa de Alternador',
-        'correa_direccion': 'Correa de Dirección',
-        'correa_aire_acondicionado': 'Correa de Aire Acondicionado',
-        'correa_polyv': 'Correa Poly-V',
-        'tensor_correa': 'Tensor de Correa',
-        'polea_tensora_correa': 'Polea Tensora',
-        'bateria': 'Batería',
-        'escobillas': 'Escobillas',
-        'neumatico_modelo_marca': 'Modelo/Marca General Neumáticos',
-        'neumatico_a': 'Neumático Delantero Izq.',
-        'neumatico_b': 'Neumático Delantero Der.',
-        'neumatico_c': 'Neumático Trasero Izq.',
-        'neumatico_d': 'Neumático Trasero Der.',
-        'neumatico_e': 'Neumático Auxilio',
-        'neumatico_f': 'Neumático Extra',
-        'alineacion_neumaticos': 'Alineación de Neumáticos',
-        'rotacion_neumaticos': 'Rotación de Neumáticos'
-      }
-
-      const nombreComponente = labelMap[key] || key
-      const modelo = modelosComponentes[key]
-
-      // Incluir modelo en la descripción si está disponible
-      return modelo && modelo.trim() ? `${nombreComponente} (${modelo})` : nombreComponente
-    })
-
-    const listaComponentes = labelsComponentes.join(', ')
-
-    // Obtener kilometraje para incluir en descripción
+    // Obtener kilometraje para contexto
     const kmFinal: number | '' = datosGlobales.usarKmActual ?
       (vehiculo?.kilometraje_actual || '') :
       (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
 
-    // Información adicional para contexto
-    const infoKilometraje = kmFinal ? ` - Kilometraje: ${kmFinal.toLocaleString()} km` : ''
-    const infoFecha = datosGlobales.fecha ? ` - Fecha: ${datosGlobales.fecha}` : ''
-    const infoVehiculo = vehiculo ? ` - Vehículo: ${vehiculo.Placa} (${vehiculo.Marca} ${vehiculo.Modelo})` : ''
+    // Generar descripción narrativa del trabajo
+    let descripcion = ''
 
-    return `Mantenimiento de ${sistemasActivos || 'Múltiples Sistemas'} - Cambio/Servicio de: ${listaComponentes}${infoKilometraje}${infoFecha}${infoVehiculo}`
+    if (sistemasActivos.length === 1) {
+      descripcion = `Se realizó mantenimiento preventivo del sistema de ${sistemasActivos[0].toLowerCase()}`
+    } else if (sistemasActivos.length > 1) {
+      descripcion = `Se realizó mantenimiento preventivo de múltiples sistemas: ${sistemasActivos.join(', ').toLowerCase()}`
+    } else {
+      descripcion = 'Se realizó mantenimiento preventivo del vehículo'
+    }
+
+    // Agregar detalles de los componentes
+    if (componentesArray.length > 0) {
+      const tiposDeMantenimiento = []
+
+      // Detectar tipos de mantenimiento según componentes
+      if (componentesArray.some(key => key.includes('aceite'))) {
+        tiposDeMantenimiento.push('cambio de aceites')
+      }
+      if (componentesArray.some(key => key.includes('filtro'))) {
+        tiposDeMantenimiento.push('reemplazo de filtros')
+      }
+      if (componentesArray.some(key => key.includes('correa'))) {
+        tiposDeMantenimiento.push('inspección y reemplazo de correas')
+      }
+      if (componentesArray.some(key => key.includes('pastilla') || key.includes('freno'))) {
+        tiposDeMantenimiento.push('servicio del sistema de frenos')
+      }
+      if (componentesArray.some(key => key.includes('neumatico'))) {
+        tiposDeMantenimiento.push('mantenimiento de neumáticos')
+      }
+      if (componentesArray.some(key => key.includes('suspencion'))) {
+        tiposDeMantenimiento.push('revisión de la suspensión')
+      }
+      if (componentesArray.some(key => key.includes('bateria') || key.includes('escobillas'))) {
+        tiposDeMantenimiento.push('mantenimiento del sistema eléctrico')
+      }
+
+      if (tiposDeMantenimiento.length > 0) {
+        descripcion += ` incluyendo ${tiposDeMantenimiento.join(', ')}`
+      }
+    }
+
+    // Agregar información de contexto
+    if (kmFinal) {
+      descripcion += `. Trabajo realizado a los ${kmFinal.toLocaleString()} kilómetros`
+    }
+
+    if (vehiculo) {
+      descripcion += ` en vehículo ${vehiculo.Marca} ${vehiculo.Modelo} placa ${vehiculo.Placa}`
+    }
+
+    descripcion += '. Todos los componentes fueron inspeccionados y reemplazados según especificaciones técnicas del fabricante.'
+
+    return descripcion
   }
 
   // Generar items/materiales automáticamente

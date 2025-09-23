@@ -136,10 +136,10 @@ export default function RegistroServicioOrdenesPage() {
         const proveedoresUnicos = [...new Set(ordenesSeleccionadas.map(o => o.proveedor).filter(Boolean))]
         const proveedoresTexto = proveedoresUnicos.join(', ')
 
-        const descripcionBase = `Servicio realizado según OCs: ${codigosOC} - Proveedores: ${proveedoresTexto}`
+        const descripcionNarrativa = generarDescripcionTrabajoOrdenes(codigosOC, proveedoresTexto)
         const itemsComponentes = generarItemsAutomaticos()
 
-        setDescripcion(descripcionBase + (itemsComponentes ? ` - Componentes: ${itemsComponentes}` : ''))
+        setDescripcion(descripcionNarrativa)
         setItems(itemsComponentes)
       }
     }
@@ -597,6 +597,78 @@ export default function RegistroServicioOrdenesPage() {
     })
 
     return items.join(', ')
+  }
+
+  // Generar descripción narrativa del trabajo para modo órdenes
+  const generarDescripcionTrabajoOrdenes = (codigosOC: string, proveedoresTexto: string): string => {
+    if (componentesSeleccionados.size === 0) return `Servicio realizado según OCs: ${codigosOC} - Proveedores: ${proveedoresTexto}`
+
+    const sistemasActivos = Array.from(seccionesSeleccionadas)
+      .map(id => secciones.find(s => s.id === id)?.nombre)
+      .filter(Boolean)
+
+    const componentesArray = Array.from(componentesSeleccionados)
+
+    // Obtener kilometraje para contexto
+    const kmFinal: number | '' = datosGlobales.usarKmActual ?
+      (vehiculoSeleccionado?.kilometraje_actual || '') :
+      (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
+
+    // Generar descripción narrativa del trabajo
+    let descripcion = `Servicio realizado según órdenes de compra ${codigosOC} de ${proveedoresTexto}. `
+
+    if (sistemasActivos.length === 1) {
+      descripcion += `Se realizó mantenimiento preventivo del sistema de ${sistemasActivos[0].toLowerCase()}`
+    } else if (sistemasActivos.length > 1) {
+      descripcion += `Se realizó mantenimiento preventivo de múltiples sistemas: ${sistemasActivos.join(', ').toLowerCase()}`
+    } else {
+      descripcion += 'Se realizó mantenimiento preventivo del vehículo'
+    }
+
+    // Agregar detalles de los componentes
+    if (componentesArray.length > 0) {
+      const tiposDeMantenimiento = []
+
+      // Detectar tipos de mantenimiento según componentes
+      if (componentesArray.some(key => key.includes('aceite'))) {
+        tiposDeMantenimiento.push('cambio de aceites')
+      }
+      if (componentesArray.some(key => key.includes('filtro'))) {
+        tiposDeMantenimiento.push('reemplazo de filtros')
+      }
+      if (componentesArray.some(key => key.includes('correa'))) {
+        tiposDeMantenimiento.push('inspección y reemplazo de correas')
+      }
+      if (componentesArray.some(key => key.includes('pastilla') || key.includes('freno'))) {
+        tiposDeMantenimiento.push('servicio del sistema de frenos')
+      }
+      if (componentesArray.some(key => key.includes('neumatico'))) {
+        tiposDeMantenimiento.push('mantenimiento de neumáticos')
+      }
+      if (componentesArray.some(key => key.includes('suspencion'))) {
+        tiposDeMantenimiento.push('revisión de la suspensión')
+      }
+      if (componentesArray.some(key => key.includes('bateria') || key.includes('escobillas'))) {
+        tiposDeMantenimiento.push('mantenimiento del sistema eléctrico')
+      }
+
+      if (tiposDeMantenimiento.length > 0) {
+        descripcion += ` incluyendo ${tiposDeMantenimiento.join(', ')}`
+      }
+    }
+
+    // Agregar información de contexto
+    if (kmFinal) {
+      descripcion += `. Trabajo realizado a los ${kmFinal.toLocaleString()} kilómetros`
+    }
+
+    if (vehiculoSeleccionado) {
+      descripcion += ` en vehículo ${vehiculoSeleccionado.Marca} ${vehiculoSeleccionado.Modelo} placa ${vehiculoSeleccionado.Placa}`
+    }
+
+    descripcion += '. Todos los componentes fueron inspeccionados y reemplazados según especificaciones técnicas del fabricante.'
+
+    return descripcion
   }
 
   const ordenesFiltradas = ordenesPendientes.filter(orden => {
