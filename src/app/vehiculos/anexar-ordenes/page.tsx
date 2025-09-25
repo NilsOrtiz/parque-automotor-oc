@@ -18,6 +18,7 @@ interface ServicioSinOC {
   descripcion: string
   items: string
   kilometraje_servicio: number | null
+  ocs_vehiculos: string | null
   created_at: string
 }
 
@@ -28,8 +29,8 @@ interface OrdenCompra {
   items: string
   monto_vehiculo: number
   moneda: string
-  vehiculo_id: number | null
-  usado: boolean
+  placa: string
+  interno: number | null
 }
 
 export default function AnexarOrdenesPage() {
@@ -51,17 +52,19 @@ export default function AnexarOrdenesPage() {
   async function cargarServiciosSinOC() {
     setLoading(true)
     try {
+      // Consultar tabla historial en lugar de servicios
       const { data, error } = await supabase
-        .from('servicios')
+        .from('historial')
         .select(`
+          id_historial,
           id,
-          vehiculo_id,
-          fecha,
           clasificacion,
           subclasificacion,
           descripcion,
           items,
-          kilometraje_servicio,
+          fecha_servicio,
+          ocs_vehiculos,
+          kilometraje_al_servicio,
           created_at,
           vehiculos (
             Placa,
@@ -70,52 +73,63 @@ export default function AnexarOrdenesPage() {
             Modelo
           )
         `)
-        .is('orden_compra_id', null) // Solo servicios SIN orden de compra
-        .eq('clasificacion', 'mantenimiento') // Solo mantenimientos
+        .eq('clasificacion', 'mantenimiento')
+        .or('ocs_vehiculos.is.null,ocs_vehiculos.eq.') // Sin OC o vacío
         .order('created_at', { ascending: false })
+        .limit(50)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error en query de historial:', error)
+        throw error
+      }
+
+      console.log('Datos recibidos del historial:', data?.length)
+      if (data?.[0]) {
+        console.log('Estructura del primer registro:', data[0])
+      }
 
       const serviciosFormateados: ServicioSinOC[] = (data || []).map(servicio => ({
-        id: servicio.id,
-        vehiculo_id: servicio.vehiculo_id,
+        id: servicio.id_historial,
+        vehiculo_id: servicio.id,
         vehiculo_placa: servicio.vehiculos?.Placa || 'N/A',
         vehiculo_interno: servicio.vehiculos?.Nro_Interno || null,
         vehiculo_marca: servicio.vehiculos?.Marca || 'N/A',
         vehiculo_modelo: servicio.vehiculos?.Modelo || 'N/A',
-        fecha: servicio.fecha,
+        fecha: servicio.fecha_servicio,
         clasificacion: servicio.clasificacion,
-        subclasificacion: servicio.subclasificacion,
+        subclasificacion: servicio.subclasificacion || '',
         descripcion: servicio.descripcion,
-        items: servicio.items,
-        kilometraje_servicio: servicio.kilometraje_servicio,
+        items: servicio.items || '',
+        kilometraje_servicio: servicio.kilometraje_al_servicio,
+        ocs_vehiculos: servicio.ocs_vehiculos,
         created_at: servicio.created_at
       }))
 
       setServiciosSinOC(serviciosFormateados)
     } catch (error) {
       console.error('Error cargando servicios sin OC:', error)
-      setError('Error cargando servicios sin orden de compra')
+      setError(`Error cargando servicios sin orden de compra: ${error.message || error}`)
     } finally {
       setLoading(false)
     }
   }
 
-  async function cargarOrdenesDisponibles(vehiculoId: number, items: string) {
+  async function cargarOrdenesDisponibles(vehiculoId: number, items: string, placa: string) {
     setLoadingOrdenes(true)
     try {
       const { data, error } = await supabase
-        .from('ordenes_compra')
+        .from('ordenes_de_compra_por_vehiculo')
         .select('*')
-        .or(`vehiculo_id.eq.${vehiculoId},vehiculo_id.is.null`)
-        .eq('usado', false)
+        .eq('placa', placa)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
+      console.log('Órdenes encontradas para placa', placa, ':', data?.length)
+
       // Filtrar órdenes que podrían coincidir con los items del servicio
       const ordenesFiltradas = (data || []).filter(orden => {
-        if (!items || !orden.items) return false
+        if (!items || !orden.items) return true // Mostrar todas si no hay items para comparar
 
         // Buscar coincidencias de palabras clave
         const itemsServicio = items.toLowerCase()
@@ -136,27 +150,19 @@ export default function AnexarOrdenesPage() {
     }
   }
 
-  async function anexarOrdenCompra(servicioId: number, ordenId: number) {
+  async function anexarOrdenCompra(servicioId: number, codigoOC: string) {
     setAnexando(true)
     setError('')
     setSuccess('')
 
     try {
-      // Actualizar el servicio con la orden de compra
+      // Actualizar el registro en historial agregando el código OC
       const { error: updateError } = await supabase
-        .from('servicios')
-        .update({ orden_compra_id: ordenId })
-        .eq('id', servicioId)
+        .from('historial')
+        .update({ ocs_vehiculos: codigoOC })
+        .eq('id_historial', servicioId)
 
       if (updateError) throw updateError
-
-      // Marcar la orden como usada
-      const { error: ocError } = await supabase
-        .from('ordenes_compra')
-        .update({ usado: true })
-        .eq('id', ordenId)
-
-      if (ocError) throw ocError
 
       setSuccess('Orden de compra anexada exitosamente')
       setServicioSeleccionado(null)
@@ -167,7 +173,7 @@ export default function AnexarOrdenesPage() {
 
     } catch (error) {
       console.error('Error anexando orden:', error)
-      setError('Error al anexar la orden de compra')
+      setError(`Error al anexar la orden de compra: ${error.message || error}`)
     } finally {
       setAnexando(false)
     }
@@ -178,7 +184,7 @@ export default function AnexarOrdenesPage() {
     setOrdenesDisponibles([])
     setError('')
     setSuccess('')
-    cargarOrdenesDisponibles(servicio.vehiculo_id, servicio.items)
+    cargarOrdenesDisponibles(servicio.vehiculo_id, servicio.items, servicio.vehiculo_placa)
   }
 
   function formatearFecha(fecha: string) {
@@ -428,7 +434,7 @@ export default function AnexarOrdenesPage() {
                     </div>
 
                     <button
-                      onClick={() => anexarOrdenCompra(servicioSeleccionado.id, orden.id)}
+                      onClick={() => anexarOrdenCompra(servicioSeleccionado.id, orden.codigo_oc)}
                       disabled={anexando}
                       className="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
