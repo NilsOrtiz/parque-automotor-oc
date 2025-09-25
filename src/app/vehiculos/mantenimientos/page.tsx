@@ -257,13 +257,24 @@ export default function MantenimientosPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Link 
-            href="/vehiculos" 
-            className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver a Vehículos
-          </Link>
+          <div className="flex items-center justify-between mb-4">
+            <Link
+              href="/vehiculos"
+              className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver a Vehículos
+            </Link>
+
+            <Link
+              href="/pendientes"
+              className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Ver Pendientes de Operaciones
+            </Link>
+          </div>
+
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Lista de Mantenimientos</h1>
           <p className="text-gray-600">Control de cambios de aceite por vehículo</p>
         </div>
