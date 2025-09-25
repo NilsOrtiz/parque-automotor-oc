@@ -35,6 +35,7 @@ export default function RegistroServicioOrdenesPage() {
   const [descripcion, setDescripcion] = useState('')
   const [items, setItems] = useState('')
   const [kilometrajeServicio, setKilometrajeServicio] = useState<number | ''>('')
+  const [fechaServicio, setFechaServicio] = useState(new Date().toISOString().split('T')[0])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -301,11 +302,13 @@ export default function RegistroServicioOrdenesPage() {
 
       // Determinar kilometraje (desde formulario rápido o campo manual)
       let kilometrajeFinal: number | '' = kilometrajeServicio
+      let fechaFinal: string = fechaServicio
       if (clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0) {
         const kmGlobal = datosGlobales.usarKmActual ?
           (vehiculoSeleccionado.kilometraje_actual || '') :
           (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
         kilometrajeFinal = kmGlobal
+        fechaFinal = datosGlobales.fecha
       }
 
       // Registrar en historial
@@ -320,7 +323,7 @@ export default function RegistroServicioOrdenesPage() {
           kilometraje_al_servicio: kilometrajeFinal || null,
           problema_reportado_por: 'mecanico',
           ocs_vehiculos: JSON.stringify(idsOrdenesSeleccionadas),
-          fecha_servicio: new Date().toISOString().split('T')[0]
+          fecha_servicio: fechaFinal
         })
 
       if (errorHistorial) throw errorHistorial
@@ -370,6 +373,7 @@ export default function RegistroServicioOrdenesPage() {
     setDescripcion('')
     setItems('')
     setKilometrajeServicio('')
+    setFechaServicio(new Date().toISOString().split('T')[0])
     // Limpiar datos de formulario rápido
     setSeccionesSeleccionadas(new Set())
     setComponentesSeleccionados(new Set())
@@ -1132,21 +1136,47 @@ export default function RegistroServicioOrdenesPage() {
                     </div>
                   )}
 
-                  {/* Kilometraje - Solo mostrar si NO se está usando formulario rápido */}
+                  {/* Kilometraje y Fecha - Solo mostrar si NO se está usando formulario rápido */}
                   {!(clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0) && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Kilometraje al Servicio
-                      </label>
-                      <input
-                        type="number"
-                        value={kilometrajeServicio}
-                        onChange={(e) => setKilometrajeServicio(e.target.value ? parseInt(e.target.value) : '')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        placeholder={`Actual: ${vehiculoSeleccionado?.kilometraje_actual?.toLocaleString() || 'No registrado'} km`}
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Kilometraje al Servicio
+                        </label>
+                        <input
+                          type="number"
+                          value={kilometrajeServicio}
+                          onChange={(e) => setKilometrajeServicio(e.target.value ? parseInt(e.target.value) : '')}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          placeholder={`Actual: ${vehiculoSeleccionado?.kilometraje_actual?.toLocaleString() || 'No registrado'} km`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Fecha del Servicio
+                        </label>
+                        <input
+                          type="date"
+                          value={fechaServicio}
+                          onChange={(e) => setFechaServicio(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
                     </div>
                   )}
+
+                  {/* Mostrar fecha editable siempre */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fecha del Servicio
+                    </label>
+                    <input
+                      type="date"
+                      value={fechaServicio}
+                      onChange={(e) => setFechaServicio(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
 
                   {/* Mostrar kilometraje automático cuando se usa formulario rápido */}
                   {clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0 && (
