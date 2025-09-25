@@ -630,8 +630,6 @@ export default function RegistroServicioPage() {
       (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
 
     componentesSeleccionados.forEach(componenteKey => {
-      const modelo = modelosComponentes[componenteKey] || ''
-
       // Buscar la definición del campo en todas las secciones activas
       let definicionCampo: any = null
 
@@ -649,10 +647,7 @@ export default function RegistroServicioPage() {
 
       // Solo generar campos que están definidos en camposPorSeccion
       if (definicionCampo) {
-        // Modelo - solo si existe modelField en la definición
-        if (definicionCampo.modelField && modelo) {
-          datosGenerados[definicionCampo.modelField] = modelo
-        }
+        // Ya no necesitamos el campo modelo
 
         // Kilometraje - solo si existe kmField en la definición
         if (definicionCampo.kmField && kmFinal) {
