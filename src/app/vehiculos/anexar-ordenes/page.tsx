@@ -76,8 +76,7 @@ export default function AnexarOrdenesPage() {
           )
         `)
         .eq('clasificacion', 'mantenimiento')
-        .or('ocs_vehiculos.is.null,ocs_vehiculos.eq.') // Sin OC o vacío
-        .not('ocs_vehiculos', 'eq', 'NA') // Excluir servicios marcados como sin OC
+        .is('ocs_vehiculos', null) // Solo servicios que no tienen OC anexada (null)
         .order('created_at', { ascending: false })
         .limit(50)
 
