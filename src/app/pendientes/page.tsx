@@ -211,127 +211,91 @@ export default function PendientesPage() {
               return (
                 <div
                   key={vehiculo.id}
-                  className={`bg-white rounded-lg shadow-sm border-l-4 ${getPrioridadColor(vehiculo)} p-6 hover:shadow-md transition-shadow`}
+                  className={`bg-white rounded-lg shadow-sm border-l-4 ${getPrioridadColor(vehiculo)} p-4 hover:shadow-md transition-shadow`}
                 >
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Información del vehículo */}
-                    <div className="lg:col-span-1">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0">
-                          <div className="bg-gray-100 rounded-lg p-3">
-                            <Truck className="h-8 w-8 text-gray-600" />
-                          </div>
+                  <div className="flex items-center justify-between">
+                    {/* Info básica del vehículo */}
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0">
+                        <div className="bg-gray-100 rounded-lg p-2">
+                          <Truck className="h-5 w-5 text-gray-600" />
                         </div>
-                        <div className="ml-4 flex-1">
-                          <div className="flex items-center">
-                            <span className="text-lg font-bold text-gray-900">
-                              Móvil #{vehiculo.Nro_Interno}
-                            </span>
-                            <span className="ml-2 text-sm font-medium text-gray-600">
-                              {vehiculo.Placa}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-500 mt-1">
-                            {vehiculo.Marca} {vehiculo.Modelo} ({vehiculo.Año})
-                          </div>
-                          <div className="mt-2 text-xs text-gray-400">
-                            Km actual: {vehiculo.kilometraje_actual?.toLocaleString() || 'N/A'}
-                            {vehiculo.hora_actual && (
-                              <span className="ml-3">Horas: {vehiculo.hora_actual.toLocaleString()}</span>
-                            )}
-                          </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-baseline space-x-2">
+                          <span className="text-lg font-bold text-gray-900">
+                            Móvil #{vehiculo.Nro_Interno}
+                          </span>
+                          <span className="text-sm text-gray-600">{vehiculo.Placa}</span>
+                          <span className="text-xs text-gray-400">
+                            {vehiculo.Marca} {vehiculo.Modelo}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-gray-500 mt-1">
+                          {vehiculo.kilometraje_actual?.toLocaleString() || 'N/A'} km
+                          {vehiculo.hora_actual && (
+                            <span className="ml-2">• {vehiculo.hora_actual.toLocaleString()} hrs</span>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Estado de mantenimiento */}
-                    <div className="lg:col-span-1">
-                      <div className="space-y-3">
-                        <div className="flex items-center">
-                          <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
-                          <span className="font-medium text-red-900">Estado Crítico</span>
+                    {/* Estado crítico compacto */}
+                    <div className="flex items-center space-x-4">
+                      <div className="text-center">
+                        <div className="flex items-center text-red-600 mb-1">
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          <span className="text-sm font-medium">Crítico</span>
                         </div>
-
-                        {porcentajeKm !== null && (
-                          <div className="bg-gray-50 rounded-lg p-3">
-                            <div className="flex justify-between text-sm">
-                              <span>Por kilometraje</span>
-                              <span className="font-medium text-red-600">
-                                {porcentajeKm.toFixed(1)}% vida útil
-                              </span>
+                        <div className="space-y-1">
+                          {porcentajeKm !== null && (
+                            <div className="text-xs">
+                              <span className="font-medium text-red-700">{porcentajeKm.toFixed(1)}%</span>
+                              <span className="text-gray-600 ml-1">vida km</span>
                             </div>
-                            {kmFaltantes !== null && (
-                              <div className="text-xs text-gray-600 mt-1">
-                                {kmFaltantes} km para mantenimiento
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {porcentajeHr !== null && (
-                          <div className="bg-gray-50 rounded-lg p-3">
-                            <div className="flex justify-between text-sm">
-                              <span>Por horas motor</span>
-                              <span className="font-medium text-red-600">
-                                {porcentajeHr.toFixed(1)}% vida útil
-                              </span>
+                          )}
+                          {porcentajeHr !== null && (
+                            <div className="text-xs">
+                              <span className="font-medium text-red-700">{porcentajeHr.toFixed(1)}%</span>
+                              <span className="text-gray-600 ml-1">vida hrs</span>
                             </div>
-                            {hrFaltantes !== null && (
-                              <div className="text-xs text-gray-600 mt-1">
-                                {hrFaltantes} hrs para mantenimiento
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Información para operaciones */}
-                    <div className="lg:col-span-1">
-                      <div className="bg-blue-50 rounded-lg p-4">
-                        <div className="flex items-center mb-3">
-                          <Clock className="h-5 w-5 text-blue-600 mr-2" />
-                          <span className="font-medium text-blue-900">Info para programar</span>
+                      {/* Tiempo y urgencia */}
+                      <div className="text-center">
+                        <div className="text-xs text-gray-600 mb-1">Tiempo estimado</div>
+                        <div className="text-sm font-medium text-blue-900 mb-2">
+                          {getTiempoEstimadoTaller(vehiculo).split(' ')[0]}
                         </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          (porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
+                            ? 'bg-red-100 text-red-800'
+                            : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {(porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
+                            ? 'INMEDIATA'
+                            : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
+                              ? 'ALTA'
+                              : 'MEDIA'
+                          }
+                        </span>
+                      </div>
 
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-blue-800">Tiempo estimado:</span>
-                            <span className="font-medium text-blue-900">
-                              {getTiempoEstimadoTaller(vehiculo)}
-                            </span>
-                          </div>
-
-                          <div className="border-t border-blue-200 pt-2 mt-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-blue-800">Urgencia:</span>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                (porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
-                                  ? 'bg-red-100 text-red-800'
-                                  : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
-                                    ? 'bg-orange-100 text-orange-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {(porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
-                                  ? 'INMEDIATA'
-                                  : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
-                                    ? 'ALTA'
-                                    : 'MEDIA'
-                                }
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="mt-3 pt-2 border-t border-blue-200">
-                            <Link
-                              href={`/vehiculos/registro-servicio?placa=${vehiculo.Placa}`}
-                              className="inline-flex items-center w-full justify-center px-3 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                              <Wrench className="h-4 w-4 mr-1" />
-                              Registrar servicio
-                            </Link>
-                          </div>
-                        </div>
+                      {/* Botón de acción */}
+                      <div>
+                        <Link
+                          href={`/vehiculos/registro-servicio?placa=${vehiculo.Placa}`}
+                          className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Wrench className="h-4 w-4 mr-1" />
+                          Registrar
+                        </Link>
                       </div>
                     </div>
                   </div>
