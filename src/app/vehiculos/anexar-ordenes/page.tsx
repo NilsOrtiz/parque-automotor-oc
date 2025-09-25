@@ -115,7 +115,7 @@ export default function AnexarOrdenesPage() {
     }
   }
 
-  async function cargarOrdenesDisponibles(vehiculoId: number, items: string, placa: string) {
+  async function cargarOrdenesDisponibles(vehiculoId: number, placa: string) {
     setLoadingOrdenes(true)
     try {
       const { data, error } = await supabase
@@ -128,21 +128,8 @@ export default function AnexarOrdenesPage() {
 
       console.log('Órdenes encontradas para placa', placa, ':', data?.length)
 
-      // Filtrar órdenes que podrían coincidir con los items del servicio
-      const ordenesFiltradas = (data || []).filter(orden => {
-        if (!items || !orden.items) return true // Mostrar todas si no hay items para comparar
-
-        // Buscar coincidencias de palabras clave
-        const itemsServicio = items.toLowerCase()
-        const itemsOrden = orden.items.toLowerCase()
-
-        const palabrasClave = ['aceite', 'filtro', 'motor', 'transmision', 'frenos', 'refrigerante', 'combustible']
-        return palabrasClave.some(palabra =>
-          itemsServicio.includes(palabra) && itemsOrden.includes(palabra)
-        )
-      })
-
-      setOrdenesDisponibles(ordenesFiltradas)
+      // Mostrar todas las órdenes de compra del vehículo (sin filtrado inteligente)
+      setOrdenesDisponibles(data || [])
     } catch (error) {
       console.error('Error cargando órdenes:', error)
       setError('Error cargando órdenes de compra disponibles')
@@ -196,7 +183,7 @@ export default function AnexarOrdenesPage() {
     setOrdenesSeleccionadas(new Set())
     setError('')
     setSuccess('')
-    cargarOrdenesDisponibles(servicio.vehiculo_id, servicio.items, servicio.vehiculo_placa)
+    cargarOrdenesDisponibles(servicio.vehiculo_id, servicio.vehiculo_placa)
   }
 
   function toggleOrdenSeleccionada(codigoOC: string) {
@@ -408,22 +395,22 @@ export default function AnexarOrdenesPage() {
               <div className="bg-white rounded-lg shadow-sm p-8 text-center">
                 <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600">
-                  Selecciona un servicio para ver las órdenes de compra compatibles
+                  Selecciona un servicio para ver todas las órdenes de compra del vehículo
                 </p>
               </div>
             ) : loadingOrdenes ? (
               <div className="bg-white rounded-lg shadow-sm p-8 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Cargando órdenes compatibles...</p>
+                <p className="text-gray-600">Cargando órdenes del vehículo...</p>
               </div>
             ) : ordenesDisponibles.length === 0 ? (
               <div className="bg-white rounded-lg shadow-sm p-8 text-center">
                 <AlertCircle className="h-16 w-16 text-yellow-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Sin órdenes compatibles
+                  Sin órdenes de compra
                 </h3>
                 <p className="text-gray-600">
-                  No se encontraron órdenes de compra que coincidan con los items de este servicio
+                  No se encontraron órdenes de compra para este vehículo
                 </p>
               </div>
             ) : (
