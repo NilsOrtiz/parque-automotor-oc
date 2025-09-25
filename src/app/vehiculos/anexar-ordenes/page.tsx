@@ -77,7 +77,7 @@ export default function AnexarOrdenesPage() {
         `)
         .eq('clasificacion', 'mantenimiento')
         .or('ocs_vehiculos.is.null,ocs_vehiculos.eq.') // Sin OC o vacío
-        .not('ocs_vehiculos', 'eq', 'SIN_OC_NECESARIA') // Excluir servicios marcados como sin OC
+        .not('ocs_vehiculos', 'eq', 'NA') // Excluir servicios marcados como sin OC
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -188,7 +188,7 @@ export default function AnexarOrdenesPage() {
       // Marcar el servicio como que no necesita OC
       const { error: updateError } = await supabase
         .from('historial')
-        .update({ ocs_vehiculos: 'SIN_OC_NECESARIA' })
+        .update({ ocs_vehiculos: 'NA' })
         .eq('id_historial', servicioId)
 
       if (updateError) throw updateError
