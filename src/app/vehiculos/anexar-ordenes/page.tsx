@@ -45,6 +45,7 @@ export default function AnexarOrdenesPage() {
   const [anexando, setAnexando] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState<number | null>(null)
 
   useEffect(() => {
     cargarServiciosSinOC()
@@ -76,6 +77,7 @@ export default function AnexarOrdenesPage() {
         `)
         .eq('clasificacion', 'mantenimiento')
         .or('ocs_vehiculos.is.null,ocs_vehiculos.eq.') // Sin OC o vacío
+        .not('ocs_vehiculos', 'eq', 'SIN_OC_NECESARIA') // Excluir servicios marcados como sin OC
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -172,6 +174,36 @@ export default function AnexarOrdenesPage() {
     } catch (error) {
       console.error('Error anexando órdenes:', error)
       setError(`Error al anexar las órdenes de compra: ${error.message || error}`)
+    } finally {
+      setAnexando(false)
+    }
+  }
+
+  async function marcarSinOcNecesaria(servicioId: number) {
+    setAnexando(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      // Marcar el servicio como que no necesita OC
+      const { error: updateError } = await supabase
+        .from('historial')
+        .update({ ocs_vehiculos: 'SIN_OC_NECESARIA' })
+        .eq('id_historial', servicioId)
+
+      if (updateError) throw updateError
+
+      setSuccess('Servicio marcado como "Sin OC necesaria" exitosamente')
+      setServicioSeleccionado(null)
+      setOrdenesDisponibles([])
+      setOrdenesSeleccionadas(new Set())
+
+      // Recargar la lista para que desaparezca el servicio
+      await cargarServiciosSinOC()
+
+    } catch (error) {
+      console.error('Error marcando servicio:', error)
+      setError(`Error al marcar el servicio: ${error.message || error}`)
     } finally {
       setAnexando(false)
     }
@@ -367,16 +399,29 @@ export default function AnexarOrdenesPage() {
                           <span>{servicio.kilometraje_servicio.toLocaleString()} km</span>
                         )}
                       </div>
-                      <button
-                        className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
-                          servicioSeleccionado?.id === servicio.id
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        {servicioSeleccionado?.id === servicio.id ? 'Seleccionado' : 'Seleccionar'}
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setMostrarConfirmacion(servicio.id)
+                          }}
+                          disabled={anexando}
+                          className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-lg bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors disabled:bg-gray-300 disabled:text-gray-500"
+                        >
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Sin OC necesaria
+                        </button>
+                        <button
+                          className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                            servicioSeleccionado?.id === servicio.id
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          {servicioSeleccionado?.id === servicio.id ? 'Seleccionado' : 'Seleccionar'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -510,6 +555,42 @@ export default function AnexarOrdenesPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmación para "Sin OC necesaria" */}
+      {mostrarConfirmacion !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <AlertCircle className="h-6 w-6 text-yellow-500 mr-3" />
+                <h3 className="text-lg font-medium text-gray-900">Confirmar acción</h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                ¿Estás seguro de que este servicio no necesita orden de compra? Esta acción marcará permanentemente el servicio y desaparecerá de la lista.
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setMostrarConfirmacion(null)}
+                  disabled={anexando}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:bg-gray-300"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    marcarSinOcNecesaria(mostrarConfirmacion)
+                    setMostrarConfirmacion(null)
+                  }}
+                  disabled={anexando}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400"
+                >
+                  {anexando ? 'Procesando...' : 'Sí, marcar sin OC'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
