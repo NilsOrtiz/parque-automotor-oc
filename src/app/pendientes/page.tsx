@@ -182,126 +182,128 @@ export default function PendientesPage() {
         </div>
       </div>
 
-      {/* Lista de vehículos pendientes */}
+      {/* Tabla de vehículos pendientes */}
       <div className="max-w-7xl mx-auto px-8 py-8">
         {vehiculosPendientes.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="bg-white rounded-lg shadow-sm p-8">
-              <div className="text-green-500 mb-4">
-                <svg className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                ¡Excelente trabajo!
-              </h3>
-              <p className="text-gray-600">
-                Todos los vehículos de Cuenca del Plata están al día con sus mantenimientos
-              </p>
-            </div>
+          <div className="text-center py-12 bg-white rounded-lg shadow-md">
+            <AlertTriangle className="h-16 w-16 text-green-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              ¡Excelente! No hay vehículos críticos
+            </h3>
+            <p className="text-gray-600">
+              Todos los vehículos de Cuenca del Plata están en buen estado de mantenimiento
+            </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {vehiculosPendientes.map((vehiculo) => {
-              const porcentajeKm = getPorcentajeRestante(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
-              const porcentajeHr = getPorcentajeRestanteHoras(vehiculo.hora_actual, vehiculo.aceite_motor_hr, vehiculo.intervalo_cambio_aceite_hr)
-              const kmFaltantes = getKmFaltantes(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
-              const hrFaltantes = getHrFaltantes(vehiculo.hora_actual, vehiculo.aceite_motor_hr, vehiculo.intervalo_cambio_aceite_hr)
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Vehículos Pendientes - Operaciones</h2>
+              <p className="text-sm text-gray-600 mt-1">Vehículos que requieren mantenimiento inmediato (≤5% vida útil)</p>
+            </div>
 
-              return (
-                <div
-                  key={vehiculo.id}
-                  className={`bg-white rounded-lg shadow-sm border-l-4 ${getPrioridadColor(vehiculo)} p-4 hover:shadow-md transition-shadow`}
-                >
-                  <div className="flex items-center justify-between">
-                    {/* Info básica del vehículo */}
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-shrink-0">
-                        <div className="bg-gray-100 rounded-lg p-2">
-                          <Truck className="h-5 w-5 text-gray-600" />
-                        </div>
-                      </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Interno
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Placa
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Trasladar a
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tiempo Estimado
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Criticidad
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acción
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {vehiculosPendientes.map((vehiculo) => {
+                    const porcentajeKm = getPorcentajeRestante(
+                      vehiculo.kilometraje_actual,
+                      vehiculo.aceite_motor_km,
+                      vehiculo.intervalo_cambio_aceite
+                    )
 
-                      <div>
-                        <div className="flex items-baseline space-x-2">
-                          <span className="text-lg font-bold text-gray-900">
-                            Móvil #{vehiculo.Nro_Interno}
+                    const porcentajeHr = getPorcentajeRestanteHoras(
+                      vehiculo.hora_actual,
+                      vehiculo.aceite_motor_hr,
+                      vehiculo.intervalo_cambio_aceite_hr
+                    )
+
+                    return (
+                      <tr key={vehiculo.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          #{vehiculo.Nro_Interno}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{vehiculo.Placa}</span>
+                            <span className="text-xs text-gray-500">
+                              {vehiculo.Marca} {vehiculo.Modelo}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                            <Wrench className="h-3 w-3 mr-1" />
+                            Taller
                           </span>
-                          <span className="text-sm text-gray-600">{vehiculo.Placa}</span>
-                          <span className="text-xs text-gray-400">
-                            {vehiculo.Marca} {vehiculo.Modelo}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium text-blue-900">
+                            {getTiempoEstimadoTaller(vehiculo)}
                           </span>
-                        </div>
-
-                        <div className="text-xs text-gray-500 mt-1">
-                          {vehiculo.kilometraje_actual?.toLocaleString() || 'N/A'} km
-                          {vehiculo.hora_actual && (
-                            <span className="ml-2">• {vehiculo.hora_actual.toLocaleString()} hrs</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Estado crítico compacto */}
-                    <div className="flex items-center space-x-4">
-                      <div className="text-center">
-                        <div className="flex items-center text-red-600 mb-1">
-                          <AlertTriangle className="h-4 w-4 mr-1" />
-                          <span className="text-sm font-medium">Crítico</span>
-                        </div>
-                        <div className="space-y-1">
-                          {porcentajeKm !== null && (
-                            <div className="text-xs">
-                              <span className="font-medium text-red-700">{porcentajeKm.toFixed(1)}%</span>
-                              <span className="text-gray-600 ml-1">vida km</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col space-y-1">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              (porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
+                                ? 'bg-red-100 text-red-800'
+                                : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              {(porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
+                                ? 'INMEDIATA'
+                                : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
+                                  ? 'ALTA'
+                                  : 'MEDIA'
+                              }
+                            </span>
+                            <div className="text-xs text-gray-500">
+                              {porcentajeKm !== null && (
+                                <div>{porcentajeKm.toFixed(1)}% vida km</div>
+                              )}
+                              {porcentajeHr !== null && (
+                                <div>{porcentajeHr.toFixed(1)}% vida hrs</div>
+                              )}
                             </div>
-                          )}
-                          {porcentajeHr !== null && (
-                            <div className="text-xs">
-                              <span className="font-medium text-red-700">{porcentajeHr.toFixed(1)}%</span>
-                              <span className="text-gray-600 ml-1">vida hrs</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Tiempo y urgencia */}
-                      <div className="text-center">
-                        <div className="text-xs text-gray-600 mb-1">Tiempo estimado</div>
-                        <div className="text-sm font-medium text-blue-900 mb-2">
-                          {getTiempoEstimadoTaller(vehiculo).split(' ')[0]}
-                        </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          (porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
-                            ? 'bg-red-100 text-red-800'
-                            : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
-                              ? 'bg-orange-100 text-orange-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {(porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
-                            ? 'INMEDIATA'
-                            : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
-                              ? 'ALTA'
-                              : 'MEDIA'
-                          }
-                        </span>
-                      </div>
-
-                      {/* Botón de acción */}
-                      <div>
-                        <Link
-                          href={`/vehiculos/registro-servicio?placa=${vehiculo.Placa}`}
-                          className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <Wrench className="h-4 w-4 mr-1" />
-                          Registrar
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <button
+                            className="inline-flex items-center px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+                          >
+                            <Clock className="h-4 w-4 mr-1" />
+                            Programar
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
