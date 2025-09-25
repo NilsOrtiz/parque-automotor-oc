@@ -40,6 +40,7 @@ export default function AnexarOrdenesPage() {
   const [filtroFecha, setFiltroFecha] = useState('')
   const [servicioSeleccionado, setServicioSeleccionado] = useState<ServicioSinOC | null>(null)
   const [ordenesDisponibles, setOrdenesDisponibles] = useState<OrdenCompra[]>([])
+  const [ordenesSeleccionadas, setOrdenesSeleccionadas] = useState<Set<string>>(new Set())
   const [loadingOrdenes, setLoadingOrdenes] = useState(false)
   const [anexando, setAnexando] = useState(false)
   const [success, setSuccess] = useState('')
@@ -150,30 +151,40 @@ export default function AnexarOrdenesPage() {
     }
   }
 
-  async function anexarOrdenCompra(servicioId: number, codigoOC: string) {
+  async function anexarOrdenesCompra(servicioId: number) {
+    if (ordenesSeleccionadas.size === 0) {
+      setError('Debe seleccionar al menos una orden de compra')
+      return
+    }
+
     setAnexando(true)
     setError('')
     setSuccess('')
 
     try {
-      // Actualizar el registro en historial agregando el código OC
+      // Combinar todos los códigos OC seleccionados separados por comas
+      const codigosOC = Array.from(ordenesSeleccionadas).join(', ')
+
+      // Actualizar el registro en historial agregando los códigos OC
       const { error: updateError } = await supabase
         .from('historial')
-        .update({ ocs_vehiculos: codigoOC })
+        .update({ ocs_vehiculos: codigosOC })
         .eq('id_historial', servicioId)
 
       if (updateError) throw updateError
 
-      setSuccess('Orden de compra anexada exitosamente')
+      const cantidadOrdenes = ordenesSeleccionadas.size
+      setSuccess(`${cantidadOrdenes} orden${cantidadOrdenes > 1 ? 'es' : ''} de compra anexada${cantidadOrdenes > 1 ? 's' : ''} exitosamente`)
       setServicioSeleccionado(null)
       setOrdenesDisponibles([])
+      setOrdenesSeleccionadas(new Set())
 
       // Recargar la lista
       await cargarServiciosSinOC()
 
     } catch (error) {
-      console.error('Error anexando orden:', error)
-      setError(`Error al anexar la orden de compra: ${error.message || error}`)
+      console.error('Error anexando órdenes:', error)
+      setError(`Error al anexar las órdenes de compra: ${error.message || error}`)
     } finally {
       setAnexando(false)
     }
@@ -182,9 +193,22 @@ export default function AnexarOrdenesPage() {
   function handleSeleccionarServicio(servicio: ServicioSinOC) {
     setServicioSeleccionado(servicio)
     setOrdenesDisponibles([])
+    setOrdenesSeleccionadas(new Set())
     setError('')
     setSuccess('')
     cargarOrdenesDisponibles(servicio.vehiculo_id, servicio.items, servicio.vehiculo_placa)
+  }
+
+  function toggleOrdenSeleccionada(codigoOC: string) {
+    setOrdenesSeleccionadas(prev => {
+      const nueva = new Set(prev)
+      if (nueva.has(codigoOC)) {
+        nueva.delete(codigoOC)
+      } else {
+        nueva.add(codigoOC)
+      }
+      return nueva
+    })
   }
 
   function formatearFecha(fecha: string) {
@@ -404,54 +428,96 @@ export default function AnexarOrdenesPage() {
               </div>
             ) : (
               <div className="space-y-4">
+                {/* Resumen de selección */}
+                {ordenesSeleccionadas.size > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-blue-900">
+                          {ordenesSeleccionadas.size} orden{ordenesSeleccionadas.size > 1 ? 'es' : ''} seleccionada{ordenesSeleccionadas.size > 1 ? 's' : ''}
+                        </h4>
+                        <p className="text-xs text-blue-700 mt-1">
+                          {Array.from(ordenesSeleccionadas).join(', ')}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setOrdenesSeleccionadas(new Set())}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {ordenesDisponibles.map((orden) => (
                   <div
                     key={orden.id}
-                    className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow"
+                    className={`bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-all ${
+                      ordenesSeleccionadas.has(orden.codigo_oc) ? 'border-blue-300 bg-blue-50' : ''
+                    }`}
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                          {orden.codigo_oc}
-                        </h4>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {orden.proveedor}
-                        </p>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <span className="font-medium">
-                            {orden.moneda} {orden.monto_vehiculo.toLocaleString()}
-                          </span>
+                      <div className="flex items-start space-x-3">
+                        <div className="flex items-center h-5">
+                          <input
+                            type="checkbox"
+                            checked={ordenesSeleccionadas.has(orden.codigo_oc)}
+                            onChange={() => toggleOrdenSeleccionada(orden.codigo_oc)}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                          />
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                            {orden.codigo_oc}
+                          </h4>
+                          <p className="text-sm text-gray-600 mb-2">
+                            {orden.proveedor}
+                          </p>
+                          <div className="flex items-center text-sm text-gray-600">
+                            <span className="font-medium">
+                              {orden.moneda} {orden.monto_vehiculo.toLocaleString()}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                        Disponible
+                      <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                        ordenesSeleccionadas.has(orden.codigo_oc)
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {ordenesSeleccionadas.has(orden.codigo_oc) ? 'Seleccionada' : 'Disponible'}
                       </span>
                     </div>
 
-                    <div className="border-t pt-4 mb-4">
+                    <div className="border-t pt-4">
                       <p className="text-sm font-medium text-gray-700 mb-2">Items de la orden:</p>
                       <p className="text-sm text-gray-600">{orden.items}</p>
                     </div>
-
-                    <button
-                      onClick={() => anexarOrdenCompra(servicioSeleccionado.id, orden.codigo_oc)}
-                      disabled={anexando}
-                      className="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
-                      {anexando ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Anexando...
-                        </>
-                      ) : (
-                        <>
-                          <Link2 className="h-4 w-4 mr-2" />
-                          Anexar Orden
-                        </>
-                      )}
-                    </button>
                   </div>
                 ))}
+
+                {/* Botón de anexar múltiples órdenes */}
+                <div className="sticky bottom-4 bg-white border border-gray-200 rounded-lg p-4 shadow-lg">
+                  <button
+                    onClick={() => anexarOrdenesCompra(servicioSeleccionado.id)}
+                    disabled={anexando || ordenesSeleccionadas.size === 0}
+                    className="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {anexando ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Anexando...
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="h-4 w-4 mr-2" />
+                        Anexar {ordenesSeleccionadas.size > 0 ? `${ordenesSeleccionadas.size} ` : ''}Orden{ordenesSeleccionadas.size > 1 ? 'es' : ''}
+                        {ordenesSeleccionadas.size === 0 && ' (Selecciona primero)'}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
           </div>
