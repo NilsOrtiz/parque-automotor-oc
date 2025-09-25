@@ -3,12 +3,23 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type Vehiculo } from '@/lib/supabase'
-import { ArrowLeft, AlertTriangle, Clock, Wrench, RefreshCw, Truck } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Clock, Wrench, RefreshCw, Truck, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+
+type ScheduledVehicle = {
+  vehiculoId: number
+  interno: string
+  placa: string
+  fecha: string
+  turno: 'mañana' | 'tarde'
+}
 
 export default function PendientesPage() {
   const [vehiculosPendientes, setVehiculosPendientes] = useState<Vehiculo[]>([])
   const [loading, setLoading] = useState(true)
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('')
+  const [scheduledVehicles, setScheduledVehicles] = useState<ScheduledVehicle[]>([])
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehiculo | null>(null)
+  const [currentWeek, setCurrentWeek] = useState(new Date())
 
   useEffect(() => {
     cargarVehiculosPendientes()
@@ -125,6 +136,64 @@ export default function PendientesPage() {
     return 'border-l-yellow-500 bg-yellow-50'
   }
 
+  // Funciones para el calendario
+  function getWeekDays(startDate: Date): Date[] {
+    const days: Date[] = []
+    const start = new Date(startDate)
+
+    // Ajustar al inicio de la semana (lunes = 1, domingo = 0)
+    const dayOfWeek = start.getDay()
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek // Si es domingo, retroceder 6 días
+    start.setDate(start.getDate() + diff)
+
+    // Generar los 7 días de la semana
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(start)
+      day.setDate(start.getDate() + i)
+      days.push(day)
+    }
+
+    return days
+  }
+
+  function formatDate(date: Date): string {
+    return date.toLocaleDateString('es-UY', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit'
+    })
+  }
+
+  function formatDateKey(date: Date): string {
+    return date.toISOString().split('T')[0]
+  }
+
+  function handleScheduleVehicle(vehiculo: Vehiculo, fecha: string, turno: 'mañana' | 'tarde') {
+    const newSchedule: ScheduledVehicle = {
+      vehiculoId: vehiculo.id,
+      interno: vehiculo.Nro_Interno?.toString() || '',
+      placa: vehiculo.Placa,
+      fecha,
+      turno
+    }
+
+    setScheduledVehicles(prev => {
+      // Remover cualquier programación existente para este vehículo
+      const filtered = prev.filter(s => s.vehiculoId !== vehiculo.id)
+      return [...filtered, newSchedule]
+    })
+
+    setSelectedVehicle(null)
+  }
+
+  function getScheduledVehiclesForSlot(fecha: string, turno: 'mañana' | 'tarde'): ScheduledVehicle[] {
+    return scheduledVehicles.filter(s => s.fecha === fecha && s.turno === turno)
+  }
+
+  function removeScheduledVehicle(vehiculoId: number) {
+    setScheduledVehicles(prev => prev.filter(s => s.vehiculoId !== vehiculoId))
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -182,8 +251,11 @@ export default function PendientesPage() {
         </div>
       </div>
 
-      {/* Tabla de vehículos pendientes */}
+      {/* Layout de dos columnas: Tabla y Calendario */}
       <div className="max-w-7xl mx-auto px-8 py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+          {/* Columna izquierda: Tabla de vehículos pendientes */}
+          <div className="xl:col-span-7">
         {vehiculosPendientes.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg shadow-md">
             <AlertTriangle className="h-16 w-16 text-green-600 mx-auto mb-4" />
@@ -291,12 +363,24 @@ export default function PendientesPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <button
-                            className="inline-flex items-center px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
-                          >
-                            <Clock className="h-4 w-4 mr-1" />
-                            Programar
-                          </button>
+                          {scheduledVehicles.some(s => s.vehiculoId === vehiculo.id) ? (
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-green-700 text-xs font-medium">Programado</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setSelectedVehicle(selectedVehicle?.id === vehiculo.id ? null : vehiculo)}
+                              className={`inline-flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${
+                                selectedVehicle?.id === vehiculo.id
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-600 text-white hover:bg-gray-700'
+                              }`}
+                            >
+                              <Clock className="h-4 w-4 mr-1" />
+                              {selectedVehicle?.id === vehiculo.id ? 'Seleccionado' : 'Programar'}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     )
@@ -306,6 +390,144 @@ export default function PendientesPage() {
             </div>
           </div>
         )}
+          </div>
+
+          {/* Columna derecha: Calendario semanal */}
+          <div className="xl:col-span-5">
+            <div className="bg-white rounded-lg shadow-md p-6 sticky top-8">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                  <Calendar className="h-5 w-5 mr-2" />
+                  Programación Semanal
+                </h3>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      const newWeek = new Date(currentWeek)
+                      newWeek.setDate(newWeek.getDate() - 7)
+                      setCurrentWeek(newWeek)
+                    }}
+                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const newWeek = new Date(currentWeek)
+                      newWeek.setDate(newWeek.getDate() + 7)
+                      setCurrentWeek(newWeek)
+                    }}
+                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Calendario */}
+              <div className="space-y-4">
+                {getWeekDays(currentWeek).map((day) => {
+                  const dateKey = formatDateKey(day)
+                  const isToday = dateKey === formatDateKey(new Date())
+                  const isPast = day < new Date(new Date().setHours(0, 0, 0, 0))
+
+                  return (
+                    <div key={dateKey} className={`border rounded-lg p-3 ${
+                      isToday ? 'border-blue-300 bg-blue-50' : 'border-gray-200'
+                    } ${isPast ? 'opacity-60 bg-gray-50' : ''}`}>
+                      <div className="font-medium text-sm text-gray-900 mb-2">
+                        {formatDate(day)}
+                      </div>
+
+                      {/* Turno Mañana */}
+                      <div className="mb-3">
+                        <div className="text-xs font-medium text-gray-600 mb-1">Mañana (8:00)</div>
+                        <div className={`min-h-[40px] border-2 border-dashed rounded p-2 ${
+                          selectedVehicle && !isPast
+                            ? 'border-blue-300 bg-blue-50 cursor-pointer hover:bg-blue-100'
+                            : 'border-gray-200 bg-gray-50'
+                        }`}
+                        onClick={() => {
+                          if (selectedVehicle && !isPast) {
+                            handleScheduleVehicle(selectedVehicle, dateKey, 'mañana')
+                          }
+                        }}>
+                          {getScheduledVehiclesForSlot(dateKey, 'mañana').map((scheduled) => (
+                            <div
+                              key={scheduled.vehiculoId}
+                              className="flex items-center justify-between bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mb-1 group"
+                            >
+                              <span className="font-medium">#{scheduled.interno}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeScheduledVehicle(scheduled.vehiculoId)
+                                }}
+                                className="text-blue-600 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          {getScheduledVehiclesForSlot(dateKey, 'mañana').length === 0 && selectedVehicle && !isPast && (
+                            <div className="text-xs text-blue-600 text-center">
+                              Hacer clic para programar
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Turno Tarde */}
+                      <div>
+                        <div className="text-xs font-medium text-gray-600 mb-1">Tarde (14:00)</div>
+                        <div className={`min-h-[40px] border-2 border-dashed rounded p-2 ${
+                          selectedVehicle && !isPast
+                            ? 'border-orange-300 bg-orange-50 cursor-pointer hover:bg-orange-100'
+                            : 'border-gray-200 bg-gray-50'
+                        }`}
+                        onClick={() => {
+                          if (selectedVehicle && !isPast) {
+                            handleScheduleVehicle(selectedVehicle, dateKey, 'tarde')
+                          }
+                        }}>
+                          {getScheduledVehiclesForSlot(dateKey, 'tarde').map((scheduled) => (
+                            <div
+                              key={scheduled.vehiculoId}
+                              className="flex items-center justify-between bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs mb-1 group"
+                            >
+                              <span className="font-medium">#{scheduled.interno}</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeScheduledVehicle(scheduled.vehiculoId)
+                                }}
+                                className="text-orange-600 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          {getScheduledVehiclesForSlot(dateKey, 'tarde').length === 0 && selectedVehicle && !isPast && (
+                            <div className="text-xs text-orange-600 text-center">
+                              Hacer clic para programar
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Instrucciones */}
+              <div className="mt-6 p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  <strong>Instrucciones:</strong> Selecciona un vehículo haciendo clic en "Programar" y luego elige el día y turno en el calendario.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
