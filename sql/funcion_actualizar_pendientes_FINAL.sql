@@ -5,10 +5,10 @@ CREATE OR REPLACE FUNCTION public.actualizar_pendientes_operaciones()
 RETURNS integer AS $$
 DECLARE
     vehiculo_record record;
-    porcentaje_km numeric(5,2);
-    porcentaje_hr numeric(5,2);
-    km_faltantes integer;
-    hr_faltantes integer;
+    calc_porcentaje_km numeric(5,2);
+    calc_porcentaje_hr numeric(5,2);
+    calc_km_faltantes integer;
+    calc_hr_faltantes integer;
     es_critico boolean;
     registros_insertados integer := 0;
     intervalo_km integer;
@@ -31,10 +31,10 @@ BEGIN
         ORDER BY "Nro_Interno"
     LOOP
         -- Inicializar variables
-        porcentaje_km := NULL;
-        porcentaje_hr := NULL;
-        km_faltantes := NULL;
-        hr_faltantes := NULL;
+        calc_porcentaje_km := NULL;
+        calc_porcentaje_hr := NULL;
+        calc_km_faltantes := NULL;
+        calc_hr_faltantes := NULL;
         es_critico := false;
 
         -- Calcular porcentaje de vida útil por kilómetros
@@ -44,9 +44,9 @@ BEGIN
             km_recorridos := vehiculo_record.kilometraje_actual - vehiculo_record.aceite_motor_km;
             km_faltantes_calc := intervalo_km - km_recorridos;
 
-            km_faltantes := GREATEST(0, km_faltantes_calc);
-            porcentaje_km := (km_faltantes_calc::numeric / intervalo_km::numeric) * 100;
-            porcentaje_km := GREATEST(0, LEAST(100, porcentaje_km));
+            calc_km_faltantes := GREATEST(0, km_faltantes_calc);
+            calc_porcentaje_km := (km_faltantes_calc::numeric / intervalo_km::numeric) * 100;
+            calc_porcentaje_km := GREATEST(0, LEAST(100, calc_porcentaje_km));
         END IF;
 
         -- Calcular porcentaje de vida útil por horas
@@ -57,25 +57,25 @@ BEGIN
             hr_recorridas := vehiculo_record.hora_actual - vehiculo_record.aceite_motor_hr;
             hr_faltantes_calc := vehiculo_record.intervalo_cambio_aceite_hr - hr_recorridas;
 
-            hr_faltantes := GREATEST(0, hr_faltantes_calc);
-            porcentaje_hr := (hr_faltantes_calc::numeric / vehiculo_record.intervalo_cambio_aceite_hr::numeric) * 100;
-            porcentaje_hr := GREATEST(0, LEAST(100, porcentaje_hr));
+            calc_hr_faltantes := GREATEST(0, hr_faltantes_calc);
+            calc_porcentaje_hr := (hr_faltantes_calc::numeric / vehiculo_record.intervalo_cambio_aceite_hr::numeric) * 100;
+            calc_porcentaje_hr := GREATEST(0, LEAST(100, calc_porcentaje_hr));
         END IF;
 
         -- Determinar si es crítico (≤5% en cualquiera de los dos criterios)
-        es_critico := (porcentaje_km IS NOT NULL AND porcentaje_km <= 5) OR
-                      (porcentaje_hr IS NOT NULL AND porcentaje_hr <= 5);
+        es_critico := (calc_porcentaje_km IS NOT NULL AND calc_porcentaje_km <= 5) OR
+                      (calc_porcentaje_hr IS NOT NULL AND calc_porcentaje_hr <= 5);
 
         -- NUEVA LÓGICA: Si es crítico, verificar si ya existe o crear/actualizar
         IF es_critico THEN
             -- Determinar tiempo estimado basado en criticidad (solo para nuevos registros)
-            IF (porcentaje_km IS NOT NULL AND porcentaje_km <= 1) OR
-               (porcentaje_hr IS NOT NULL AND porcentaje_hr <= 1) THEN
+            IF (calc_porcentaje_km IS NOT NULL AND calc_porcentaje_km <= 1) OR
+               (calc_porcentaje_hr IS NOT NULL AND calc_porcentaje_hr <= 1) THEN
                 tiempo_estimado_calc := '6-8 horas';
                 criticidad_calc := 'critico';
                 motivo_calc := 'Service completo + revisión URGENTE';
-            ELSIF (porcentaje_km IS NOT NULL AND porcentaje_km <= 3) OR
-                  (porcentaje_hr IS NOT NULL AND porcentaje_hr <= 3) THEN
+            ELSIF (calc_porcentaje_km IS NOT NULL AND calc_porcentaje_km <= 3) OR
+                  (calc_porcentaje_hr IS NOT NULL AND calc_porcentaje_hr <= 3) THEN
                 tiempo_estimado_calc := '4-6 horas';
                 criticidad_calc := 'critico';
                 motivo_calc := 'Service + revisión';
@@ -97,22 +97,22 @@ BEGIN
                 SET
                     vehiculo_id = vehiculo_record.id,
                     placa = vehiculo_record."Placa",
-                    porcentaje_vida_km = porcentaje_km,
-                    porcentaje_vida_hr = porcentaje_hr,
-                    km_faltantes = km_faltantes,
-                    hr_faltantes = hr_faltantes,
+                    porcentaje_vida_km = calc_porcentaje_km,
+                    porcentaje_vida_hr = calc_porcentaje_hr,
+                    km_faltantes = calc_km_faltantes,
+                    hr_faltantes = calc_hr_faltantes,
                     criticidad = criticidad_calc,
                     fecha_actualizacion = now(),
                     -- Solo actualizar observaciones si no han sido editadas manualmente
                     observaciones = CASE
                         WHEN observaciones LIKE 'Crítico por %' OR observaciones = 'Generado automáticamente' THEN
                             CASE
-                                WHEN porcentaje_km IS NOT NULL AND porcentaje_hr IS NOT NULL THEN
-                                    'Crítico por KM (' || ROUND(porcentaje_km, 1) || '%) y Horas (' || ROUND(porcentaje_hr, 1) || '%)'
-                                WHEN porcentaje_km IS NOT NULL THEN
-                                    'Crítico por KM (' || ROUND(porcentaje_km, 1) || '% vida útil)'
-                                WHEN porcentaje_hr IS NOT NULL THEN
-                                    'Crítico por Horas (' || ROUND(porcentaje_hr, 1) || '% vida útil)'
+                                WHEN calc_porcentaje_km IS NOT NULL AND calc_porcentaje_hr IS NOT NULL THEN
+                                    'Crítico por KM (' || ROUND(calc_porcentaje_km, 1) || '%) y Horas (' || ROUND(calc_porcentaje_hr, 1) || '%)'
+                                WHEN calc_porcentaje_km IS NOT NULL THEN
+                                    'Crítico por KM (' || ROUND(calc_porcentaje_km, 1) || '% vida útil)'
+                                WHEN calc_porcentaje_hr IS NOT NULL THEN
+                                    'Crítico por Horas (' || ROUND(calc_porcentaje_hr, 1) || '% vida útil)'
                                 ELSE
                                     'Generado automáticamente'
                             END
@@ -125,8 +125,8 @@ BEGIN
 
                 RAISE NOTICE 'Actualizado vehículo interno % - KM: %, Horas: %',
                     vehiculo_record."Nro_Interno",
-                    COALESCE(ROUND(porcentaje_km, 1), 0),
-                    COALESCE(ROUND(porcentaje_hr, 1), 0);
+                    COALESCE(ROUND(calc_porcentaje_km, 1), 0),
+                    COALESCE(ROUND(calc_porcentaje_hr, 1), 0);
 
             ELSE
                 -- CREAR nuevo registro automático
@@ -153,19 +153,19 @@ BEGIN
                     tiempo_estimado_calc,
                     motivo_calc,
                     criticidad_calc,
-                    porcentaje_km,
-                    porcentaje_hr,
-                    km_faltantes,
-                    hr_faltantes,
+                    calc_porcentaje_km,
+                    calc_porcentaje_hr,
+                    calc_km_faltantes,
+                    calc_hr_faltantes,
                     'pendiente',
                     true,
                     CASE
-                        WHEN porcentaje_km IS NOT NULL AND porcentaje_hr IS NOT NULL THEN
-                            'Crítico por KM (' || ROUND(porcentaje_km, 1) || '%) y Horas (' || ROUND(porcentaje_hr, 1) || '%)'
-                        WHEN porcentaje_km IS NOT NULL THEN
-                            'Crítico por KM (' || ROUND(porcentaje_km, 1) || '% vida útil)'
-                        WHEN porcentaje_hr IS NOT NULL THEN
-                            'Crítico por Horas (' || ROUND(porcentaje_hr, 1) || '% vida útil)'
+                        WHEN calc_porcentaje_km IS NOT NULL AND calc_porcentaje_hr IS NOT NULL THEN
+                            'Crítico por KM (' || ROUND(calc_porcentaje_km, 1) || '%) y Horas (' || ROUND(calc_porcentaje_hr, 1) || '%)'
+                        WHEN calc_porcentaje_km IS NOT NULL THEN
+                            'Crítico por KM (' || ROUND(calc_porcentaje_km, 1) || '% vida útil)'
+                        WHEN calc_porcentaje_hr IS NOT NULL THEN
+                            'Crítico por Horas (' || ROUND(calc_porcentaje_hr, 1) || '% vida útil)'
                         ELSE
                             'Generado automáticamente'
                     END
@@ -175,8 +175,8 @@ BEGIN
 
                 RAISE NOTICE 'Nuevo vehículo crítico: interno % - KM: %, Horas: %',
                     vehiculo_record."Nro_Interno",
-                    COALESCE(ROUND(porcentaje_km, 1), 0),
-                    COALESCE(ROUND(porcentaje_hr, 1), 0);
+                    COALESCE(ROUND(calc_porcentaje_km, 1), 0),
+                    COALESCE(ROUND(calc_porcentaje_hr, 1), 0);
             END IF;
 
         END IF;
