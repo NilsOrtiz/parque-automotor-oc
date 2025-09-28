@@ -33,17 +33,33 @@ jobs:
       - name: 🔍 Verificar estado de la aplicación
         run: |
           echo "📡 Verificando que la aplicación esté disponible..."
+          echo "🔗 URL base: ${{ secrets.APP_URL }}"
 
-          # Verificar que la app responda
-          health_check=$(curl -s -o /dev/null -w "%{http_code}" \
+          # Probar endpoint de salud simple primero
+          health_url="${{ secrets.APP_URL }}/api/health"
+          echo "🏥 Probando health endpoint: $health_url"
+
+          health_response=$(curl -s -w "%{http_code}" \
+            -m 10 \
+            -H "User-Agent: GitHubActions/HealthCheck" \
+            "$health_url")
+
+          health_code="${health_response: -3}"
+          health_body="${health_response%???}"
+
+          echo "🏥 Health check status: $health_code"
+          echo "📋 Health response: $health_body"
+
+          # Verificar página principal también
+          main_check=$(curl -s -o /dev/null -w "%{http_code}" \
             -m 10 \
             "${{ secrets.APP_URL }}" || echo "000")
 
-          echo "🏥 Health check status: $health_check"
+          echo "🌐 Main page status: $main_check"
 
-          if [ "$health_check" != "200" ]; then
+          if [ "$health_code" != "200" ] && [ "$main_check" != "200" ]; then
             echo "⚠️ La aplicación no está respondiendo correctamente"
-            echo "🔗 URL verificada: ${{ secrets.APP_URL }}"
+            echo "🔗 URLs verificadas: health=$health_url, main=${{ secrets.APP_URL }}"
             # No fallar, continuar con el intento
           else
             echo "✅ Aplicación disponible"
@@ -53,12 +69,19 @@ jobs:
         id: current_state
         run: |
           echo "📋 Consultando estado actual de pendientes..."
+          echo "🔗 URL base: ${{ secrets.APP_URL }}"
+
+          # Usar GET para consultar estado sin ejecutar actualización
+          api_url="${{ secrets.APP_URL }}/api/actualizar-pendientes"
+          echo "🎯 URL completa: $api_url"
 
           current_response=$(curl -s -w "%{http_code}" \
             -m 30 \
             -H "Content-Type: application/json" \
             -H "User-Agent: GitHubActions/PendientesUpdater" \
-            "${{ secrets.APP_URL }}/api/actualizar-pendientes")
+            -H "Accept: application/json" \
+            -L \
+            "$api_url")
 
           current_http_code="${current_response: -3}"
           current_body="${current_response%???}"
@@ -74,9 +97,14 @@ jobs:
         id: update
         run: |
           echo "🔄 Ejecutando actualización de pendientes..."
+          echo "🔗 URL base: ${{ secrets.APP_URL }}"
+
+          # Construir URL completa para cron endpoint
+          cron_url="${{ secrets.APP_URL }}/api/cron/actualizar-pendientes"
+          echo "🎯 URL cron completa: $cron_url"
 
           # Construir headers
-          headers=(-H "Content-Type: application/json" -H "User-Agent: GitHubActions/AutoUpdater")
+          headers=(-H "Content-Type: application/json" -H "User-Agent: GitHubActions/AutoUpdater" -H "Accept: application/json")
 
           # Agregar token si está configurado
           if [ -n "${{ secrets.CRON_SECRET_TOKEN }}" ]; then
@@ -86,12 +114,13 @@ jobs:
             echo "⚠️ No hay token de autorización configurado"
           fi
 
-          # Ejecutar actualización
+          # Ejecutar actualización con follow redirects
           update_response=$(curl -s -w "%{http_code}" \
             -X POST \
             -m 30 \
+            -L \
             "${headers[@]}" \
-            "${{ secrets.APP_URL }}/api/cron/actualizar-pendientes")
+            "$cron_url")
 
           update_http_code="${update_response: -3}"
           update_body="${update_response%???}"

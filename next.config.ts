@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Evitar redirects automáticos que causan 308
+  trailingSlash: false,
+  skipTrailingSlashRedirect: true,
+
   eslint: {
     // Solo desactivar en producción
     ignoreDuringBuilds: process.env.NODE_ENV === 'production',
