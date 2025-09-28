@@ -21,10 +21,7 @@ DECLARE
     motivo_calc text;
     criticidad_calc text;
 BEGIN
-    -- Limpiar registros automáticos existentes que ya no son críticos
-    DELETE FROM public.pendientes_operaciones
-    WHERE es_automatico = true
-    AND estado = 'pendiente';
+    -- NUEVA LÓGICA: No borrar registros, sino actualizar inteligentemente
 
     -- Recorrer todos los vehículos de Cuenca del Plata (que tienen número interno)
     FOR vehiculo_record IN
@@ -69,9 +66,9 @@ BEGIN
         es_critico := (porcentaje_km IS NOT NULL AND porcentaje_km <= 5) OR
                       (porcentaje_hr IS NOT NULL AND porcentaje_hr <= 5);
 
-        -- Si es crítico, insertar nuevo registro
+        -- NUEVA LÓGICA: Si es crítico, verificar si ya existe o crear/actualizar
         IF es_critico THEN
-            -- Determinar tiempo estimado basado en criticidad
+            -- Determinar tiempo estimado basado en criticidad (solo para nuevos registros)
             IF (porcentaje_km IS NOT NULL AND porcentaje_km <= 1) OR
                (porcentaje_hr IS NOT NULL AND porcentaje_hr <= 1) THEN
                 tiempo_estimado_calc := '6-8 horas';
@@ -88,61 +85,138 @@ BEGIN
                 motivo_calc := 'Service + revisión';
             END IF;
 
-            -- Insertar nuevo registro automático
-            INSERT INTO public.pendientes_operaciones (
-                vehiculo_id,
-                interno,
-                placa,
-                trasladar_a,
-                tiempo_estimado,
-                motivo,
-                criticidad,
-                porcentaje_vida_km,
-                porcentaje_vida_hr,
-                km_faltantes,
-                hr_faltantes,
-                estado,
-                es_automatico,
-                observaciones
-            ) VALUES (
-                vehiculo_record.id,
-                vehiculo_record."Nro_Interno",
-                vehiculo_record."Placa",
-                'Taller',
-                tiempo_estimado_calc,
-                motivo_calc,
-                criticidad_calc,
-                porcentaje_km,
-                porcentaje_hr,
-                km_faltantes,
-                hr_faltantes,
-                'pendiente',
-                true,
-                CASE
-                    WHEN porcentaje_km IS NOT NULL AND porcentaje_hr IS NOT NULL THEN
-                        'Crítico por KM (' || ROUND(porcentaje_km, 1) || '%) y Horas (' || ROUND(porcentaje_hr, 1) || '%)'
-                    WHEN porcentaje_km IS NOT NULL THEN
-                        'Crítico por KM (' || ROUND(porcentaje_km, 1) || '% vida útil)'
-                    WHEN porcentaje_hr IS NOT NULL THEN
-                        'Crítico por Horas (' || ROUND(porcentaje_hr, 1) || '% vida útil)'
-                    ELSE
-                        'Generado automáticamente'
-                END
-            );
+            -- VERIFICAR si ya existe un registro para este interno en "Taller"
+            IF EXISTS (
+                SELECT 1 FROM public.pendientes_operaciones
+                WHERE interno = vehiculo_record."Nro_Interno"
+                AND trasladar_a = 'Taller'
+                AND es_automatico = true
+            ) THEN
+                -- ACTUALIZAR registro existente (solo datos técnicos)
+                UPDATE public.pendientes_operaciones
+                SET
+                    vehiculo_id = vehiculo_record.id,
+                    placa = vehiculo_record."Placa",
+                    porcentaje_vida_km = porcentaje_km,
+                    porcentaje_vida_hr = porcentaje_hr,
+                    km_faltantes = km_faltantes,
+                    hr_faltantes = hr_faltantes,
+                    criticidad = criticidad_calc,
+                    fecha_actualizacion = now(),
+                    -- Solo actualizar observaciones si no han sido editadas manualmente
+                    observaciones = CASE
+                        WHEN observaciones LIKE 'Crítico por %' OR observaciones = 'Generado automáticamente' THEN
+                            CASE
+                                WHEN porcentaje_km IS NOT NULL AND porcentaje_hr IS NOT NULL THEN
+                                    'Crítico por KM (' || ROUND(porcentaje_km, 1) || '%) y Horas (' || ROUND(porcentaje_hr, 1) || '%)'
+                                WHEN porcentaje_km IS NOT NULL THEN
+                                    'Crítico por KM (' || ROUND(porcentaje_km, 1) || '% vida útil)'
+                                WHEN porcentaje_hr IS NOT NULL THEN
+                                    'Crítico por Horas (' || ROUND(porcentaje_hr, 1) || '% vida útil)'
+                                ELSE
+                                    'Generado automáticamente'
+                            END
+                        ELSE
+                            observaciones -- Mantener observaciones editadas manualmente
+                    END
+                WHERE interno = vehiculo_record."Nro_Interno"
+                AND trasladar_a = 'Taller'
+                AND es_automatico = true;
 
-            registros_insertados := registros_insertados + 1;
+                RAISE NOTICE 'Actualizado vehículo interno % - KM: %%, Horas: %%',
+                    vehiculo_record."Nro_Interno",
+                    COALESCE(ROUND(porcentaje_km, 1), 0),
+                    COALESCE(ROUND(porcentaje_hr, 1), 0);
+
+            ELSE
+                -- CREAR nuevo registro automático
+                INSERT INTO public.pendientes_operaciones (
+                    vehiculo_id,
+                    interno,
+                    placa,
+                    trasladar_a,
+                    tiempo_estimado,
+                    motivo,
+                    criticidad,
+                    porcentaje_vida_km,
+                    porcentaje_vida_hr,
+                    km_faltantes,
+                    hr_faltantes,
+                    estado,
+                    es_automatico,
+                    observaciones
+                ) VALUES (
+                    vehiculo_record.id,
+                    vehiculo_record."Nro_Interno",
+                    vehiculo_record."Placa",
+                    'Taller',
+                    tiempo_estimado_calc,
+                    motivo_calc,
+                    criticidad_calc,
+                    porcentaje_km,
+                    porcentaje_hr,
+                    km_faltantes,
+                    hr_faltantes,
+                    'pendiente',
+                    true,
+                    CASE
+                        WHEN porcentaje_km IS NOT NULL AND porcentaje_hr IS NOT NULL THEN
+                            'Crítico por KM (' || ROUND(porcentaje_km, 1) || '%) y Horas (' || ROUND(porcentaje_hr, 1) || '%)'
+                        WHEN porcentaje_km IS NOT NULL THEN
+                            'Crítico por KM (' || ROUND(porcentaje_km, 1) || '% vida útil)'
+                        WHEN porcentaje_hr IS NOT NULL THEN
+                            'Crítico por Horas (' || ROUND(porcentaje_hr, 1) || '% vida útil)'
+                        ELSE
+                            'Generado automáticamente'
+                    END
+                );
+
+                registros_insertados := registros_insertados + 1;
+
+                RAISE NOTICE 'Nuevo vehículo crítico: interno % - KM: %%, Horas: %%',
+                    vehiculo_record."Nro_Interno",
+                    COALESCE(ROUND(porcentaje_km, 1), 0),
+                    COALESCE(ROUND(porcentaje_hr, 1), 0);
+            END IF;
+
         END IF;
     END LOOP;
 
+    -- LIMPIAR registros automáticos que ya NO son críticos
+    -- Solo eliminar los que están en estado 'pendiente' y son automáticos
+    DELETE FROM public.pendientes_operaciones
+    WHERE es_automatico = true
+    AND estado = 'pendiente'
+    AND trasladar_a = 'Taller'
+    AND interno NOT IN (
+        -- Subquery: internos que SÍ siguen siendo críticos
+        SELECT v."Nro_Interno"
+        FROM public.vehiculos v
+        WHERE v."Nro_Interno" IS NOT NULL
+        AND v."Nro_Interno" > 0
+        AND (
+            -- Crítico por KM
+            (v.kilometraje_actual IS NOT NULL
+             AND v.aceite_motor_km IS NOT NULL
+             AND ((COALESCE(v.intervalo_cambio_aceite, 10000) - (v.kilometraje_actual - v.aceite_motor_km))::numeric / COALESCE(v.intervalo_cambio_aceite, 10000)::numeric) * 100 <= 5)
+            OR
+            -- Crítico por Horas
+            (v.hora_actual IS NOT NULL
+             AND v.aceite_motor_hr IS NOT NULL
+             AND v.intervalo_cambio_aceite_hr IS NOT NULL
+             AND ((v.intervalo_cambio_aceite_hr - (v.hora_actual - v.aceite_motor_hr))::numeric / v.intervalo_cambio_aceite_hr::numeric) * 100 <= 5)
+        )
+    );
+
     -- Log de la operación
-    RAISE NOTICE 'Actualización de pendientes_operaciones completada: % registros insertados', registros_insertados;
+    RAISE NOTICE 'Actualización de pendientes_operaciones completada: % registros nuevos insertados', registros_insertados;
 
     RETURN registros_insertados;
 END;
 $$ language 'plpgsql';
 
 -- Comentario de la función
-COMMENT ON FUNCTION public.actualizar_pendientes_operaciones() IS 'Función que actualiza automáticamente la tabla pendientes_operaciones basada en criterios de mantenimiento críticos (≤5% vida útil). Retorna el número de registros insertados.';
+COMMENT ON FUNCTION public.actualizar_pendientes_operaciones() IS 'Función INTELIGENTE que actualiza pendientes_operaciones: 1) Actualiza datos técnicos de registros existentes preservando ediciones del taller, 2) Crea nuevos registros solo para vehículos críticos sin registro previo, 3) Elimina registros que ya no son críticos. Identificación única: interno + trasladar_a. Retorna registros nuevos insertados.';
 
 -- Crear función helper para ejecutar desde la aplicación
 CREATE OR REPLACE FUNCTION public.ejecutar_actualizacion_pendientes()
