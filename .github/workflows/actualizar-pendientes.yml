@@ -1,0 +1,190 @@
+name: 🔄 Actualizar Pendientes de Operaciones
+
+on:
+  schedule:
+    # Ejecutar múltiples veces al día
+    - cron: '0 6 * * *'   # 6:00 AM UTC (3:00 AM Argentina)
+    - cron: '0 14 * * *'  # 2:00 PM UTC (11:00 AM Argentina)
+    - cron: '0 18 * * *'  # 6:00 PM UTC (3:00 PM Argentina)
+
+  # Permitir ejecución manual desde GitHub
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Forzar actualización completa'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  actualizar-pendientes:
+    name: 🚛 Actualizar Lista de Pendientes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 🚀 Iniciar proceso
+        run: |
+          echo "🕒 Iniciando actualización automática de pendientes..."
+          echo "⏰ Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "🌍 Timezone: $TZ"
+          echo "🔧 Forzar actualización: ${{ github.event.inputs.force_update || 'false' }}"
+
+      - name: 🔍 Verificar estado de la aplicación
+        run: |
+          echo "📡 Verificando que la aplicación esté disponible..."
+
+          # Verificar que la app responda
+          health_check=$(curl -s -o /dev/null -w "%{http_code}" \
+            -m 10 \
+            "${{ secrets.APP_URL }}" || echo "000")
+
+          echo "🏥 Health check status: $health_check"
+
+          if [ "$health_check" != "200" ]; then
+            echo "⚠️ La aplicación no está respondiendo correctamente"
+            echo "🔗 URL verificada: ${{ secrets.APP_URL }}"
+            # No fallar, continuar con el intento
+          else
+            echo "✅ Aplicación disponible"
+          fi
+
+      - name: 📊 Consultar estado actual
+        id: current_state
+        run: |
+          echo "📋 Consultando estado actual de pendientes..."
+
+          current_response=$(curl -s -w "%{http_code}" \
+            -m 30 \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: GitHubActions/PendientesUpdater" \
+            "${{ secrets.APP_URL }}/api/actualizar-pendientes")
+
+          current_http_code="${current_response: -3}"
+          current_body="${current_response%???}"
+
+          echo "📊 Estado actual - Código HTTP: $current_http_code"
+          echo "📋 Respuesta: $current_body"
+
+          # Guardar para el siguiente step
+          echo "current_status=$current_http_code" >> $GITHUB_OUTPUT
+          echo "current_data=$current_body" >> $GITHUB_OUTPUT
+
+      - name: 🔄 Ejecutar actualización de pendientes
+        id: update
+        run: |
+          echo "🔄 Ejecutando actualización de pendientes..."
+
+          # Construir headers
+          headers=(-H "Content-Type: application/json" -H "User-Agent: GitHubActions/AutoUpdater")
+
+          # Agregar token si está configurado
+          if [ -n "${{ secrets.CRON_SECRET_TOKEN }}" ]; then
+            headers+=(-H "Authorization: Bearer ${{ secrets.CRON_SECRET_TOKEN }}")
+            echo "🔐 Token de autorización configurado"
+          else
+            echo "⚠️ No hay token de autorización configurado"
+          fi
+
+          # Ejecutar actualización
+          update_response=$(curl -s -w "%{http_code}" \
+            -X POST \
+            -m 30 \
+            "${headers[@]}" \
+            "${{ secrets.APP_URL }}/api/cron/actualizar-pendientes")
+
+          update_http_code="${update_response: -3}"
+          update_body="${update_response%???}"
+
+          echo "📊 Actualización - Código HTTP: $update_http_code"
+          echo "📋 Respuesta completa: $update_body"
+
+          # Guardar resultados
+          echo "update_status=$update_http_code" >> $GITHUB_OUTPUT
+          echo "update_data=$update_body" >> $GITHUB_OUTPUT
+
+          # Extraer información específica si la respuesta es JSON válida
+          if command -v jq >/dev/null 2>&1; then
+            if echo "$update_body" | jq . >/dev/null 2>&1; then
+              registros=$(echo "$update_body" | jq -r '.registros_insertados // "N/A"')
+              success=$(echo "$update_body" | jq -r '.success // false')
+              message=$(echo "$update_body" | jq -r '.message // "N/A"')
+
+              echo "📈 Registros insertados: $registros"
+              echo "✅ Éxito: $success"
+              echo "💬 Mensaje: $message"
+
+              echo "registros_insertados=$registros" >> $GITHUB_OUTPUT
+              echo "success=$success" >> $GITHUB_OUTPUT
+              echo "message=$message" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: 📈 Procesar resultados
+        run: |
+          echo "📊 Procesando resultados de la actualización..."
+
+          update_status="${{ steps.update.outputs.update_status }}"
+          success="${{ steps.update.outputs.success }}"
+          registros="${{ steps.update.outputs.registros_insertados }}"
+          message="${{ steps.update.outputs.message }}"
+
+          echo "🔍 Estado HTTP: $update_status"
+          echo "✅ Éxito: $success"
+          echo "📊 Registros procesados: $registros"
+          echo "💬 Mensaje: $message"
+
+          if [ "$update_status" = "200" ] && [ "$success" = "true" ]; then
+            echo "🎉 ¡Actualización completada exitosamente!"
+            echo "📈 Se procesaron $registros registros"
+
+            # Crear resumen para GitHub
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ✅ Actualización Exitosa
+
+          **🕒 Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **📊 Registros procesados:** $registros
+          **💬 Mensaje:** $message
+          **🔗 Endpoint:** \`/api/cron/actualizar-pendientes\`
+
+          ### 📋 Próximos pasos
+          - Los pendientes están disponibles en [/pendientes](${{ secrets.APP_URL }}/pendientes)
+          - Los registros automáticos pueden editarse en Supabase
+          - El próximo update se ejecutará según el schedule configurado
+          EOF
+
+          else
+            echo "❌ Error en la actualización"
+            echo "🔍 Código de estado: $update_status"
+            echo "📋 Respuesta: ${{ steps.update.outputs.update_data }}"
+
+            # Crear resumen de error
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ❌ Error en Actualización
+
+          **🕒 Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **🔍 Código HTTP:** $update_status
+          **💬 Mensaje:** $message
+          **📋 Respuesta completa:** \`${{ steps.update.outputs.update_data }}\`
+
+          ### 🔧 Posibles soluciones
+          - Verificar que la aplicación esté funcionando
+          - Revisar la configuración de secrets en GitHub
+          - Ejecutar manualmente desde [/pendientes](${{ secrets.APP_URL }}/pendientes)
+          EOF
+
+            exit 1
+          fi
+
+      - name: 🧹 Cleanup y resumen final
+        if: always()
+        run: |
+          echo "🧹 Finalizando proceso..."
+          echo "⏱️ Duración total: $SECONDS segundos"
+          echo "🔄 Workflow completado: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+          # Log para debugging
+          echo "🔍 Variables de entorno relevantes:"
+          echo "GITHUB_WORKFLOW: $GITHUB_WORKFLOW"
+          echo "GITHUB_RUN_ID: $GITHUB_RUN_ID"
+          echo "GITHUB_RUN_NUMBER: $GITHUB_RUN_NUMBER"

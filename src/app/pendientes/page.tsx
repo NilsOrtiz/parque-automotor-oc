@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { supabase, type Vehiculo } from '@/lib/supabase'
-import { ArrowLeft, AlertTriangle, Clock, Wrench, RefreshCw, Truck, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { supabase, type PendienteOperacion } from '@/lib/supabase'
+import { ArrowLeft, AlertTriangle, Clock, Wrench, RefreshCw, Truck, Calendar, ChevronLeft, ChevronRight, Settings, PlayCircle, CheckCircle } from 'lucide-react'
 
 type ScheduledVehicle = {
-  vehiculoId: number
+  pendienteId: number
   interno: string
   placa: string
   fecha: string
@@ -14,52 +14,40 @@ type ScheduledVehicle = {
 }
 
 export default function PendientesPage() {
-  const [vehiculosPendientes, setVehiculosPendientes] = useState<Vehiculo[]>([])
+  const [pendientes, setPendientes] = useState<PendienteOperacion[]>([])
   const [loading, setLoading] = useState(true)
+  const [actualizando, setActualizando] = useState(false)
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('')
   const [scheduledVehicles, setScheduledVehicles] = useState<ScheduledVehicle[]>([])
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehiculo | null>(null)
+  const [selectedPendiente, setSelectedPendiente] = useState<PendienteOperacion | null>(null)
   const [currentWeek, setCurrentWeek] = useState(new Date())
+  const [filtroEstado, setFiltroEstado] = useState<'todos' | 'pendiente' | 'programado' | 'en_proceso' | 'completado'>('todos')
 
   useEffect(() => {
-    cargarVehiculosPendientes()
+    cargarPendientes()
     // Auto-refresh cada 30 minutos
-    const interval = setInterval(cargarVehiculosPendientes, 30 * 60 * 1000)
+    const interval = setInterval(cargarPendientes, 30 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [])
+  }, [filtroEstado])
 
-  async function cargarVehiculosPendientes() {
+  async function cargarPendientes() {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('vehiculos')
+      let query = supabase
+        .from('pendientes_operaciones')
         .select('*')
-        .not('Nro_Interno', 'is', null) // Solo vehículos de Cuenca del Plata (tienen número interno)
-        .order('Nro_Interno', { ascending: true })
+        .order('criticidad', { ascending: false }) // Críticos primero
+        .order('fecha_creacion', { ascending: true })
+
+      if (filtroEstado !== 'todos') {
+        query = query.eq('estado', filtroEstado)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
 
-      // Filtrar solo vehículos con ≤5% vida útil (estado crítico)
-      const vehiculosCriticos = (data || []).filter(vehiculo => {
-        const porcentaje = getPorcentajeRestante(
-          vehiculo.kilometraje_actual,
-          vehiculo.aceite_motor_km,
-          vehiculo.intervalo_cambio_aceite
-        )
-        const porcentajeHoras = getPorcentajeRestanteHoras(
-          vehiculo.hora_actual,
-          vehiculo.aceite_motor_hr,
-          vehiculo.intervalo_cambio_aceite_hr
-        )
-
-        // Considerar crítico si cualquiera de los dos está ≤5%
-        const esCriticoKm = porcentaje !== null && porcentaje <= 5
-        const esCriticoHr = porcentajeHoras !== null && porcentajeHoras <= 5
-
-        return esCriticoKm || esCriticoHr
-      })
-
-      setVehiculosPendientes(vehiculosCriticos)
+      setPendientes(data || [])
       setUltimaActualizacion(new Date().toLocaleString('es-UY', {
         day: '2-digit',
         month: '2-digit',
@@ -68,85 +56,107 @@ export default function PendientesPage() {
         minute: '2-digit'
       }))
     } catch (error) {
-      console.error('Error cargando vehículos pendientes:', error)
+      console.error('Error cargando pendientes:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  // Funciones copiadas de mantenimientos para calcular vida útil
-  function getPorcentajeRestante(kilometrajeActual?: number, aceiteMotorKm?: number, intervaloCambio?: number) {
-    if (!kilometrajeActual || !aceiteMotorKm) return null
+  async function actualizarPendientesAutomaticos() {
+    setActualizando(true)
+    try {
+      console.log('🔄 Ejecutando actualización automática...')
 
-    const intervalo = intervaloCambio || 10000
-    const kmRecorridos = kilometrajeActual - aceiteMotorKm
-    const kmFaltantes = intervalo - kmRecorridos
-    const porcentaje = (kmFaltantes / intervalo) * 100
-    return Math.max(0, Math.min(100, porcentaje))
-  }
+      const response = await fetch('/api/actualizar-pendientes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
 
-  function getPorcentajeRestanteHoras(horaActual?: number, aceiteMotorHr?: number, intervaloCambioHr?: number) {
-    if (!horaActual || !aceiteMotorHr || !intervaloCambioHr) return null
+      const result = await response.json()
 
-    const hrRecorridas = horaActual - aceiteMotorHr
-    const hrFaltantes = intervaloCambioHr - hrRecorridas
-    const porcentaje = (hrFaltantes / intervaloCambioHr) * 100
-    return Math.max(0, Math.min(100, porcentaje))
-  }
-
-  function getKmFaltantes(kilometrajeActual?: number, aceiteMotorKm?: number, intervaloCambio?: number) {
-    if (!kilometrajeActual || !aceiteMotorKm) return null
-
-    const intervalo = intervaloCambio || 10000
-    const kmRecorridos = kilometrajeActual - aceiteMotorKm
-    const kmFaltantes = intervalo - kmRecorridos
-    return kmFaltantes > 0 ? kmFaltantes : 0
-  }
-
-  function getHrFaltantes(horaActual?: number, aceiteMotorHr?: number, intervaloCambioHr?: number) {
-    if (!horaActual || !aceiteMotorHr || !intervaloCambioHr) return null
-
-    const hrRecorridas = horaActual - aceiteMotorHr
-    const hrFaltantes = intervaloCambioHr - hrRecorridas
-    return hrFaltantes > 0 ? hrFaltantes : 0
-  }
-
-  function getTiempoEstimadoTaller(vehiculo: Vehiculo): string {
-    // Estimar tiempo basado en estado crítico
-    const porcentajeKm = getPorcentajeRestante(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
-    const porcentajeHr = getPorcentajeRestanteHoras(vehiculo.hora_actual, vehiculo.aceite_motor_hr, vehiculo.intervalo_cambio_aceite_hr)
-
-    if ((porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)) {
-      return '4-6 horas (mantenimiento completo)'
-    } else if ((porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)) {
-      return '3-4 horas (cambio aceite + filtros)'
-    } else {
-      return '2-3 horas (cambio aceite)'
+      if (result.success) {
+        console.log('✅ Actualización exitosa:', result)
+        // Recargar la lista después de actualizar
+        await cargarPendientes()
+      } else {
+        console.error('❌ Error en actualización:', result.message)
+        alert(`Error actualizando pendientes: ${result.message}`)
+      }
+    } catch (error) {
+      console.error('❌ Error ejecutando actualización:', error)
+      alert('Error ejecutando actualización automática')
+    } finally {
+      setActualizando(false)
     }
   }
 
-  function getPrioridadColor(vehiculo: Vehiculo): string {
-    const porcentajeKm = getPorcentajeRestante(vehiculo.kilometraje_actual, vehiculo.aceite_motor_km, vehiculo.intervalo_cambio_aceite)
-    const porcentajeHr = getPorcentajeRestanteHoras(vehiculo.hora_actual, vehiculo.aceite_motor_hr, vehiculo.intervalo_cambio_aceite_hr)
-
-    const minPorcentaje = Math.min(porcentajeKm || 100, porcentajeHr || 100)
-
-    if (minPorcentaje <= 1) return 'border-l-red-600 bg-red-50'
-    if (minPorcentaje <= 3) return 'border-l-orange-500 bg-orange-50'
-    return 'border-l-yellow-500 bg-yellow-50'
+  function getPrioridadColor(criticidad: string): string {
+    switch (criticidad) {
+      case 'critico':
+        return 'border-l-red-600 bg-red-50'
+      case 'medio':
+        return 'border-l-orange-500 bg-orange-50'
+      case 'leve':
+        return 'border-l-yellow-500 bg-yellow-50'
+      default:
+        return 'border-l-gray-500 bg-gray-50'
+    }
   }
 
-  // Funciones para el calendario
+  function getCriticidadBadge(criticidad: string) {
+    switch (criticidad) {
+      case 'critico':
+        return 'bg-red-100 text-red-800'
+      case 'medio':
+        return 'bg-orange-100 text-orange-800'
+      case 'leve':
+        return 'bg-yellow-100 text-yellow-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  function getEstadoBadge(estado: string) {
+    switch (estado) {
+      case 'pendiente':
+        return 'bg-gray-100 text-gray-800'
+      case 'programado':
+        return 'bg-blue-100 text-blue-800'
+      case 'en_proceso':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'completado':
+        return 'bg-green-100 text-green-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  function getEstadoTexto(estado: string) {
+    switch (estado) {
+      case 'pendiente':
+        return 'Pendiente'
+      case 'programado':
+        return 'Programado'
+      case 'en_proceso':
+        return 'En Proceso'
+      case 'completado':
+        return 'Completado'
+      default:
+        return estado
+    }
+  }
+
+  // Funciones para el calendario (similar a la versión anterior)
   function getWeekDays(startDate: Date): Date[] {
     const days: Date[] = []
     const start = new Date(startDate)
 
-    // Ajustar al inicio de la semana (lunes = 1, domingo = 0)
     const dayOfWeek = start.getDay()
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek // Si es domingo, retroceder 6 días
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
     start.setDate(start.getDate() + diff)
 
-    // Generar los 7 días de la semana
     for (let i = 0; i < 7; i++) {
       const day = new Date(start)
       day.setDate(start.getDate() + i)
@@ -168,30 +178,29 @@ export default function PendientesPage() {
     return date.toISOString().split('T')[0]
   }
 
-  function handleScheduleVehicle(vehiculo: Vehiculo, fecha: string, turno: 'mañana' | 'tarde') {
+  function handleSchedulePendiente(pendiente: PendienteOperacion, fecha: string, turno: 'mañana' | 'tarde') {
     const newSchedule: ScheduledVehicle = {
-      vehiculoId: vehiculo.id,
-      interno: vehiculo.Nro_Interno?.toString() || '',
-      placa: vehiculo.Placa,
+      pendienteId: pendiente.id,
+      interno: pendiente.interno?.toString() || '',
+      placa: pendiente.placa,
       fecha,
       turno
     }
 
     setScheduledVehicles(prev => {
-      // Remover cualquier programación existente para este vehículo
-      const filtered = prev.filter(s => s.vehiculoId !== vehiculo.id)
+      const filtered = prev.filter(s => s.pendienteId !== pendiente.id)
       return [...filtered, newSchedule]
     })
 
-    setSelectedVehicle(null)
+    setSelectedPendiente(null)
   }
 
   function getScheduledVehiclesForSlot(fecha: string, turno: 'mañana' | 'tarde'): ScheduledVehicle[] {
     return scheduledVehicles.filter(s => s.fecha === fecha && s.turno === turno)
   }
 
-  function removeScheduledVehicle(vehiculoId: number) {
-    setScheduledVehicles(prev => prev.filter(s => s.vehiculoId !== vehiculoId))
+  function removeScheduledVehicle(pendienteId: number) {
+    setScheduledVehicles(prev => prev.filter(s => s.pendienteId !== pendienteId))
   }
 
   if (loading) {
@@ -199,7 +208,7 @@ export default function PendientesPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-600" />
-          <div className="text-lg">Cargando vehículos pendientes...</div>
+          <div className="text-lg">Cargando pendientes de operaciones...</div>
         </div>
       </div>
     )
@@ -218,29 +227,63 @@ export default function PendientesPage() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Ver todos los mantenimientos
             </Link>
-            <button
-              onClick={cargarVehiculosPendientes}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Actualizar lista
-            </button>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={actualizarPendientesAutomaticos}
+                disabled={actualizando}
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {actualizando ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Settings className="h-4 w-4 mr-2" />
+                )}
+                {actualizando ? 'Actualizando...' : 'Actualizar Automáticos'}
+              </button>
+
+              <button
+                onClick={cargarPendientes}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refrescar Lista
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Pendientes de Mantenimiento
+                Pendientes de Operaciones
               </h1>
               <p className="text-gray-600">
-                Vehículos de Cuenca del Plata que requieren mantenimiento urgente (≤5% vida útil)
+                Lista controlada de vehículos que requieren atención para coordinación operativa
               </p>
             </div>
 
             <div className="text-right">
-              <div className="text-2xl font-bold text-red-600">{vehiculosPendientes.length}</div>
-              <div className="text-sm text-gray-500">vehículos pendientes</div>
+              <div className="text-2xl font-bold text-red-600">{pendientes.length}</div>
+              <div className="text-sm text-gray-500">elementos en lista</div>
             </div>
+          </div>
+
+          {/* Filtros */}
+          <div className="mt-4 flex items-center space-x-2">
+            <span className="text-sm font-medium text-gray-700">Filtrar por estado:</span>
+            {['todos', 'pendiente', 'programado', 'en_proceso', 'completado'].map((estado) => (
+              <button
+                key={estado}
+                onClick={() => setFiltroEstado(estado as any)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  filtroEstado === estado
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {estado === 'todos' ? 'Todos' : getEstadoTexto(estado)}
+              </button>
+            ))}
           </div>
 
           {ultimaActualizacion && (
@@ -251,148 +294,165 @@ export default function PendientesPage() {
         </div>
       </div>
 
-      {/* Layout de dos columnas: Tabla y Calendario */}
+      {/* Layout de dos columnas */}
       <div className="max-w-7xl mx-auto px-8 py-8">
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-          {/* Columna izquierda: Tabla de vehículos pendientes */}
+          {/* Columna izquierda: Tabla de pendientes */}
           <div className="xl:col-span-7">
-        {vehiculosPendientes.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow-md">
-            <AlertTriangle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              ¡Excelente! No hay vehículos críticos
-            </h3>
-            <p className="text-gray-600">
-              Todos los vehículos de Cuenca del Plata están en buen estado de mantenimiento
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Vehículos Pendientes - Operaciones</h2>
-              <p className="text-sm text-gray-600 mt-1">Vehículos que requieren mantenimiento inmediato (≤5% vida útil)</p>
-            </div>
+            {pendientes.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg shadow-md">
+                <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {filtroEstado === 'todos' ? '¡Perfecto! No hay pendientes' : `No hay pendientes en estado "${getEstadoTexto(filtroEstado)}"`}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {filtroEstado === 'todos'
+                    ? 'Todos los vehículos están al día con el mantenimiento'
+                    : 'Prueba cambiando el filtro de estado o ejecuta una actualización automática'
+                  }
+                </p>
+                {filtroEstado === 'todos' && (
+                  <button
+                    onClick={actualizarPendientesAutomaticos}
+                    disabled={actualizando}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    <PlayCircle className="h-4 w-4 mr-2" />
+                    Ejecutar Actualización
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h2 className="text-lg font-medium text-gray-900">
+                    Lista de Pendientes para Operaciones
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Lista controlada desde taller - vehículos que requieren coordinación operativa
+                  </p>
+                </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Interno
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Placa
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trasladar a
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tiempo Estimado
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Criticidad
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acción
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {vehiculosPendientes.map((vehiculo) => {
-                    const porcentajeKm = getPorcentajeRestante(
-                      vehiculo.kilometraje_actual,
-                      vehiculo.aceite_motor_km,
-                      vehiculo.intervalo_cambio_aceite
-                    )
-
-                    const porcentajeHr = getPorcentajeRestanteHoras(
-                      vehiculo.hora_actual,
-                      vehiculo.aceite_motor_hr,
-                      vehiculo.intervalo_cambio_aceite_hr
-                    )
-
-                    return (
-                      <tr key={vehiculo.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          #{vehiculo.Nro_Interno}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{vehiculo.Placa}</span>
-                            <span className="text-xs text-gray-500">
-                              {vehiculo.Marca} {vehiculo.Modelo}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                            <Wrench className="h-3 w-3 mr-1" />
-                            Taller
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className="font-medium text-blue-900">
-                            {getTiempoEstimadoTaller(vehiculo)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex flex-col space-y-1">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              (porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
-                                ? 'bg-red-100 text-red-800'
-                                : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
-                                  ? 'bg-orange-100 text-orange-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              {(porcentajeKm !== null && porcentajeKm <= 1) || (porcentajeHr !== null && porcentajeHr <= 1)
-                                ? 'INMEDIATA'
-                                : (porcentajeKm !== null && porcentajeKm <= 3) || (porcentajeHr !== null && porcentajeHr <= 3)
-                                  ? 'ALTA'
-                                  : 'MEDIA'
-                              }
-                            </span>
-                            <div className="text-xs text-gray-500">
-                              {porcentajeKm !== null && (
-                                <div>{porcentajeKm.toFixed(1)}% vida km</div>
-                              )}
-                              {porcentajeHr !== null && (
-                                <div>{porcentajeHr.toFixed(1)}% vida hrs</div>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {scheduledVehicles.some(s => s.vehiculoId === vehiculo.id) ? (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              <span className="text-green-700 text-xs font-medium">Programado</span>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setSelectedVehicle(selectedVehicle?.id === vehiculo.id ? null : vehiculo)}
-                              className={`inline-flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${
-                                selectedVehicle?.id === vehiculo.id
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-600 text-white hover:bg-gray-700'
-                              }`}
-                            >
-                              <Clock className="h-4 w-4 mr-1" />
-                              {selectedVehicle?.id === vehiculo.id ? 'Seleccionado' : 'Programar'}
-                            </button>
-                          )}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Vehículo
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Trasladar a
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tiempo Estimado
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Motivo
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Criticidad
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Estado
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Acción
+                        </th>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {pendientes.map((pendiente) => (
+                        <tr key={pendiente.id} className={`hover:bg-gray-50 ${getPrioridadColor(pendiente.criticidad)}`}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <div className="flex flex-col">
+                              <div className="flex items-center space-x-2">
+                                {pendiente.interno && (
+                                  <span className="font-bold">#{pendiente.interno}</span>
+                                )}
+                                <span className="font-medium">{pendiente.placa}</span>
+                                {pendiente.es_automatico && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                                    AUTO
+                                  </span>
+                                )}
+                              </div>
+                              {(pendiente.porcentaje_vida_km !== null || pendiente.porcentaje_vida_hr !== null) && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {pendiente.porcentaje_vida_km !== null && (
+                                    <span>KM: {pendiente.porcentaje_vida_km.toFixed(1)}%</span>
+                                  )}
+                                  {pendiente.porcentaje_vida_km !== null && pendiente.porcentaje_vida_hr !== null && (
+                                    <span> | </span>
+                                  )}
+                                  {pendiente.porcentaje_vida_hr !== null && (
+                                    <span>HR: {pendiente.porcentaje_vida_hr.toFixed(1)}%</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                              <Wrench className="h-3 w-3 mr-1" />
+                              {pendiente.trasladar_a}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span className="font-medium text-blue-900">
+                              {pendiente.tiempo_estimado}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900 max-w-[200px]">
+                            <div className="truncate" title={pendiente.motivo}>
+                              {pendiente.motivo}
+                            </div>
+                            {pendiente.observaciones && (
+                              <div className="text-xs text-gray-500 mt-1 truncate" title={pendiente.observaciones}>
+                                {pendiente.observaciones}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getCriticidadBadge(pendiente.criticidad)}`}>
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              {pendiente.criticidad.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getEstadoBadge(pendiente.estado)}`}>
+                              {getEstadoTexto(pendiente.estado)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {scheduledVehicles.some(s => s.pendienteId === pendiente.id) ? (
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-green-700 text-xs font-medium">Programado</span>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setSelectedPendiente(selectedPendiente?.id === pendiente.id ? null : pendiente)}
+                                className={`inline-flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${
+                                  selectedPendiente?.id === pendiente.id
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-600 text-white hover:bg-gray-700'
+                                }`}
+                              >
+                                <Clock className="h-4 w-4 mr-1" />
+                                {selectedPendiente?.id === pendiente.id ? 'Seleccionado' : 'Programar'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Columna derecha: Calendario semanal */}
+          {/* Columna derecha: Calendario semanal - igual que antes */}
           <div className="xl:col-span-5">
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-8">
               <div className="flex items-center justify-between mb-6">
@@ -443,25 +503,25 @@ export default function PendientesPage() {
                       <div className="mb-3">
                         <div className="text-xs font-medium text-gray-600 mb-1">Mañana (8:00)</div>
                         <div className={`min-h-[40px] border-2 border-dashed rounded p-2 ${
-                          selectedVehicle && !isPast
+                          selectedPendiente && !isPast
                             ? 'border-blue-300 bg-blue-50 cursor-pointer hover:bg-blue-100'
                             : 'border-gray-200 bg-gray-50'
                         }`}
                         onClick={() => {
-                          if (selectedVehicle && !isPast) {
-                            handleScheduleVehicle(selectedVehicle, dateKey, 'mañana')
+                          if (selectedPendiente && !isPast) {
+                            handleSchedulePendiente(selectedPendiente, dateKey, 'mañana')
                           }
                         }}>
                           {getScheduledVehiclesForSlot(dateKey, 'mañana').map((scheduled) => (
                             <div
-                              key={scheduled.vehiculoId}
+                              key={scheduled.pendienteId}
                               className="flex items-center justify-between bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mb-1 group"
                             >
                               <span className="font-medium">#{scheduled.interno}</span>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  removeScheduledVehicle(scheduled.vehiculoId)
+                                  removeScheduledVehicle(scheduled.pendienteId)
                                 }}
                                 className="text-blue-600 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                               >
@@ -469,7 +529,7 @@ export default function PendientesPage() {
                               </button>
                             </div>
                           ))}
-                          {getScheduledVehiclesForSlot(dateKey, 'mañana').length === 0 && selectedVehicle && !isPast && (
+                          {getScheduledVehiclesForSlot(dateKey, 'mañana').length === 0 && selectedPendiente && !isPast && (
                             <div className="text-xs text-blue-600 text-center">
                               Hacer clic para programar
                             </div>
@@ -481,25 +541,25 @@ export default function PendientesPage() {
                       <div>
                         <div className="text-xs font-medium text-gray-600 mb-1">Tarde (14:00)</div>
                         <div className={`min-h-[40px] border-2 border-dashed rounded p-2 ${
-                          selectedVehicle && !isPast
+                          selectedPendiente && !isPast
                             ? 'border-orange-300 bg-orange-50 cursor-pointer hover:bg-orange-100'
                             : 'border-gray-200 bg-gray-50'
                         }`}
                         onClick={() => {
-                          if (selectedVehicle && !isPast) {
-                            handleScheduleVehicle(selectedVehicle, dateKey, 'tarde')
+                          if (selectedPendiente && !isPast) {
+                            handleSchedulePendiente(selectedPendiente, dateKey, 'tarde')
                           }
                         }}>
                           {getScheduledVehiclesForSlot(dateKey, 'tarde').map((scheduled) => (
                             <div
-                              key={scheduled.vehiculoId}
+                              key={scheduled.pendienteId}
                               className="flex items-center justify-between bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs mb-1 group"
                             >
                               <span className="font-medium">#{scheduled.interno}</span>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  removeScheduledVehicle(scheduled.vehiculoId)
+                                  removeScheduledVehicle(scheduled.pendienteId)
                                 }}
                                 className="text-orange-600 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                               >
@@ -507,7 +567,7 @@ export default function PendientesPage() {
                               </button>
                             </div>
                           ))}
-                          {getScheduledVehiclesForSlot(dateKey, 'tarde').length === 0 && selectedVehicle && !isPast && (
+                          {getScheduledVehiclesForSlot(dateKey, 'tarde').length === 0 && selectedPendiente && !isPast && (
                             <div className="text-xs text-orange-600 text-center">
                               Hacer clic para programar
                             </div>
@@ -522,7 +582,10 @@ export default function PendientesPage() {
               {/* Instrucciones */}
               <div className="mt-6 p-3 bg-gray-50 rounded-lg">
                 <p className="text-xs text-gray-600">
-                  <strong>Instrucciones:</strong> Selecciona un vehículo haciendo clic en "Programar" y luego elige el día y turno en el calendario.
+                  <strong>Instrucciones:</strong> Selecciona un pendiente haciendo clic en "Programar" y luego elige el día y turno en el calendario.
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Los elementos marcados como "AUTO" son generados automáticamente desde el sistema de mantenimientos. Taller puede editarlos directamente en Supabase.
                 </p>
               </div>
             </div>

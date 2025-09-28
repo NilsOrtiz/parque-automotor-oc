@@ -323,3 +323,25 @@ export interface PendienteObservacion {
   fecha_programada?: string
   created_at: string
 }
+
+// Nueva interfaz para la tabla pendientes_operaciones
+export interface PendienteOperacion {
+  id: number
+  vehiculo_id: number
+  interno?: number
+  placa: string
+  trasladar_a: string
+  tiempo_estimado: string
+  motivo: string
+  criticidad: 'leve' | 'medio' | 'critico'
+  porcentaje_vida_km?: number
+  porcentaje_vida_hr?: number
+  km_faltantes?: number
+  hr_faltantes?: number
+  estado: 'pendiente' | 'programado' | 'en_proceso' | 'completado'
+  es_automatico: boolean
+  fecha_creacion: string
+  fecha_actualizacion: string
+  observaciones?: string
+  created_at: string
+}
