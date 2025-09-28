@@ -2,40 +2,46 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
-    console.log('🕒 Ejecutando actualización periódica de pendientes_operaciones...')
+    console.log('🕒 Ejecutando actualización periódica de pendientes_operaciones desde cron...')
 
-    // Llamar a nuestro endpoint de actualización
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    // Ejecutar directamente la función SQL desde aquí (evitar recursión)
+    const { supabase } = await import('@/lib/supabase')
 
-    const response = await fetch(`${baseUrl}/api/actualizar-pendientes`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'CronJob/1.0'
-      }
-    })
+    const { data, error } = await supabase
+      .rpc('ejecutar_actualizacion_pendientes')
 
-    const result = await response.json()
+    if (error) {
+      console.error('❌ Cron: Error ejecutando función SQL:', error)
+      return NextResponse.json({
+        success: false,
+        message: 'Error ejecutando función de actualización desde cron',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+        source: 'cron-job'
+      }, { status: 500 })
+    }
 
-    if (result.success) {
-      console.log(`✅ Cron: Actualización exitosa - ${result.registros_insertados} registros procesados`)
+    console.log('✅ Cron: Función SQL ejecutada exitosamente:', data)
+
+    // La función devuelve un JSON con el resultado
+    const resultado = data
+
+    if (resultado.success) {
+      console.log(`✅ Cron: Actualización exitosa - ${resultado.registros_insertados} registros procesados`)
 
       return NextResponse.json({
         success: true,
         message: 'Actualización periódica ejecutada exitosamente',
-        registros_insertados: result.registros_insertados,
-        timestamp: new Date().toISOString(),
+        registros_insertados: resultado.registros_insertados,
+        timestamp: resultado.timestamp,
         source: 'cron-job'
       })
     } else {
-      console.error('❌ Cron: Error en actualización:', result.message)
-
+      console.error('❌ Cron: Error en función SQL:', resultado.message)
       return NextResponse.json({
         success: false,
-        message: `Error en actualización periódica: ${result.message}`,
-        timestamp: new Date().toISOString(),
+        message: `Error en actualización periódica: ${resultado.message}`,
+        timestamp: resultado.timestamp,
         source: 'cron-job'
       }, { status: 500 })
     }
@@ -56,6 +62,8 @@ export async function GET() {
 // Proteger el endpoint para que solo se ejecute desde cron jobs
 export async function POST(request: Request) {
   try {
+    console.log('🕒 POST request recibido en cron endpoint...')
+
     // Verificar que venga de un cron job autorizado
     const authHeader = request.headers.get('authorization')
     const expectedToken = process.env.CRON_SECRET_TOKEN
@@ -70,7 +78,7 @@ export async function POST(request: Request) {
       }, { status: 401 })
     }
 
-    // Reutilizar la lógica del GET
+    // Reutilizar la lógica del GET (que ahora ejecuta directamente la función SQL)
     return GET()
 
   } catch (error) {
