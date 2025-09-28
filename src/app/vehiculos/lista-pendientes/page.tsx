@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, ArrowUp, ArrowDown, ArrowUpDown, User } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, CheckCircle, Clock, ArrowUp, ArrowDown, ArrowUpDown, User, Send, Archive } from 'lucide-react'
 
 interface PendienteConVehiculo {
   id_pendiente: number
@@ -34,8 +34,12 @@ export default function ListaPendientesPage() {
   const [sortField, setSortField] = useState<SortField>('fecha_creacion')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [tipoFlota, setTipoFlota] = useState<'rent-car' | 'ambos' | 'cuenca'>('ambos')
-  const [filtroEstado, setFiltroEstado] = useState<'todos' | 'pendiente' | 'en_progreso'>('todos')
+  const [filtroEstado, setFiltroEstado] = useState<'todos' | 'pendiente' | 'en_progreso' | 'coordinado'>('todos')
   const [filtroPrioridad, setFiltroPrioridad] = useState<'todos' | 'critico' | 'medio' | 'leve'>('todos')
+  const [selectedPendientes, setSelectedPendientes] = useState<number[]>([])
+  const [showMigrationModal, setShowMigrationModal] = useState(false)
+  const [migrationDestino, setMigrationDestino] = useState<'Taller' | 'IDISA' | 'Taller Externo'>('Taller')
+  const [migrating, setMigrating] = useState(false)
 
   useEffect(() => {
     fetchPendientes()
@@ -197,6 +201,62 @@ export default function ListaPendientesPage() {
     return Math.floor((fechaActual.getTime() - fechaCreacion.getTime()) / (1000 * 60 * 60 * 24))
   }
 
+  function handleSelectPendiente(idPendiente: number) {
+    setSelectedPendientes(prev =>
+      prev.includes(idPendiente)
+        ? prev.filter(id => id !== idPendiente)
+        : [...prev, idPendiente]
+    )
+  }
+
+  function handleSelectAll() {
+    const pendientesActivos = pendientesFiltrados.filter(p =>
+      p.estado !== 'coordinado' && p.estado !== 'completado'
+    )
+
+    if (selectedPendientes.length === pendientesActivos.length) {
+      setSelectedPendientes([])
+    } else {
+      setSelectedPendientes(pendientesActivos.map(p => p.id_pendiente))
+    }
+  }
+
+  async function handleMigratePendientes() {
+    if (selectedPendientes.length === 0) return
+
+    setMigrating(true)
+    try {
+      const response = await fetch('/api/migrar-pendiente', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tipo: selectedPendientes.length === 1 ? 'individual' : 'masivo',
+          id_pendiente: selectedPendientes.length === 1 ? selectedPendientes[0] : undefined,
+          ids_pendientes: selectedPendientes.length > 1 ? selectedPendientes : undefined,
+          trasladar_a: migrationDestino
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(`✅ Migración exitosa: ${result.message}`)
+        setSelectedPendientes([])
+        setShowMigrationModal(false)
+        await fetchPendientes() // Recargar la lista
+      } else {
+        alert(`❌ Error en migración: ${result.message}`)
+      }
+    } catch (error) {
+      console.error('Error migrando pendientes:', error)
+      alert('❌ Error inesperado durante la migración')
+    } finally {
+      setMigrating(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -263,6 +323,7 @@ export default function ListaPendientesPage() {
                   <option value="todos">Todos los estados</option>
                   <option value="pendiente">Pendiente</option>
                   <option value="en_progreso">En Progreso</option>
+                  <option value="coordinado">🤝 Coordinado con Operaciones</option>
                 </select>
               </div>
 
@@ -331,19 +392,72 @@ export default function ListaPendientesPage() {
           </div>
         </div>
 
+        {/* Controles de acción masiva */}
+        {selectedPendientes.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Archive className="h-5 w-5 text-blue-600 mr-2" />
+                <span className="text-blue-800 font-medium">
+                  {selectedPendientes.length} pendiente(s) seleccionado(s)
+                </span>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setSelectedPendientes([])}
+                  className="px-3 py-1 text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => setShowMigrationModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Enviar a Operaciones
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tabla de pendientes */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">
-              Problemas Pendientes ({pendientesFiltrados.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-gray-900">
+                Problemas Pendientes ({pendientesFiltrados.length})
+              </h2>
+              <button
+                onClick={handleSelectAll}
+                className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                {selectedPendientes.length === pendientesFiltrados.filter(p =>
+                  p.estado !== 'coordinado' && p.estado !== 'completado'
+                ).length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+              </button>
+            </div>
           </div>
           
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th 
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedPendientes.length === pendientesFiltrados.filter(p =>
+                          p.estado !== 'coordinado' && p.estado !== 'completado'
+                        ).length && pendientesFiltrados.filter(p =>
+                          p.estado !== 'coordinado' && p.estado !== 'completado'
+                        ).length > 0
+                      }
+                      onChange={handleSelectAll}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                  <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                     onClick={() => handleSort('interno')}
                   >
@@ -396,6 +510,16 @@ export default function ListaPendientesPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {pendientesFiltrados.map((pendiente) => (
                   <tr key={pendiente.id_pendiente} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {pendiente.estado !== 'coordinado' && pendiente.estado !== 'completado' && (
+                        <input
+                          type="checkbox"
+                          checked={selectedPendientes.includes(pendiente.id_pendiente)}
+                          onChange={() => handleSelectPendiente(pendiente.id_pendiente)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div>
                         <div className="font-medium">
@@ -448,6 +572,12 @@ export default function ListaPendientesPage() {
                       <div className="truncate" title={pendiente.descripcion}>
                         {pendiente.descripcion}
                       </div>
+                      {pendiente.estado === 'coordinado' && (
+                        <div className="mt-1 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <Send className="h-3 w-3 mr-1" />
+                          Coordinado con Operaciones
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -461,6 +591,81 @@ export default function ListaPendientesPage() {
             <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">No hay problemas pendientes</p>
             <p className="text-gray-400 text-sm mt-2">¡Excelente! Todos los vehículos están en buen estado</p>
+          </div>
+        )}
+
+        {/* Modal de migración */}
+        {showMigrationModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Enviar a Operaciones
+              </h3>
+              <p className="text-gray-600 mb-4">
+                ¿Dónde deseas enviar {selectedPendientes.length === 1 ? 'este pendiente' : `estos ${selectedPendientes.length} pendientes`}?
+              </p>
+
+              <div className="space-y-3 mb-6">
+                {['Taller', 'IDISA', 'Taller Externo'].map((destino) => (
+                  <label key={destino} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="destino"
+                      value={destino}
+                      checked={migrationDestino === destino}
+                      onChange={(e) => setMigrationDestino(e.target.value as any)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span className="ml-3 text-gray-700">
+                      {destino === 'Taller' && '🔧 Taller Interno'}
+                      {destino === 'IDISA' && '🏭 IDISA'}
+                      {destino === 'Taller Externo' && '🔧 Taller Externo'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
+                <div className="flex">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium mb-1">¿Qué sucederá?</p>
+                    <ul className="text-xs space-y-1">
+                      <li>• Los pendientes se enviarán a coordinación de operaciones</li>
+                      <li>• Se marcarán como "coordinado" en la lista del taller</li>
+                      <li>• Operaciones podrá programar y gestionar el trabajo</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowMigrationModal(false)}
+                  disabled={migrating}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleMigratePendientes}
+                  disabled={migrating}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50"
+                >
+                  {migrating ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></div>
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar a {migrationDestino}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
