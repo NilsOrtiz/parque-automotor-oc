@@ -123,7 +123,7 @@ BEGIN
                 AND trasladar_a = 'Taller'
                 AND es_automatico = true;
 
-                RAISE NOTICE 'Actualizado vehículo interno % - KM: %%, Horas: %%',
+                RAISE NOTICE 'Actualizado vehículo interno % - KM: %, Horas: %',
                     vehiculo_record."Nro_Interno",
                     COALESCE(ROUND(porcentaje_km, 1), 0),
                     COALESCE(ROUND(porcentaje_hr, 1), 0);
@@ -173,7 +173,7 @@ BEGIN
 
                 registros_insertados := registros_insertados + 1;
 
-                RAISE NOTICE 'Nuevo vehículo crítico: interno % - KM: %%, Horas: %%',
+                RAISE NOTICE 'Nuevo vehículo crítico: interno % - KM: %, Horas: %',
                     vehiculo_record."Nro_Interno",
                     COALESCE(ROUND(porcentaje_km, 1), 0),
                     COALESCE(ROUND(porcentaje_hr, 1), 0);
