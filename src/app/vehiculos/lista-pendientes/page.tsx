@@ -703,13 +703,17 @@ export default function ListaPendientesPage() {
                     placeholder="Ej: 6 horas, 2 días, 30 minutos..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                   />
-                  <div className="grid grid-cols-3 gap-2">
-                    {['2 horas', '6 horas', '1 día'].map((tiempo) => (
+                  <div className="grid grid-cols-4 gap-2">
+                    {['2 horas', '6 horas', '1 día', 'Indeterminado'].map((tiempo) => (
                       <button
                         key={tiempo}
                         type="button"
                         onClick={() => setTiempoEstimadoCustom(tiempo)}
-                        className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                        className={`px-2 py-1 text-xs rounded transition-colors ${
+                          tiempo === 'Indeterminado'
+                            ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                       >
                         {tiempo}
                       </button>
