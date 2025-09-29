@@ -342,6 +342,12 @@ export interface PendienteOperacion {
   programado_por?: string
   fecha_programacion?: string
   notas_programacion?: string
+  // Nuevos campos de franjas horarias
+  franja_horaria_inicio?: string
+  franja_horaria_fin?: string
+  duracion_franjas?: number
+  es_trabajo_continuo?: boolean
+  fecha_fin_estimada?: string
   km_faltantes?: number
   hr_faltantes?: number
   estado: 'pendiente' | 'programado' | 'en_proceso' | 'completado'
