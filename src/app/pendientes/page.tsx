@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type PendienteOperacion } from '@/lib/supabase'
 import { ArrowLeft, AlertTriangle, Clock, Wrench, RefreshCw, Truck, Calendar, ChevronLeft, ChevronRight, Settings, PlayCircle, CheckCircle } from 'lucide-react'
+import CalendarioFranjasHorarias from '@/components/CalendarioFranjasHorarias'
 
 type ScheduledVehicle = {
   pendienteId: number
@@ -11,7 +12,21 @@ type ScheduledVehicle = {
   placa: string
   fecha: string
   turno: 'mañana' | 'tarde'
+  franja_horaria_inicio?: string
+  franja_horaria_fin?: string
+  duracion_franjas?: number
+  es_trabajo_continuo?: boolean
 }
+
+// Franjas horarias disponibles
+const FRANJAS_HORARIAS = [
+  { inicio: '08:00', fin: '10:00', label: 'Inicio mañana', color: 'blue' },
+  { inicio: '10:00', fin: '12:00', label: 'Mitad mañana', color: 'indigo' },
+  { inicio: '12:00', fin: '14:00', label: 'Final mañana', color: 'cyan' },
+  { inicio: '14:00', fin: '16:00', label: 'Inicio tarde', color: 'orange' },
+  { inicio: '16:00', fin: '18:00', label: 'Mitad tarde', color: 'amber' },
+  { inicio: '18:00', fin: '20:00', label: 'Final tarde', color: 'red' }
+]
 
 export default function PendientesPage() {
   const [pendientes, setPendientes] = useState<PendienteOperacion[]>([])
@@ -177,8 +192,14 @@ export default function PendientesPage() {
     return date.toISOString().split('T')[0]
   }
 
-  async function handleSchedulePendiente(pendiente: PendienteOperacion, fecha: string, turno: 'mañana' | 'tarde') {
+  async function handleSchedulePendiente(pendiente: PendienteOperacion, fecha: string, franjaInicio: string) {
     try {
+      const franja = FRANJAS_HORARIAS.find(f => f.inicio === franjaInicio)
+      if (!franja) {
+        alert('❌ Franja horaria inválida')
+        return
+      }
+
       const response = await fetch('/api/pendientes/programar', {
         method: 'POST',
         headers: {
@@ -187,16 +208,18 @@ export default function PendientesPage() {
         body: JSON.stringify({
           pendiente_id: pendiente.id,
           fecha_programada: fecha,
-          turno_programado: turno,
-          programado_por: 'Operaciones'
+          franja_horaria_inicio: franjaInicio,
+          programado_por: 'Operaciones',
+          notas_programacion: `Programado en ${franja.label} (${franja.inicio}-${franja.fin})`
         })
       })
 
       const result = await response.json()
 
       if (result.success) {
-        // Recargar pendientes para ver los cambios
         await cargarPendientes()
+        console.log('✅ Programación exitosa:', result.detalles)
+        alert('✅ ' + result.message)
         setSelectedPendiente(null)
       } else {
         console.error('Error programando:', result.message)
@@ -208,12 +231,12 @@ export default function PendientesPage() {
     }
   }
 
-  function getScheduledVehiclesForSlot(fecha: string, turno: 'mañana' | 'tarde'): ScheduledVehicle[] {
-    // Usar datos de la base de datos en lugar de memoria
+  // Nueva función para obtener vehículos por franja horaria específica
+  function getScheduledVehiclesForFranja(fecha: string, franjaInicio: string): ScheduledVehicle[] {
     return pendientes
       .filter(p =>
         p.fecha_programada === fecha &&
-        p.turno_programado === turno &&
+        p.franja_horaria_inicio === franjaInicio &&
         p.estado === 'programado'
       )
       .map(p => ({
@@ -221,8 +244,54 @@ export default function PendientesPage() {
         interno: p.interno?.toString() || '',
         placa: p.placa,
         fecha: p.fecha_programada || '',
-        turno: p.turno_programado as 'mañana' | 'tarde'
+        turno: p.turno_programado as 'mañana' | 'tarde',
+        franja_horaria_inicio: p.franja_horaria_inicio,
+        franja_horaria_fin: p.franja_horaria_fin,
+        duracion_franjas: p.duracion_franjas,
+        es_trabajo_continuo: p.es_trabajo_continuo
       }))
+  }
+
+  // Función para obtener trabajos "Indeterminado" que aparecen todos los días
+  function getTrabajosContinuos(fecha: string): ScheduledVehicle[] {
+    const fechaActual = new Date(fecha)
+    return pendientes
+      .filter(p =>
+        p.es_trabajo_continuo &&
+        p.fecha_programada &&
+        new Date(p.fecha_programada) <= fechaActual &&
+        p.estado === 'programado'
+      )
+      .map(p => ({
+        pendienteId: p.id,
+        interno: p.interno?.toString() || '',
+        placa: p.placa,
+        fecha: fecha, // Mostrar en la fecha consultada
+        turno: 'mañana' as const,
+        franja_horaria_inicio: p.franja_horaria_inicio,
+        franja_horaria_fin: p.franja_horaria_fin,
+        duracion_franjas: p.duracion_franjas,
+        es_trabajo_continuo: true
+      }))
+  }
+
+  // Mantener función legacy para compatibilidad
+  function getScheduledVehiclesForSlot(fecha: string, turno: 'mañana' | 'tarde'): ScheduledVehicle[] {
+    // Mapear turnos a franjas horarias para compatibilidad
+    const franjasDelTurno = turno === 'mañana'
+      ? ['08:00', '10:00', '12:00']
+      : ['14:00', '16:00', '18:00']
+
+    const vehiculosEnFranjas = franjasDelTurno.flatMap(franja =>
+      getScheduledVehiclesForFranja(fecha, franja)
+    )
+
+    // Agregar trabajos continuos solo en el turno mañana para evitar duplicados
+    if (turno === 'mañana') {
+      vehiculosEnFranjas.push(...getTrabajosContinuos(fecha))
+    }
+
+    return vehiculosEnFranjas
   }
 
   async function removeScheduledVehicle(pendienteId: number) {
@@ -530,13 +599,17 @@ export default function PendientesPage() {
                 </div>
               </div>
 
-              {/* Calendario */}
-              <div className="space-y-3">
+              {/* Calendario con 6 Franjas Horarias */}
+              <div className="space-y-4">
                 {getWeekDays(currentWeek).map((day) => {
                   const dateKey = formatDateKey(day)
                   const isToday = dateKey === formatDateKey(new Date())
                   const isPast = day < new Date(new Date().setHours(0, 0, 0, 0))
-                  const totalVehicles = getScheduledVehiclesForSlot(dateKey, 'mañana').length + getScheduledVehiclesForSlot(dateKey, 'tarde').length
+
+                  // Calcular total de vehículos en todas las franjas + trabajos continuos
+                  const totalVehicles = FRANJAS_HORARIAS.reduce((total, franja) =>
+                    total + getScheduledVehiclesForFranja(dateKey, franja.inicio).length, 0
+                  ) + getTrabajosContinuos(dateKey).length
 
                   return (
                     <div key={dateKey} className={`rounded-xl shadow-sm transition-all hover:shadow-md ${
