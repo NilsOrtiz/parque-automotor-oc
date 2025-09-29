@@ -88,6 +88,42 @@ export default function CalendarioFranjasHorarias({
       }))
   }
 
+  // Función para verificar si una franja está ocupada por un trabajo multi-franja
+  function getFranjaOcupadaPor(fecha: string, franjaInicio: string): ScheduledVehicle | null {
+    const franjaIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === franjaInicio)
+
+    // Buscar trabajos programados que podrían ocupar esta franja
+    const trabajosEnFecha = pendientes.filter(p =>
+      p.fecha_programada === fecha &&
+      p.estado === 'programado' &&
+      p.franja_horaria_inicio &&
+      p.duracion_franjas &&
+      p.duracion_franjas > 1
+    )
+
+    for (const trabajo of trabajosEnFecha) {
+      const inicioIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === trabajo.franja_horaria_inicio)
+      const duracion = trabajo.duracion_franjas || 1
+
+      // Verificar si esta franja está dentro del rango del trabajo
+      if (franjaIndex >= inicioIndex && franjaIndex < inicioIndex + duracion) {
+        return {
+          pendienteId: trabajo.id,
+          interno: trabajo.interno?.toString() || '',
+          placa: trabajo.placa,
+          fecha: fecha,
+          turno: trabajo.turno_programado as 'mañana' | 'tarde',
+          franja_horaria_inicio: trabajo.franja_horaria_inicio,
+          franja_horaria_fin: trabajo.franja_horaria_fin,
+          duracion_franjas: trabajo.duracion_franjas,
+          es_trabajo_continuo: trabajo.es_trabajo_continuo
+        }
+      }
+    }
+
+    return null
+  }
+
   return (
     <div className="space-y-4">
       {weekDays.map((day) => {
@@ -177,6 +213,15 @@ export default function CalendarioFranjasHorarias({
                 <div className="grid grid-cols-5 gap-1 h-20 border border-gray-200 rounded-lg overflow-hidden">
                   {FRANJAS_HORARIAS.map((franja, index) => {
                     const vehiculosEnFranja = getScheduledVehiclesForFranja(dateKey, franja.inicio)
+                    const trabajoMultiFranja = getFranjaOcupadaPor(dateKey, franja.inicio)
+
+                    // Si esta franja está ocupada por un trabajo multi-franja, usar esos datos
+                    const vehiculosAMostrar = trabajoMultiFranja && !vehiculosEnFranja.length
+                      ? [trabajoMultiFranja]
+                      : vehiculosEnFranja
+
+                    const esInicioTrabajo = trabajoMultiFranja?.franja_horaria_inicio === franja.inicio
+                    const esContinuacionTrabajo = trabajoMultiFranja && !esInicioTrabajo
 
                     const colorClasses = {
                       'blue': 'bg-blue-50 hover:bg-blue-100 border-blue-200',
@@ -198,58 +243,62 @@ export default function CalendarioFranjasHorarias({
                       <div
                         key={franja.inicio}
                         className={`flex flex-col relative cursor-pointer transition-all ${
-                          selectedPendiente && !isPast
+                          selectedPendiente && !isPast && !trabajoMultiFranja
                             ? `${colorClasses} border-2 border-dashed`
+                            : trabajoMultiFranja
+                            ? 'bg-gray-100 border-gray-300'  // Franja ocupada
                             : 'bg-gray-50 border-gray-200'
                         } ${index > 0 ? 'border-l' : ''}`}
                         onClick={() => {
-                          if (selectedPendiente && !isPast) {
+                          if (selectedPendiente && !isPast && !trabajoMultiFranja) {
                             onSchedulePendiente(selectedPendiente, dateKey, franja.inicio)
                           }
                         }}
                       >
                         {/* Vehículos programados en esta franja */}
                         <div className="flex-1 p-1 overflow-hidden">
-                          {vehiculosEnFranja.map((scheduled, vehicleIndex) => (
+                          {vehiculosAMostrar.map((scheduled, vehicleIndex) => (
                             <div
-                              key={scheduled.pendienteId}
-                              className={`bg-gradient-to-r ${gradientClasses} px-2 py-1 rounded text-xs mb-1 group transition-all flex items-center justify-between`}
+                              key={`${scheduled.pendienteId}-${index}`}
+                              className={`bg-gradient-to-r ${gradientClasses} px-2 py-1 rounded text-xs mb-1 group transition-all flex items-center justify-between ${
+                                esContinuacionTrabajo ? 'opacity-75' : ''
+                              }`}
                               style={{
                                 marginTop: vehicleIndex > 0 ? '2px' : '0'
                               }}
                             >
-                              <div className="flex items-center gap-1 min-w-0">
-                                <Truck className="h-3 w-3 flex-shrink-0" />
-                                <span className="font-semibold truncate">#{scheduled.interno}</span>
-                                {scheduled.duracion_franjas && scheduled.duracion_franjas > 1 && (
-                                  <span className="bg-white/30 px-1 rounded text-xs flex-shrink-0">
-                                    {scheduled.duracion_franjas}f
-                                  </span>
+                              <div className="flex items-center justify-center min-w-0 flex-1">
+                                <span className="font-bold text-sm">{scheduled.interno}</span>
+                                {esContinuacionTrabajo && (
+                                  <span className="ml-1 text-xs opacity-60">...</span>
                                 )}
                               </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onRemoveScheduled(scheduled.pendienteId)
-                                }}
-                                className="opacity-0 group-hover:opacity-100 transition-all hover:bg-white/50 rounded flex-shrink-0 p-1"
-                                title="Desprogramar"
-                              >
-                                ×
-                              </button>
+                              {/* Solo mostrar botón de eliminar en la franja de inicio */}
+                              {esInicioTrabajo && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onRemoveScheduled(scheduled.pendienteId)
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-all hover:bg-white/50 rounded flex-shrink-0 p-1"
+                                  title="Desprogramar"
+                                >
+                                  ×
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
 
-                        {/* Indicador de click */}
-                        {vehiculosEnFranja.length === 0 && selectedPendiente && !isPast && (
+                        {/* Indicador de click - solo si no hay trabajo multi-franja */}
+                        {!trabajoMultiFranja && vehiculosEnFranja.length === 0 && selectedPendiente && !isPast && (
                           <div className="absolute inset-0 flex items-center justify-center">
                             <Calendar className="h-4 w-4 text-gray-400" />
                           </div>
                         )}
 
                         {/* Estado vacío */}
-                        {vehiculosEnFranja.length === 0 && !selectedPendiente && !isPast && (
+                        {!trabajoMultiFranja && vehiculosEnFranja.length === 0 && !selectedPendiente && !isPast && (
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-gray-300 text-xs">-</span>
                           </div>
