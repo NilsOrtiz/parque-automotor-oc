@@ -69,7 +69,7 @@ BEGIN
         -- NUEVA LÓGICA: Si es crítico, verificar si ya existe o crear/actualizar
         IF es_critico THEN
             -- Tiempo estimado uniforme para todos los casos críticos
-            tiempo_estimado_calc := '4-6 horas';
+            tiempo_estimado_calc := '6 horas';
             criticidad_calc := 'critico';
             motivo_calc := 'Service + revisión';
 
