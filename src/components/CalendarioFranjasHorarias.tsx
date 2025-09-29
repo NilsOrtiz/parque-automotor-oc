@@ -162,100 +162,102 @@ export default function CalendarioFranjasHorarias({
                 </div>
               )}
 
-              {/* 6 Franjas Horarias */}
-              <div className="grid grid-cols-2 gap-2">
-                {FRANJAS_HORARIAS.map((franja) => {
-                  const vehiculosEnFranja = getScheduledVehiclesForFranja(dateKey, franja.inicio)
+              {/* Barra Horizontal con 5 Franjas Horarias */}
+              <div className="space-y-4">
+                {/* Header con horarios */}
+                <div className="grid grid-cols-5 gap-1 text-xs text-gray-500 text-center">
+                  {FRANJAS_HORARIAS.map((franja) => (
+                    <div key={franja.inicio} className="py-1">
+                      {franja.inicio}-{franja.fin}
+                    </div>
+                  ))}
+                </div>
 
-                  const colorClasses = {
-                    'blue': {
-                      border: 'border-blue-400 bg-blue-50 hover:bg-blue-100 hover:border-blue-500',
-                      gradient: 'from-blue-100 to-blue-200 text-blue-800 hover:from-blue-200 hover:to-blue-300',
-                      dot: 'bg-blue-500'
-                    },
-                    'indigo': {
-                      border: 'border-indigo-400 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-500',
-                      gradient: 'from-indigo-100 to-indigo-200 text-indigo-800 hover:from-indigo-200 hover:to-indigo-300',
-                      dot: 'bg-indigo-500'
-                    },
-                    'cyan': {
-                      border: 'border-cyan-400 bg-cyan-50 hover:bg-cyan-100 hover:border-cyan-500',
-                      gradient: 'from-cyan-100 to-cyan-200 text-cyan-800 hover:from-cyan-200 hover:to-cyan-300',
-                      dot: 'bg-cyan-500'
-                    },
-                    'orange': {
-                      border: 'border-orange-400 bg-orange-50 hover:bg-orange-100 hover:border-orange-500',
-                      gradient: 'from-orange-100 to-orange-200 text-orange-800 hover:from-orange-200 hover:to-orange-300',
-                      dot: 'bg-orange-500'
-                    },
-                    'amber': {
-                      border: 'border-amber-400 bg-amber-50 hover:bg-amber-100 hover:border-amber-500',
-                      gradient: 'from-amber-100 to-amber-200 text-amber-800 hover:from-amber-200 hover:to-amber-300',
-                      dot: 'bg-amber-500'
-                    },
-                  }[franja.color as keyof typeof colorClasses]
+                {/* Barra horizontal dividida en 5 secciones */}
+                <div className="grid grid-cols-5 gap-1 h-20 border border-gray-200 rounded-lg overflow-hidden">
+                  {FRANJAS_HORARIAS.map((franja, index) => {
+                    const vehiculosEnFranja = getScheduledVehiclesForFranja(dateKey, franja.inicio)
 
-                  return (
-                    <div key={franja.inicio} className="mb-2">
-                      <div className="flex items-center gap-1 mb-1">
-                        <div className={`w-2 h-2 ${colorClasses.dot} rounded-full`}></div>
-                        <span className="text-xs font-medium text-gray-600">
-                          {franja.inicio}-{franja.fin}
-                        </span>
-                      </div>
+                    const colorClasses = {
+                      'blue': 'bg-blue-50 hover:bg-blue-100 border-blue-200',
+                      'indigo': 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200',
+                      'cyan': 'bg-cyan-50 hover:bg-cyan-100 border-cyan-200',
+                      'orange': 'bg-orange-50 hover:bg-orange-100 border-orange-200',
+                      'amber': 'bg-amber-50 hover:bg-amber-100 border-amber-200'
+                    }[franja.color]
+
+                    const gradientClasses = {
+                      'blue': 'from-blue-100 to-blue-200 text-blue-800',
+                      'indigo': 'from-indigo-100 to-indigo-200 text-indigo-800',
+                      'cyan': 'from-cyan-100 to-cyan-200 text-cyan-800',
+                      'orange': 'from-orange-100 to-orange-200 text-orange-800',
+                      'amber': 'from-amber-100 to-amber-200 text-amber-800'
+                    }[franja.color]
+
+                    return (
                       <div
-                        className={`min-h-[50px] p-2 rounded-lg transition-all border cursor-pointer ${
+                        key={franja.inicio}
+                        className={`flex flex-col relative cursor-pointer transition-all ${
                           selectedPendiente && !isPast
-                            ? `border-2 border-dashed ${colorClasses.border}`
-                            : 'border-gray-200 bg-gray-50'
-                        }`}
+                            ? `${colorClasses} border-2 border-dashed`
+                            : 'bg-gray-50 border-gray-200'
+                        } ${index > 0 ? 'border-l' : ''}`}
                         onClick={() => {
                           if (selectedPendiente && !isPast) {
                             onSchedulePendiente(selectedPendiente, dateKey, franja.inicio)
                           }
                         }}
                       >
-                        {vehiculosEnFranja.map((scheduled) => (
-                          <div
-                            key={scheduled.pendienteId}
-                            className={`flex items-center justify-between bg-gradient-to-r ${colorClasses.gradient} px-2 py-1 rounded text-xs mb-1 group transition-all`}
-                          >
-                            <div className="flex items-center gap-1">
-                              <Truck className="h-3 w-3" />
-                              <span className="font-semibold">#{scheduled.interno}</span>
-                              {scheduled.duracion_franjas && scheduled.duracion_franjas > 1 && (
-                                <span className="bg-white/30 px-1 rounded text-xs">
-                                  {scheduled.duracion_franjas}f
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onRemoveScheduled(scheduled.pendienteId)
+                        {/* Vehículos programados en esta franja */}
+                        <div className="flex-1 p-1 overflow-hidden">
+                          {vehiculosEnFranja.map((scheduled, vehicleIndex) => (
+                            <div
+                              key={scheduled.pendienteId}
+                              className={`bg-gradient-to-r ${gradientClasses} px-2 py-1 rounded text-xs mb-1 group transition-all flex items-center justify-between`}
+                              style={{
+                                marginTop: vehicleIndex > 0 ? '2px' : '0'
                               }}
-                              className="opacity-0 group-hover:opacity-100 transition-all p-1 rounded hover:bg-white/50"
-                              title="Desprogramar"
                             >
-                              ×
-                            </button>
-                          </div>
-                        ))}
+                              <div className="flex items-center gap-1 min-w-0">
+                                <Truck className="h-3 w-3 flex-shrink-0" />
+                                <span className="font-semibold truncate">#{scheduled.interno}</span>
+                                {scheduled.duracion_franjas && scheduled.duracion_franjas > 1 && (
+                                  <span className="bg-white/30 px-1 rounded text-xs flex-shrink-0">
+                                    {scheduled.duracion_franjas}f
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onRemoveScheduled(scheduled.pendienteId)
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-all hover:bg-white/50 rounded flex-shrink-0 p-1"
+                                title="Desprogramar"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Indicador de click */}
                         {vehiculosEnFranja.length === 0 && selectedPendiente && !isPast && (
-                          <div className="text-xs text-gray-600 text-center py-1 flex items-center justify-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            Click
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Calendar className="h-4 w-4 text-gray-400" />
                           </div>
                         )}
+
+                        {/* Estado vacío */}
                         {vehiculosEnFranja.length === 0 && !selectedPendiente && !isPast && (
-                          <div className="text-xs text-gray-400 text-center py-1">
-                            -
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-gray-300 text-xs">-</span>
                           </div>
                         )}
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>
