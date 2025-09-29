@@ -215,10 +215,11 @@ export default function CalendarioFranjasHorarias({
                     const vehiculosEnFranja = getScheduledVehiclesForFranja(dateKey, franja.inicio)
                     const trabajoMultiFranja = getFranjaOcupadaPor(dateKey, franja.inicio)
 
-                    // Si esta franja está ocupada por un trabajo multi-franja, usar esos datos
-                    const vehiculosAMostrar = trabajoMultiFranja && !vehiculosEnFranja.length
-                      ? [trabajoMultiFranja]
-                      : vehiculosEnFranja
+                    // Combinar vehículos que empiezan en esta franja + los que la ocupan por multi-franja
+                    const vehiculosAMostrar = [...vehiculosEnFranja]
+                    if (trabajoMultiFranja && !vehiculosEnFranja.some(v => v.pendienteId === trabajoMultiFranja.pendienteId)) {
+                      vehiculosAMostrar.push(trabajoMultiFranja)
+                    }
 
                     const esInicioTrabajo = trabajoMultiFranja?.franja_horaria_inicio === franja.inicio
                     const esContinuacionTrabajo = trabajoMultiFranja && !esInicioTrabajo
@@ -243,14 +244,12 @@ export default function CalendarioFranjasHorarias({
                       <div
                         key={franja.inicio}
                         className={`flex flex-col relative cursor-pointer transition-all ${
-                          selectedPendiente && !isPast && !trabajoMultiFranja
+                          selectedPendiente && !isPast
                             ? `${colorClasses} border-2 border-dashed`
-                            : trabajoMultiFranja
-                            ? 'bg-gray-100 border-gray-300'  // Franja ocupada
                             : 'bg-gray-50 border-gray-200'
                         } ${index > 0 ? 'border-l' : ''}`}
                         onClick={() => {
-                          if (selectedPendiente && !isPast && !trabajoMultiFranja) {
+                          if (selectedPendiente && !isPast) {
                             onSchedulePendiente(selectedPendiente, dateKey, franja.inicio)
                           }
                         }}
@@ -273,8 +272,8 @@ export default function CalendarioFranjasHorarias({
                                   <span className="ml-1 text-xs opacity-60">...</span>
                                 )}
                               </div>
-                              {/* Solo mostrar botón de eliminar en la franja de inicio */}
-                              {esInicioTrabajo && (
+                              {/* Mostrar botón de eliminar si es inicio de trabajo multi-franja O trabajo individual */}
+                              {(esInicioTrabajo || !esContinuacionTrabajo) && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
@@ -290,15 +289,15 @@ export default function CalendarioFranjasHorarias({
                           ))}
                         </div>
 
-                        {/* Indicador de click - solo si no hay trabajo multi-franja */}
-                        {!trabajoMultiFranja && vehiculosEnFranja.length === 0 && selectedPendiente && !isPast && (
+                        {/* Indicador de click */}
+                        {vehiculosAMostrar.length === 0 && selectedPendiente && !isPast && (
                           <div className="absolute inset-0 flex items-center justify-center">
                             <Calendar className="h-4 w-4 text-gray-400" />
                           </div>
                         )}
 
                         {/* Estado vacío */}
-                        {!trabajoMultiFranja && vehiculosEnFranja.length === 0 && !selectedPendiente && !isPast && (
+                        {vehiculosAMostrar.length === 0 && !selectedPendiente && !isPast && (
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-gray-300 text-xs">-</span>
                           </div>
