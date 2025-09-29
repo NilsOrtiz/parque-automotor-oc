@@ -28,6 +28,14 @@ interface PendienteConVehiculo {
 type SortField = 'interno' | 'placa' | 'marca' | 'clasificacion' | 'prioridad' | 'fecha_creacion' | 'tiempo_estimado'
 type SortDirection = 'asc' | 'desc'
 
+// Configuración de destinos disponibles
+const DESTINOS_DISPONIBLES = [
+  { value: 'Taller', label: '🔧 Taller Interno', description: 'Trabajo interno en nuestro taller' },
+  { value: 'IDISA', label: '🏭 IDISA', description: 'Enviar a taller IDISA' },
+  { value: 'Taller Externo', label: '🔧 Taller Externo', description: 'Taller externo especializado' },
+  { value: 'Taller Especializado', label: '⚡ Taller Especializado', description: 'Para trabajos complejos específicos' }
+]
+
 export default function ListaPendientesPage() {
   const [pendientes, setPendientes] = useState<PendienteConVehiculo[]>([])
   const [loading, setLoading] = useState(true)
@@ -38,7 +46,7 @@ export default function ListaPendientesPage() {
   const [filtroPrioridad, setFiltroPrioridad] = useState<'todos' | 'critico' | 'medio' | 'leve'>('todos')
   const [selectedPendientes, setSelectedPendientes] = useState<number[]>([])
   const [showMigrationModal, setShowMigrationModal] = useState(false)
-  const [migrationDestino, setMigrationDestino] = useState<'Taller' | 'IDISA' | 'Taller Externo'>('Taller')
+  const [migrationDestino, setMigrationDestino] = useState<'Taller' | 'IDISA' | 'Taller Externo' | 'Taller Especializado'>('Taller')
   const [migrating, setMigrating] = useState(false)
 
   useEffect(() => {
@@ -606,21 +614,20 @@ export default function ListaPendientesPage() {
               </p>
 
               <div className="space-y-3 mb-6">
-                {['Taller', 'IDISA', 'Taller Externo'].map((destino) => (
-                  <label key={destino} className="flex items-center">
+                {DESTINOS_DISPONIBLES.map((destino) => (
+                  <label key={destino.value} className="flex items-center">
                     <input
                       type="radio"
                       name="destino"
-                      value={destino}
-                      checked={migrationDestino === destino}
+                      value={destino.value}
+                      checked={migrationDestino === destino.value}
                       onChange={(e) => setMigrationDestino(e.target.value as any)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                    <span className="ml-3 text-gray-700">
-                      {destino === 'Taller' && '🔧 Taller Interno'}
-                      {destino === 'IDISA' && '🏭 IDISA'}
-                      {destino === 'Taller Externo' && '🔧 Taller Externo'}
-                    </span>
+                    <div className="ml-3">
+                      <span className="text-gray-700 font-medium">{destino.label}</span>
+                      <p className="text-xs text-gray-500">{destino.description}</p>
+                    </div>
                   </label>
                 ))}
               </div>
