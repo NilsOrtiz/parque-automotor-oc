@@ -670,6 +670,7 @@ export default function PendientesPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
                   )
                 })}
               </div>
