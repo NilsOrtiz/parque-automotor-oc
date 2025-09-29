@@ -88,8 +88,8 @@ export default function CalendarioFranjasHorarias({
       }))
   }
 
-  // Función para verificar si una franja está ocupada por un trabajo multi-franja
-  function getFranjaOcupadaPor(fecha: string, franjaInicio: string): ScheduledVehicle | null {
+  // Función para obtener TODOS los trabajos multi-franja que ocupan una franja específica
+  function getTrabajosMultiFranjaEn(fecha: string, franjaInicio: string): ScheduledVehicle[] {
     const franjaIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === franjaInicio)
 
     // Buscar trabajos programados que podrían ocupar esta franja
@@ -101,13 +101,15 @@ export default function CalendarioFranjasHorarias({
       p.duracion_franjas > 1
     )
 
+    const trabajosQueOcupanEstaFranja: ScheduledVehicle[] = []
+
     for (const trabajo of trabajosEnFecha) {
       const inicioIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === trabajo.franja_horaria_inicio)
       const duracion = trabajo.duracion_franjas || 1
 
       // Verificar si esta franja está dentro del rango del trabajo
       if (franjaIndex >= inicioIndex && franjaIndex < inicioIndex + duracion) {
-        return {
+        trabajosQueOcupanEstaFranja.push({
           pendienteId: trabajo.id,
           interno: trabajo.interno?.toString() || '',
           placa: trabajo.placa,
@@ -117,11 +119,11 @@ export default function CalendarioFranjasHorarias({
           franja_horaria_fin: trabajo.franja_horaria_fin,
           duracion_franjas: trabajo.duracion_franjas,
           es_trabajo_continuo: trabajo.es_trabajo_continuo
-        }
+        })
       }
     }
 
-    return null
+    return trabajosQueOcupanEstaFranja
   }
 
   return (
@@ -210,19 +212,20 @@ export default function CalendarioFranjasHorarias({
                 </div>
 
                 {/* Barra horizontal dividida en 5 secciones */}
-                <div className="grid grid-cols-5 gap-1 h-20 border border-gray-200 rounded-lg overflow-hidden">
+                <div className="grid grid-cols-5 gap-1 min-h-[80px] border border-gray-200 rounded-lg overflow-hidden">
                   {FRANJAS_HORARIAS.map((franja, index) => {
                     const vehiculosEnFranja = getScheduledVehiclesForFranja(dateKey, franja.inicio)
-                    const trabajoMultiFranja = getFranjaOcupadaPor(dateKey, franja.inicio)
+                    const trabajosMultiFranja = getTrabajosMultiFranjaEn(dateKey, franja.inicio)
 
                     // Combinar vehículos que empiezan en esta franja + los que la ocupan por multi-franja
                     const vehiculosAMostrar = [...vehiculosEnFranja]
-                    if (trabajoMultiFranja && !vehiculosEnFranja.some(v => v.pendienteId === trabajoMultiFranja.pendienteId)) {
-                      vehiculosAMostrar.push(trabajoMultiFranja)
-                    }
 
-                    const esInicioTrabajo = trabajoMultiFranja?.franja_horaria_inicio === franja.inicio
-                    const esContinuacionTrabajo = trabajoMultiFranja && !esInicioTrabajo
+                    // Agregar todos los trabajos multi-franja que no estén ya en la lista
+                    trabajosMultiFranja.forEach(trabajo => {
+                      if (!vehiculosEnFranja.some(v => v.pendienteId === trabajo.pendienteId)) {
+                        vehiculosAMostrar.push(trabajo)
+                      }
+                    })
 
                     const colorClasses = {
                       'blue': 'bg-blue-50 hover:bg-blue-100 border-blue-200',
@@ -243,7 +246,7 @@ export default function CalendarioFranjasHorarias({
                     return (
                       <div
                         key={franja.inicio}
-                        className={`flex flex-col relative cursor-pointer transition-all ${
+                        className={`flex flex-col relative cursor-pointer transition-all min-h-[80px] ${
                           selectedPendiente && !isPast
                             ? `${colorClasses} border-2 border-dashed`
                             : 'bg-gray-50 border-gray-200'
@@ -256,37 +259,45 @@ export default function CalendarioFranjasHorarias({
                       >
                         {/* Vehículos programados en esta franja */}
                         <div className="flex-1 p-1 overflow-hidden">
-                          {vehiculosAMostrar.map((scheduled, vehicleIndex) => (
-                            <div
-                              key={`${scheduled.pendienteId}-${index}`}
-                              className={`bg-gradient-to-r ${gradientClasses} px-2 py-1 rounded text-xs mb-1 group transition-all flex items-center justify-between ${
-                                esContinuacionTrabajo ? 'opacity-75' : ''
-                              }`}
-                              style={{
-                                marginTop: vehicleIndex > 0 ? '2px' : '0'
-                              }}
-                            >
-                              <div className="flex items-center justify-center min-w-0 flex-1">
-                                <span className="font-bold text-sm">{scheduled.interno}</span>
-                                {esContinuacionTrabajo && (
-                                  <span className="ml-1 text-xs opacity-60">...</span>
+                          {vehiculosAMostrar.map((scheduled, vehicleIndex) => {
+                            // Determinar si es inicio o continuación de trabajo multi-franja
+                            const esInicioTrabajo = scheduled.franja_horaria_inicio === franja.inicio
+                            const esContinuacionTrabajo = scheduled.franja_horaria_inicio !== franja.inicio &&
+                                                        scheduled.duracion_franjas &&
+                                                        scheduled.duracion_franjas > 1
+
+                            return (
+                              <div
+                                key={`${scheduled.pendienteId}-${index}`}
+                                className={`bg-gradient-to-r ${gradientClasses} px-2 py-1 rounded text-xs mb-1 group transition-all flex items-center justify-between ${
+                                  esContinuacionTrabajo ? 'opacity-75' : ''
+                                }`}
+                                style={{
+                                  marginTop: vehicleIndex > 0 ? '2px' : '0'
+                                }}
+                              >
+                                <div className="flex items-center justify-center min-w-0 flex-1">
+                                  <span className="font-bold text-sm">{scheduled.interno}</span>
+                                  {esContinuacionTrabajo && (
+                                    <span className="ml-1 text-xs opacity-60">...</span>
+                                  )}
+                                </div>
+                                {/* Mostrar botón de eliminar si es inicio de trabajo multi-franja O trabajo individual */}
+                                {(esInicioTrabajo || !esContinuacionTrabajo) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      onRemoveScheduled(scheduled.pendienteId)
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-all hover:bg-white/50 rounded flex-shrink-0 p-1"
+                                    title="Desprogramar"
+                                  >
+                                    ×
+                                  </button>
                                 )}
                               </div>
-                              {/* Mostrar botón de eliminar si es inicio de trabajo multi-franja O trabajo individual */}
-                              {(esInicioTrabajo || !esContinuacionTrabajo) && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    onRemoveScheduled(scheduled.pendienteId)
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 transition-all hover:bg-white/50 rounded flex-shrink-0 p-1"
-                                  title="Desprogramar"
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
 
                         {/* Indicador de click */}
