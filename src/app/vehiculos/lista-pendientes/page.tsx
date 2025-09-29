@@ -28,13 +28,11 @@ interface PendienteConVehiculo {
 type SortField = 'interno' | 'placa' | 'marca' | 'clasificacion' | 'prioridad' | 'fecha_creacion' | 'tiempo_estimado'
 type SortDirection = 'asc' | 'desc'
 
-// Configuración de destinos disponibles
-const DESTINOS_DISPONIBLES = [
-  { value: 'Taller', label: '🔧 Taller Interno', description: 'Trabajo interno en nuestro taller' },
-  { value: 'IDISA', label: '🏭 IDISA', description: 'Enviar a taller IDISA' },
-  { value: 'Taller Externo', label: '🔧 Taller Externo', description: 'Taller externo especializado' },
-  { value: 'Taller Especializado', label: '⚡ Taller Especializado', description: 'Para trabajos complejos específicos' }
-]
+interface DestinoMigracion {
+  nombre: string
+  icono: string
+  descripcion: string
+}
 
 export default function ListaPendientesPage() {
   const [pendientes, setPendientes] = useState<PendienteConVehiculo[]>([])
@@ -46,12 +44,51 @@ export default function ListaPendientesPage() {
   const [filtroPrioridad, setFiltroPrioridad] = useState<'todos' | 'critico' | 'medio' | 'leve'>('todos')
   const [selectedPendientes, setSelectedPendientes] = useState<number[]>([])
   const [showMigrationModal, setShowMigrationModal] = useState(false)
-  const [migrationDestino, setMigrationDestino] = useState<'Taller' | 'IDISA' | 'Taller Externo' | 'Taller Especializado'>('Taller')
+  const [migrationDestino, setMigrationDestino] = useState<string>('Taller')
   const [migrating, setMigrating] = useState(false)
+  const [destinosDisponibles, setDestinosDisponibles] = useState<DestinoMigracion[]>([])
+  const [loadingDestinos, setLoadingDestinos] = useState(false)
 
   useEffect(() => {
     fetchPendientes()
+    fetchDestinos()
   }, [])
+
+  async function fetchDestinos() {
+    try {
+      setLoadingDestinos(true)
+
+      const { data, error } = await supabase
+        .rpc('obtener_destinos_activos')
+
+      if (error) {
+        console.error('Error cargando destinos:', error)
+        // Fallback a destinos por defecto
+        setDestinosDisponibles([
+          { nombre: 'Taller', icono: '🔧', descripcion: 'Trabajo interno en nuestro taller' },
+          { nombre: 'IDISA', icono: '🏭', descripcion: 'Enviar a taller IDISA' }
+        ])
+        return
+      }
+
+      setDestinosDisponibles(data || [])
+
+      // Establecer el primer destino como default si no está establecido
+      if (data && data.length > 0 && !migrationDestino) {
+        setMigrationDestino(data[0].nombre)
+      }
+
+    } catch (error) {
+      console.error('Error general cargando destinos:', error)
+      // Fallback a destinos por defecto
+      setDestinosDisponibles([
+        { nombre: 'Taller', icono: '🔧', descripcion: 'Trabajo interno en nuestro taller' },
+        { nombre: 'IDISA', icono: '🏭', descripcion: 'Enviar a taller IDISA' }
+      ])
+    } finally {
+      setLoadingDestinos(false)
+    }
+  }
 
   async function fetchPendientes() {
     try {
@@ -614,22 +651,40 @@ export default function ListaPendientesPage() {
               </p>
 
               <div className="space-y-3 mb-6">
-                {DESTINOS_DISPONIBLES.map((destino) => (
-                  <label key={destino.value} className="flex items-center">
-                    <input
-                      type="radio"
-                      name="destino"
-                      value={destino.value}
-                      checked={migrationDestino === destino.value}
-                      onChange={(e) => setMigrationDestino(e.target.value as any)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                    />
-                    <div className="ml-3">
-                      <span className="text-gray-700 font-medium">{destino.label}</span>
-                      <p className="text-xs text-gray-500">{destino.description}</p>
-                    </div>
-                  </label>
-                ))}
+                {loadingDestinos ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                    <span className="ml-2 text-gray-600">Cargando destinos...</span>
+                  </div>
+                ) : (
+                  destinosDisponibles.map((destino) => (
+                    <label key={destino.nombre} className="flex items-center">
+                      <input
+                        type="radio"
+                        name="destino"
+                        value={destino.nombre}
+                        checked={migrationDestino === destino.nombre}
+                        onChange={(e) => setMigrationDestino(e.target.value)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <div className="ml-3">
+                        <span className="text-gray-700 font-medium">
+                          {destino.icono} {destino.nombre}
+                        </span>
+                        <p className="text-xs text-gray-500">{destino.descripcion}</p>
+                      </div>
+                    </label>
+                  ))
+                )}
+
+                {destinosDisponibles.length === 0 && !loadingDestinos && (
+                  <div className="text-center py-4 text-gray-500">
+                    <p>No hay destinos configurados.</p>
+                    <p className="text-xs mt-1">
+                      Ve a Supabase → Table Editor → destinos_migracion para agregar destinos
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
@@ -641,6 +696,9 @@ export default function ListaPendientesPage() {
                       <li>• Los pendientes se enviarán a coordinación de operaciones</li>
                       <li>• Se marcarán como "coordinado" en la lista del taller</li>
                       <li>• Operaciones podrá programar y gestionar el trabajo</li>
+                      <li className="pt-1 border-t border-yellow-300">
+                        💡 <strong>Gestionar destinos:</strong> Supabase → Table Editor → destinos_migracion
+                      </li>
                     </ul>
                   </div>
                 </div>
