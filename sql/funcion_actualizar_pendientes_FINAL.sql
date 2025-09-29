@@ -62,28 +62,16 @@ BEGIN
             calc_porcentaje_hr := GREATEST(0, LEAST(100, calc_porcentaje_hr));
         END IF;
 
-        -- Determinar si es crítico (≤5% en cualquiera de los dos criterios)
-        es_critico := (calc_porcentaje_km IS NOT NULL AND calc_porcentaje_km <= 5) OR
-                      (calc_porcentaje_hr IS NOT NULL AND calc_porcentaje_hr <= 5);
+        -- Determinar si es crítico (≤2% en cualquiera de los dos criterios)
+        es_critico := (calc_porcentaje_km IS NOT NULL AND calc_porcentaje_km <= 2) OR
+                      (calc_porcentaje_hr IS NOT NULL AND calc_porcentaje_hr <= 2);
 
         -- NUEVA LÓGICA: Si es crítico, verificar si ya existe o crear/actualizar
         IF es_critico THEN
-            -- Determinar tiempo estimado basado en criticidad (solo para nuevos registros)
-            IF (calc_porcentaje_km IS NOT NULL AND calc_porcentaje_km <= 1) OR
-               (calc_porcentaje_hr IS NOT NULL AND calc_porcentaje_hr <= 1) THEN
-                tiempo_estimado_calc := '6-8 horas';
-                criticidad_calc := 'critico';
-                motivo_calc := 'Service completo + revisión URGENTE';
-            ELSIF (calc_porcentaje_km IS NOT NULL AND calc_porcentaje_km <= 3) OR
-                  (calc_porcentaje_hr IS NOT NULL AND calc_porcentaje_hr <= 3) THEN
-                tiempo_estimado_calc := '4-6 horas';
-                criticidad_calc := 'critico';
-                motivo_calc := 'Service + revisión';
-            ELSE
-                tiempo_estimado_calc := '4-6 horas';
-                criticidad_calc := 'critico';
-                motivo_calc := 'Service + revisión';
-            END IF;
+            -- Tiempo estimado uniforme para todos los casos críticos
+            tiempo_estimado_calc := '4-6 horas';
+            criticidad_calc := 'critico';
+            motivo_calc := 'Service + revisión';
 
             -- VERIFICAR si ya existe un registro para este interno en "Taller"
             IF EXISTS (
