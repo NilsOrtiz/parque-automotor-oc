@@ -15,14 +15,13 @@ type ScheduledVehicle = {
   es_trabajo_continuo?: boolean
 }
 
-// Franjas horarias disponibles
+// Franjas horarias disponibles (5 franjas: 8:00 a 18:00)
 const FRANJAS_HORARIAS = [
   { inicio: '08:00', fin: '10:00', label: 'Inicio mañana', color: 'blue' },
   { inicio: '10:00', fin: '12:00', label: 'Mitad mañana', color: 'indigo' },
   { inicio: '12:00', fin: '14:00', label: 'Final mañana', color: 'cyan' },
   { inicio: '14:00', fin: '16:00', label: 'Inicio tarde', color: 'orange' },
-  { inicio: '16:00', fin: '18:00', label: 'Mitad tarde', color: 'amber' },
-  { inicio: '18:00', fin: '20:00', label: 'Final tarde', color: 'red' }
+  { inicio: '16:00', fin: '18:00', label: 'Final tarde', color: 'amber' }
 ]
 
 interface CalendarioFranjasHorariasProps {
@@ -194,11 +193,6 @@ export default function CalendarioFranjasHorarias({
                       gradient: 'from-amber-100 to-amber-200 text-amber-800 hover:from-amber-200 hover:to-amber-300',
                       dot: 'bg-amber-500'
                     },
-                    'red': {
-                      border: 'border-red-400 bg-red-50 hover:bg-red-100 hover:border-red-500',
-                      gradient: 'from-red-100 to-red-200 text-red-800 hover:from-red-200 hover:to-red-300',
-                      dot: 'bg-red-500'
-                    }
                   }[franja.color as keyof typeof colorClasses]
 
                   return (

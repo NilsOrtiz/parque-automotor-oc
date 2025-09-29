@@ -18,14 +18,13 @@ type ScheduledVehicle = {
   es_trabajo_continuo?: boolean
 }
 
-// Franjas horarias disponibles
+// Franjas horarias disponibles (5 franjas: 8:00 a 18:00)
 const FRANJAS_HORARIAS = [
   { inicio: '08:00', fin: '10:00', label: 'Inicio mañana', color: 'blue' },
   { inicio: '10:00', fin: '12:00', label: 'Mitad mañana', color: 'indigo' },
   { inicio: '12:00', fin: '14:00', label: 'Final mañana', color: 'cyan' },
   { inicio: '14:00', fin: '16:00', label: 'Inicio tarde', color: 'orange' },
-  { inicio: '16:00', fin: '18:00', label: 'Mitad tarde', color: 'amber' },
-  { inicio: '18:00', fin: '20:00', label: 'Final tarde', color: 'red' }
+  { inicio: '16:00', fin: '18:00', label: 'Final tarde', color: 'amber' }
 ]
 
 export default function PendientesPage() {
@@ -280,7 +279,7 @@ export default function PendientesPage() {
     // Mapear turnos a franjas horarias para compatibilidad
     const franjasDelTurno = turno === 'mañana'
       ? ['08:00', '10:00', '12:00']
-      : ['14:00', '16:00', '18:00']
+      : ['14:00', '16:00']
 
     const vehiculosEnFranjas = franjasDelTurno.flatMap(franja =>
       getScheduledVehiclesForFranja(fecha, franja)

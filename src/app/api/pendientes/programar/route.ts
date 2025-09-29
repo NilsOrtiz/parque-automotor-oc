@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-// Franjas horarias disponibles
+// Franjas horarias disponibles (5 franjas: 8:00 a 18:00)
 const FRANJAS_HORARIAS = [
   { inicio: '08:00', fin: '10:00', label: 'Inicio mañana' },
   { inicio: '10:00', fin: '12:00', label: 'Mitad mañana' },
   { inicio: '12:00', fin: '14:00', label: 'Final mañana' },
   { inicio: '14:00', fin: '16:00', label: 'Inicio tarde' },
-  { inicio: '16:00', fin: '18:00', label: 'Mitad tarde' },
-  { inicio: '18:00', fin: '20:00', label: 'Final tarde' }
+  { inicio: '16:00', fin: '18:00', label: 'Final tarde' }
 ]
 
 // Función para calcular duración en franjas según tiempo estimado
@@ -22,8 +21,8 @@ function calcularDuracionFranjas(tiempoEstimado: string): number {
   if (tiempo.includes('3 horas') || tiempo.includes('4 horas')) return 2
   if (tiempo.includes('5 horas') || tiempo.includes('6 horas')) return 3
   if (tiempo.includes('7 horas') || tiempo.includes('8 horas')) return 4
-  if (tiempo.includes('día') || tiempo.includes('1 día')) return 6
-  if (tiempo === 'indeterminado') return 6
+  if (tiempo.includes('día') || tiempo.includes('1 día')) return 5 // Día completo = 5 franjas
+  if (tiempo === 'indeterminado') return 5
 
   return 3 // Por defecto 6 horas = 3 franjas
 }
@@ -32,7 +31,7 @@ function calcularDuracionFranjas(tiempoEstimado: string): number {
 function calcularFechaFin(fechaInicio: string, franjaInicio: string, duracionFranjas: number): string {
   const fecha = new Date(fechaInicio)
   const franjaInicioNum = FRANJAS_HORARIAS.findIndex(f => f.inicio === franjaInicio)
-  const franjasRestantesDelDia = 6 - franjaInicioNum
+  const franjasRestantesDelDia = 5 - franjaInicioNum // Ahora son 5 franjas por día
 
   if (duracionFranjas <= franjasRestantesDelDia) {
     // Termina el mismo día
@@ -40,7 +39,7 @@ function calcularFechaFin(fechaInicio: string, franjaInicio: string, duracionFra
   } else {
     // Calcular días adicionales
     const franjasRestantes = duracionFranjas - franjasRestantesDelDia
-    const diasAdicionales = Math.ceil(franjasRestantes / 6)
+    const diasAdicionales = Math.ceil(franjasRestantes / 5) // 5 franjas por día
     fecha.setDate(fecha.getDate() + diasAdicionales)
     return fecha.toISOString().split('T')[0]
   }
