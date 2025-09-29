@@ -10,7 +10,8 @@ export async function POST(request: NextRequest) {
       id_pendiente,
       ids_pendientes,
       trasladar_a = 'Taller',
-      tipo = 'individual' // 'individual' o 'masivo'
+      tipo = 'individual', // 'individual' o 'masivo'
+      tiempo_estimado_custom // Nuevo: tiempo personalizado
     } = body
 
     // Validar parámetros
@@ -46,7 +47,8 @@ export async function POST(request: NextRequest) {
       const { data, error } = await supabase
         .rpc('migrar_pendiente_a_operaciones', {
           p_id_pendiente: id_pendiente,
-          p_trasladar_a: trasladar_a
+          p_trasladar_a: trasladar_a,
+          p_tiempo_estimado_custom: tiempo_estimado_custom || null
         })
 
       if (error) {
