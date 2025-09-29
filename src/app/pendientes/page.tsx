@@ -18,7 +18,6 @@ export default function PendientesPage() {
   const [loading, setLoading] = useState(true)
   const [actualizando, setActualizando] = useState(false)
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('')
-  const [scheduledVehicles, setScheduledVehicles] = useState<ScheduledVehicle[]>([])
   const [selectedPendiente, setSelectedPendiente] = useState<PendienteOperacion | null>(null)
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'pendiente' | 'programado' | 'en_proceso' | 'completado'>('todos')
@@ -178,29 +177,73 @@ export default function PendientesPage() {
     return date.toISOString().split('T')[0]
   }
 
-  function handleSchedulePendiente(pendiente: PendienteOperacion, fecha: string, turno: 'mañana' | 'tarde') {
-    const newSchedule: ScheduledVehicle = {
-      pendienteId: pendiente.id,
-      interno: pendiente.interno?.toString() || '',
-      placa: pendiente.placa,
-      fecha,
-      turno
+  async function handleSchedulePendiente(pendiente: PendienteOperacion, fecha: string, turno: 'mañana' | 'tarde') {
+    try {
+      const response = await fetch('/api/pendientes/programar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pendiente_id: pendiente.id,
+          fecha_programada: fecha,
+          turno_programado: turno,
+          programado_por: 'Operaciones'
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Recargar pendientes para ver los cambios
+        await cargarPendientes()
+        setSelectedPendiente(null)
+      } else {
+        console.error('Error programando:', result.message)
+        alert('❌ Error al programar: ' + result.message)
+      }
+    } catch (error) {
+      console.error('Error en la programación:', error)
+      alert('❌ Error inesperado al programar')
     }
-
-    setScheduledVehicles(prev => {
-      const filtered = prev.filter(s => s.pendienteId !== pendiente.id)
-      return [...filtered, newSchedule]
-    })
-
-    setSelectedPendiente(null)
   }
 
   function getScheduledVehiclesForSlot(fecha: string, turno: 'mañana' | 'tarde'): ScheduledVehicle[] {
-    return scheduledVehicles.filter(s => s.fecha === fecha && s.turno === turno)
+    // Usar datos de la base de datos en lugar de memoria
+    return pendientes
+      .filter(p =>
+        p.fecha_programada === fecha &&
+        p.turno_programado === turno &&
+        p.estado === 'programado'
+      )
+      .map(p => ({
+        pendienteId: p.id,
+        interno: p.interno?.toString() || '',
+        placa: p.placa,
+        fecha: p.fecha_programada || '',
+        turno: p.turno_programado as 'mañana' | 'tarde'
+      }))
   }
 
-  function removeScheduledVehicle(pendienteId: number) {
-    setScheduledVehicles(prev => prev.filter(s => s.pendienteId !== pendienteId))
+  async function removeScheduledVehicle(pendienteId: number) {
+    try {
+      const response = await fetch(`/api/pendientes/programar?id=${pendienteId}`, {
+        method: 'DELETE'
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Recargar pendientes para ver los cambios
+        await cargarPendientes()
+      } else {
+        console.error('Error desprogramando:', result.message)
+        alert('❌ Error al desprogramar: ' + result.message)
+      }
+    } catch (error) {
+      console.error('Error desprogramando:', error)
+      alert('❌ Error inesperado al desprogramar')
+    }
   }
 
   if (loading) {
@@ -424,10 +467,13 @@ export default function PendientesPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {scheduledVehicles.some(s => s.pendienteId === pendiente.id) ? (
+                            {pendiente.estado === 'programado' && pendiente.fecha_programada ? (
                               <div className="flex items-center space-x-2">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="text-green-700 text-xs font-medium">Programado</span>
+                                <span className="text-green-700 text-xs font-medium">
+                                  Programado para {new Date(pendiente.fecha_programada).toLocaleDateString()}
+                                  {pendiente.turno_programado && ` (${pendiente.turno_programado})`}
+                                </span>
                               </div>
                             ) : (
                               <button
@@ -485,27 +531,50 @@ export default function PendientesPage() {
               </div>
 
               {/* Calendario */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {getWeekDays(currentWeek).map((day) => {
                   const dateKey = formatDateKey(day)
                   const isToday = dateKey === formatDateKey(new Date())
                   const isPast = day < new Date(new Date().setHours(0, 0, 0, 0))
+                  const totalVehicles = getScheduledVehiclesForSlot(dateKey, 'mañana').length + getScheduledVehiclesForSlot(dateKey, 'tarde').length
 
                   return (
-                    <div key={dateKey} className={`border rounded-lg p-3 ${
-                      isToday ? 'border-blue-300 bg-blue-50' : 'border-gray-200'
+                    <div key={dateKey} className={`rounded-xl shadow-sm transition-all hover:shadow-md ${
+                      isToday
+                        ? 'border-2 border-blue-400 bg-gradient-to-r from-blue-50 to-indigo-50'
+                        : 'border border-gray-200 bg-white'
                     } ${isPast ? 'opacity-60 bg-gray-50' : ''}`}>
-                      <div className="font-medium text-sm text-gray-900 mb-2">
-                        {formatDate(day)}
-                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="font-semibold text-gray-900">
+                              {formatDate(day)}
+                            </div>
+                            {isToday && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                                Hoy
+                              </span>
+                            )}
+                          </div>
+                          {totalVehicles > 0 && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
+                              <Truck className="h-3 w-3" />
+                              {totalVehicles} veh.
+                            </div>
+                          )}
+                        </div>
 
                       {/* Turno Mañana */}
                       <div className="mb-3">
-                        <div className="text-xs font-medium text-gray-600 mb-1">Mañana (8:00)</div>
-                        <div className={`min-h-[40px] border-2 border-dashed rounded p-2 ${
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-3 h-3 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400"></div>
+                          <span className="text-sm font-semibold text-gray-700">Mañana</span>
+                          <span className="text-xs text-gray-500">08:00 - 13:00</span>
+                        </div>
+                        <div className={`min-h-[50px] rounded-lg p-3 transition-all ${
                           selectedPendiente && !isPast
-                            ? 'border-blue-300 bg-blue-50 cursor-pointer hover:bg-blue-100'
-                            : 'border-gray-200 bg-gray-50'
+                            ? 'border-2 border-dashed border-blue-400 bg-blue-50 cursor-pointer hover:bg-blue-100 hover:border-blue-500'
+                            : 'border border-gray-200 bg-gray-50'
                         }`}
                         onClick={() => {
                           if (selectedPendiente && !isPast) {
@@ -515,23 +584,34 @@ export default function PendientesPage() {
                           {getScheduledVehiclesForSlot(dateKey, 'mañana').map((scheduled) => (
                             <div
                               key={scheduled.pendienteId}
-                              className="flex items-center justify-between bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mb-1 group"
+                              className="flex items-center justify-between bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 px-3 py-2 rounded-lg text-sm mb-2 group hover:from-blue-200 hover:to-blue-300 transition-all"
                             >
-                              <span className="font-medium">#{scheduled.interno}</span>
+                              <div className="flex items-center gap-2">
+                                <Truck className="h-4 w-4" />
+                                <span className="font-semibold">#{scheduled.interno}</span>
+                                <span className="text-xs opacity-75">{scheduled.placa}</span>
+                              </div>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   removeScheduledVehicle(scheduled.pendienteId)
                                 }}
-                                className="text-blue-600 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="text-blue-600 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all p-1 rounded-full hover:bg-white/50"
+                                title="Desprogramar"
                               >
                                 ×
                               </button>
                             </div>
                           ))}
                           {getScheduledVehiclesForSlot(dateKey, 'mañana').length === 0 && selectedPendiente && !isPast && (
-                            <div className="text-xs text-blue-600 text-center">
-                              Hacer clic para programar
+                            <div className="text-sm text-blue-600 text-center py-2 flex items-center justify-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              Click para programar en turno mañana
+                            </div>
+                          )}
+                          {getScheduledVehiclesForSlot(dateKey, 'mañana').length === 0 && !selectedPendiente && !isPast && (
+                            <div className="text-xs text-gray-400 text-center py-2">
+                              Selecciona un vehículo primero
                             </div>
                           )}
                         </div>
@@ -539,11 +619,15 @@ export default function PendientesPage() {
 
                       {/* Turno Tarde */}
                       <div>
-                        <div className="text-xs font-medium text-gray-600 mb-1">Tarde (14:00)</div>
-                        <div className={`min-h-[40px] border-2 border-dashed rounded p-2 ${
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-3 h-3 rounded-full bg-gradient-to-r from-orange-400 to-red-400"></div>
+                          <span className="text-sm font-semibold text-gray-700">Tarde</span>
+                          <span className="text-xs text-gray-500">14:00 - 18:00</span>
+                        </div>
+                        <div className={`min-h-[50px] rounded-lg p-3 transition-all ${
                           selectedPendiente && !isPast
-                            ? 'border-orange-300 bg-orange-50 cursor-pointer hover:bg-orange-100'
-                            : 'border-gray-200 bg-gray-50'
+                            ? 'border-2 border-dashed border-orange-400 bg-orange-50 cursor-pointer hover:bg-orange-100 hover:border-orange-500'
+                            : 'border border-gray-200 bg-gray-50'
                         }`}
                         onClick={() => {
                           if (selectedPendiente && !isPast) {
@@ -553,23 +637,34 @@ export default function PendientesPage() {
                           {getScheduledVehiclesForSlot(dateKey, 'tarde').map((scheduled) => (
                             <div
                               key={scheduled.pendienteId}
-                              className="flex items-center justify-between bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs mb-1 group"
+                              className="flex items-center justify-between bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 px-3 py-2 rounded-lg text-sm mb-2 group hover:from-orange-200 hover:to-orange-300 transition-all"
                             >
-                              <span className="font-medium">#{scheduled.interno}</span>
+                              <div className="flex items-center gap-2">
+                                <Truck className="h-4 w-4" />
+                                <span className="font-semibold">#{scheduled.interno}</span>
+                                <span className="text-xs opacity-75">{scheduled.placa}</span>
+                              </div>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   removeScheduledVehicle(scheduled.pendienteId)
                                 }}
-                                className="text-orange-600 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="text-orange-600 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all p-1 rounded-full hover:bg-white/50"
+                                title="Desprogramar"
                               >
                                 ×
                               </button>
                             </div>
                           ))}
                           {getScheduledVehiclesForSlot(dateKey, 'tarde').length === 0 && selectedPendiente && !isPast && (
-                            <div className="text-xs text-orange-600 text-center">
-                              Hacer clic para programar
+                            <div className="text-sm text-orange-600 text-center py-2 flex items-center justify-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              Click para programar en turno tarde
+                            </div>
+                          )}
+                          {getScheduledVehiclesForSlot(dateKey, 'tarde').length === 0 && !selectedPendiente && !isPast && (
+                            <div className="text-xs text-gray-400 text-center py-2">
+                              Selecciona un vehículo primero
                             </div>
                           )}
                         </div>
@@ -579,14 +674,27 @@ export default function PendientesPage() {
                 })}
               </div>
 
-              {/* Instrucciones */}
-              <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-600">
-                  <strong>Instrucciones:</strong> Selecciona un pendiente haciendo clic en "Programar" y luego elige el día y turno en el calendario.
-                </p>
-                <p className="text-xs text-gray-500 mt-2">
-                  Los elementos marcados como "AUTO" son generados automáticamente desde el sistema de mantenimientos. Taller puede editarlos directamente en Supabase.
-                </p>
+              {/* Instrucciones mejoradas */}
+              <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm font-semibold text-blue-900">Cómo programar</span>
+                </div>
+                <div className="space-y-1 text-xs text-blue-800">
+                  <p>1. 🎯 Selecciona un pendiente haciendo clic en "Programar"</p>
+                  <p>2. 📅 Elige el día y turno en el calendario</p>
+                  <p>3. ✅ La programación se guarda automáticamente</p>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                    <span className="text-xs font-medium text-gray-700">Información</span>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Los pendientes "AUTO" son generados automáticamente. Los datos persisten al recargar la página.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

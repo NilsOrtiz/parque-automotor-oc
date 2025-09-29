@@ -336,6 +336,12 @@ export interface PendienteOperacion {
   criticidad: 'leve' | 'medio' | 'critico'
   porcentaje_vida_km?: number
   porcentaje_vida_hr?: number
+  // Campos de programación
+  fecha_programada?: string
+  turno_programado?: 'mañana' | 'tarde'
+  programado_por?: string
+  fecha_programacion?: string
+  notas_programacion?: string
   km_faltantes?: number
   hr_faltantes?: number
   estado: 'pendiente' | 'programado' | 'en_proceso' | 'completado'
