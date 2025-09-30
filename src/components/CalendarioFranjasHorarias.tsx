@@ -224,17 +224,25 @@ export default function CalendarioFranjasHorarias({
                       .filter(p => p.fecha_programada === dateKey && p.estado === 'programado')
                       .sort((a, b) => a.id - b.id) // Ordenar por ID (orden de creación)
 
-                    // Crear lista ordenada respetando posición original de cada vehículo
-                    const vehiculosAMostrar: ScheduledVehicle[] = []
+                    // Crear mapa de posiciones globales: cada vehículo tiene su índice fijo
+                    const posicionesGlobales = new Map<number, number>()
+                    todosLosVehiculos.forEach((trabajo, idx) => {
+                      posicionesGlobales.set(trabajo.id, idx)
+                    })
+
+                    // Crear array con slots (algunos pueden ser null para espacios vacíos)
+                    const franjaActualIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === franja.inicio)
+                    const maxPosiciones = todosLosVehiculos.length
+                    const slotsConEspacios: (ScheduledVehicle | null)[] = new Array(maxPosiciones).fill(null)
 
                     todosLosVehiculos.forEach(trabajo => {
                       const inicioIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === trabajo.franja_horaria_inicio)
                       const duracion = trabajo.duracion_franjas || 1
-                      const franjaActualIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === franja.inicio)
 
                       // Verificar si este trabajo ocupa la franja actual
                       if (franjaActualIndex >= inicioIndex && franjaActualIndex < inicioIndex + duracion) {
-                        vehiculosAMostrar.push({
+                        const posicionGlobal = posicionesGlobales.get(trabajo.id)!
+                        slotsConEspacios[posicionGlobal] = {
                           pendienteId: trabajo.id,
                           interno: trabajo.interno?.toString() || '',
                           placa: trabajo.placa,
@@ -244,9 +252,12 @@ export default function CalendarioFranjasHorarias({
                           franja_horaria_fin: trabajo.franja_horaria_fin,
                           duracion_franjas: trabajo.duracion_franjas,
                           es_trabajo_continuo: trabajo.es_trabajo_continuo
-                        })
+                        }
                       }
                     })
+
+                    // NO filtrar nulls - mantener espacios vacíos para preservar posiciones
+                    const vehiculosAMostrar = slotsConEspacios
 
                     const colorClasses = {
                       'blue': 'bg-blue-50 hover:bg-blue-100 border-blue-200',
@@ -281,6 +292,23 @@ export default function CalendarioFranjasHorarias({
                         {/* Vehículos programados en esta franja */}
                         <div className="flex-1 p-1 overflow-hidden">
                           {vehiculosAMostrar.map((scheduled, vehicleIndex) => {
+                            // Si es null, renderizar espacio vacío invisible
+                            if (scheduled === null) {
+                              return (
+                                <div
+                                  key={`empty-${vehicleIndex}`}
+                                  className="px-2 py-1 text-xs mb-1"
+                                  style={{
+                                    marginTop: vehicleIndex > 0 ? '2px' : '0',
+                                    height: '28px',
+                                    visibility: 'hidden'
+                                  }}
+                                >
+                                  &nbsp;
+                                </div>
+                              )
+                            }
+
                             // Determinar si es inicio o continuación de trabajo multi-franja
                             const esInicioTrabajo = scheduled.franja_horaria_inicio === franja.inicio
                             const esContinuacionTrabajo = scheduled.franja_horaria_inicio !== franja.inicio &&
