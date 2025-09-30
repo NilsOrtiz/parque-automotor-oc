@@ -205,41 +205,93 @@ export default function PendientesPage() {
     return date.toISOString().split('T')[0]
   }
 
+  // Cargar notas desde Supabase
+  async function cargarNotas() {
+    try {
+      const { data, error } = await supabase
+        .from('notas_recordatorio')
+        .select('*')
+        .eq('activo', true)
+        .order('fecha_creacion', { ascending: false })
+
+      if (error) {
+        console.error('Error cargando notas:', error)
+        return
+      }
+
+      const notasFormateadas: NotaRecordatorio[] = data.map(n => ({
+        id: n.id.toString(),
+        recoger: n.recoger,
+        de: n.de,
+        comentario: n.comentario
+      }))
+
+      setNotasRecordatorio(notasFormateadas)
+    } catch (error) {
+      console.error('Error cargando notas:', error)
+    }
+  }
+
   // Funciones para manejar notas recordatorio
-  function agregarNota() {
+  async function agregarNota() {
     if (!nuevaNota.recoger || !nuevaNota.de) {
       alert('❌ Debes completar "Recoger" y "De"')
       return
     }
 
-    const nota: NotaRecordatorio = {
-      id: Date.now().toString(),
-      recoger: nuevaNota.recoger,
-      de: nuevaNota.de,
-      comentario: nuevaNota.comentario || undefined
+    try {
+      const { data, error } = await supabase
+        .from('notas_recordatorio')
+        .insert([{
+          recoger: nuevaNota.recoger,
+          de: nuevaNota.de,
+          comentario: nuevaNota.comentario || null,
+          creado_por: 'Operaciones'
+        }])
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creando nota:', error)
+        alert('❌ Error creando nota')
+        return
+      }
+
+      // Recargar notas
+      await cargarNotas()
+      setNuevaNota({ recoger: '', de: '', comentario: '' })
+      setMostrarFormNota(false)
+    } catch (error) {
+      console.error('Error creando nota:', error)
+      alert('❌ Error creando nota')
     }
-
-    setNotasRecordatorio([...notasRecordatorio, nota])
-    setNuevaNota({ recoger: '', de: '', comentario: '' })
-    setMostrarFormNota(false)
-
-    // Guardar en localStorage
-    const notasGuardadas = [...notasRecordatorio, nota]
-    localStorage.setItem('notasRecordatorio', JSON.stringify(notasGuardadas))
   }
 
-  function eliminarNota(id: string) {
-    const notasActualizadas = notasRecordatorio.filter(n => n.id !== id)
-    setNotasRecordatorio(notasActualizadas)
-    localStorage.setItem('notasRecordatorio', JSON.stringify(notasActualizadas))
+  async function eliminarNota(id: string) {
+    try {
+      // Soft delete: marcar como inactivo
+      const { error } = await supabase
+        .from('notas_recordatorio')
+        .update({ activo: false })
+        .eq('id', parseInt(id))
+
+      if (error) {
+        console.error('Error eliminando nota:', error)
+        alert('❌ Error eliminando nota')
+        return
+      }
+
+      // Recargar notas
+      await cargarNotas()
+    } catch (error) {
+      console.error('Error eliminando nota:', error)
+      alert('❌ Error eliminando nota')
+    }
   }
 
-  // Cargar notas desde localStorage al inicio
+  // Cargar notas al inicio
   useEffect(() => {
-    const notasGuardadas = localStorage.getItem('notasRecordatorio')
-    if (notasGuardadas) {
-      setNotasRecordatorio(JSON.parse(notasGuardadas))
-    }
+    cargarNotas()
   }, [])
 
   async function handleSchedulePendiente(pendiente: PendienteOperacion, fecha: string, franjaInicio: string) {
