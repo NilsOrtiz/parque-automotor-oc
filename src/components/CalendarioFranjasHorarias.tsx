@@ -92,13 +92,11 @@ export default function CalendarioFranjasHorarias({
   function getTrabajosMultiFranjaEn(fecha: string, franjaInicio: string): ScheduledVehicle[] {
     const franjaIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === franjaInicio)
 
-    // Buscar trabajos programados que podrían ocupar esta franja
+    // Buscar TODOS los trabajos programados en esta fecha
     const trabajosEnFecha = pendientes.filter(p =>
       p.fecha_programada === fecha &&
       p.estado === 'programado' &&
-      p.franja_horaria_inicio &&
-      p.duracion_franjas &&
-      p.duracion_franjas > 1
+      p.franja_horaria_inicio
     )
 
     const trabajosQueOcupanEstaFranja: ScheduledVehicle[] = []
@@ -107,19 +105,23 @@ export default function CalendarioFranjasHorarias({
       const inicioIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === trabajo.franja_horaria_inicio)
       const duracion = trabajo.duracion_franjas || 1
 
-      // Verificar si esta franja está dentro del rango del trabajo
-      if (franjaIndex >= inicioIndex && franjaIndex < inicioIndex + duracion) {
-        trabajosQueOcupanEstaFranja.push({
-          pendienteId: trabajo.id,
-          interno: trabajo.interno?.toString() || '',
-          placa: trabajo.placa,
-          fecha: fecha,
-          turno: trabajo.turno_programado as 'mañana' | 'tarde',
-          franja_horaria_inicio: trabajo.franja_horaria_inicio,
-          franja_horaria_fin: trabajo.franja_horaria_fin,
-          duracion_franjas: trabajo.duracion_franjas,
-          es_trabajo_continuo: trabajo.es_trabajo_continuo
-        })
+      // Solo incluir trabajos multi-franja (duracion > 1) que NO comienzan en esta franja
+      // (los que comienzan en esta franja ya se manejan en getScheduledVehiclesForFranja)
+      if (duracion > 1 && inicioIndex !== franjaIndex) {
+        // Verificar si esta franja está dentro del rango del trabajo
+        if (franjaIndex > inicioIndex && franjaIndex < inicioIndex + duracion) {
+          trabajosQueOcupanEstaFranja.push({
+            pendienteId: trabajo.id,
+            interno: trabajo.interno?.toString() || '',
+            placa: trabajo.placa,
+            fecha: fecha,
+            turno: trabajo.turno_programado as 'mañana' | 'tarde',
+            franja_horaria_inicio: trabajo.franja_horaria_inicio,
+            franja_horaria_fin: trabajo.franja_horaria_fin,
+            duracion_franjas: trabajo.duracion_franjas,
+            es_trabajo_continuo: trabajo.es_trabajo_continuo
+          })
+        }
       }
     }
 
