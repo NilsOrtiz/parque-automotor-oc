@@ -219,13 +219,32 @@ export default function CalendarioFranjasHorarias({
                     const vehiculosEnFranja = getScheduledVehiclesForFranja(dateKey, franja.inicio)
                     const trabajosMultiFranja = getTrabajosMultiFranjaEn(dateKey, franja.inicio)
 
-                    // Combinar vehículos que empiezan en esta franja + los que la ocupan por multi-franja
-                    const vehiculosAMostrar = [...vehiculosEnFranja]
+                    // Obtener TODOS los vehículos de TODAS las franjas del día para determinar orden global
+                    const todosLosVehiculos = pendientes
+                      .filter(p => p.fecha_programada === dateKey && p.estado === 'programado')
+                      .sort((a, b) => a.id - b.id) // Ordenar por ID (orden de creación)
 
-                    // Agregar todos los trabajos multi-franja que no estén ya en la lista
-                    trabajosMultiFranja.forEach(trabajo => {
-                      if (!vehiculosEnFranja.some(v => v.pendienteId === trabajo.pendienteId)) {
-                        vehiculosAMostrar.push(trabajo)
+                    // Crear lista ordenada respetando posición original de cada vehículo
+                    const vehiculosAMostrar: ScheduledVehicle[] = []
+
+                    todosLosVehiculos.forEach(trabajo => {
+                      const inicioIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === trabajo.franja_horaria_inicio)
+                      const duracion = trabajo.duracion_franjas || 1
+                      const franjaActualIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === franja.inicio)
+
+                      // Verificar si este trabajo ocupa la franja actual
+                      if (franjaActualIndex >= inicioIndex && franjaActualIndex < inicioIndex + duracion) {
+                        vehiculosAMostrar.push({
+                          pendienteId: trabajo.id,
+                          interno: trabajo.interno?.toString() || '',
+                          placa: trabajo.placa,
+                          fecha: dateKey,
+                          turno: trabajo.turno_programado as 'mañana' | 'tarde',
+                          franja_horaria_inicio: trabajo.franja_horaria_inicio,
+                          franja_horaria_fin: trabajo.franja_horaria_fin,
+                          duracion_franjas: trabajo.duracion_franjas,
+                          es_trabajo_continuo: trabajo.es_trabajo_continuo
+                        })
                       }
                     })
 
