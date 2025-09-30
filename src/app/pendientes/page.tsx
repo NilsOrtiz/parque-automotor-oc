@@ -105,7 +105,13 @@ export default function PendientesPage() {
     }
   }
 
-  function getPrioridadColor(criticidad: string): string {
+  function getPrioridadColor(criticidad: string, estado?: string): string {
+    // Si está programado, usar color verde
+    if (estado === 'programado') {
+      return 'border-l-green-600 bg-green-50'
+    }
+
+    // Si no está programado, usar color según criticidad
     switch (criticidad) {
       case 'critico':
         return 'border-l-red-600 bg-red-50'
@@ -471,7 +477,7 @@ export default function PendientesPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {pendientes.map((pendiente) => (
-                        <tr key={pendiente.id} className={`hover:bg-gray-50 ${getPrioridadColor(pendiente.criticidad)}`}>
+                        <tr key={pendiente.id} className={`hover:bg-gray-50 ${getPrioridadColor(pendiente.criticidad, pendiente.estado)}`}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             <div className="flex flex-col">
                               <div className="flex items-center space-x-2">
