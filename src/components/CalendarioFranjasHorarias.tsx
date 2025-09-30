@@ -202,6 +202,9 @@ export default function CalendarioFranjasHorarias({
         const isToday = dateKey === formatDateKey(new Date())
         const isPast = day < new Date(new Date().setHours(0, 0, 0, 0))
 
+        // Ocultar días pasados
+        if (isPast) return null
+
         // Calcular total de vehículos en todas las franjas + trabajos continuos
         const totalVehicles = FRANJAS_HORARIAS.reduce((total, franja) =>
           total + getScheduledVehiclesForFranja(dateKey, franja.inicio).length, 0
