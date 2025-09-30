@@ -24,6 +24,26 @@ const FRANJAS_HORARIAS = [
   { inicio: '16:00', fin: '18:00', label: 'Final tarde', color: 'amber' }
 ]
 
+// Paleta de colores para asignar a cada vehículo
+const COLORES_VEHICULOS = [
+  { bg: 'from-blue-100 to-blue-200', text: 'text-blue-800', hover: 'hover:from-blue-200 hover:to-blue-300' },
+  { bg: 'from-green-100 to-green-200', text: 'text-green-800', hover: 'hover:from-green-200 hover:to-green-300' },
+  { bg: 'from-purple-100 to-purple-200', text: 'text-purple-800', hover: 'hover:from-purple-200 hover:to-purple-300' },
+  { bg: 'from-pink-100 to-pink-200', text: 'text-pink-800', hover: 'hover:from-pink-200 hover:to-pink-300' },
+  { bg: 'from-yellow-100 to-yellow-200', text: 'text-yellow-800', hover: 'hover:from-yellow-200 hover:to-yellow-300' },
+  { bg: 'from-red-100 to-red-200', text: 'text-red-800', hover: 'hover:from-red-200 hover:to-red-300' },
+  { bg: 'from-indigo-100 to-indigo-200', text: 'text-indigo-800', hover: 'hover:from-indigo-200 hover:to-indigo-300' },
+  { bg: 'from-teal-100 to-teal-200', text: 'text-teal-800', hover: 'hover:from-teal-200 hover:to-teal-300' },
+  { bg: 'from-orange-100 to-orange-200', text: 'text-orange-800', hover: 'hover:from-orange-200 hover:to-orange-300' },
+  { bg: 'from-cyan-100 to-cyan-200', text: 'text-cyan-800', hover: 'hover:from-cyan-200 hover:to-cyan-300' }
+]
+
+// Función para obtener color basado en ID del vehículo
+function getColorForVehicle(vehicleId: number): typeof COLORES_VEHICULOS[0] {
+  const index = vehicleId % COLORES_VEHICULOS.length
+  return COLORES_VEHICULOS[index]
+}
+
 interface CalendarioFranjasHorariasProps {
   weekDays: Date[]
   pendientes: PendienteOperacion[]
@@ -339,14 +359,6 @@ export default function CalendarioFranjasHorarias({
                       'amber': 'bg-amber-50 hover:bg-amber-100 border-amber-200'
                     }[franja.color]
 
-                    const gradientClasses = {
-                      'blue': 'from-blue-100 to-blue-200 text-blue-800',
-                      'indigo': 'from-indigo-100 to-indigo-200 text-indigo-800',
-                      'cyan': 'from-cyan-100 to-cyan-200 text-cyan-800',
-                      'orange': 'from-orange-100 to-orange-200 text-orange-800',
-                      'amber': 'from-amber-100 to-amber-200 text-amber-800'
-                    }[franja.color]
-
                     return (
                       <div
                         key={franja.inicio}
@@ -387,10 +399,13 @@ export default function CalendarioFranjasHorarias({
                                                         scheduled.duracion_franjas &&
                                                         scheduled.duracion_franjas > 1
 
+                            // Obtener color único para este vehículo
+                            const colorVehiculo = getColorForVehicle(scheduled.pendienteId)
+
                             return (
                               <div
                                 key={`${scheduled.pendienteId}-${index}`}
-                                className={`bg-gradient-to-r ${gradientClasses} px-2 py-1 rounded text-xs mb-1 group transition-all flex items-center justify-between ${
+                                className={`bg-gradient-to-r ${colorVehiculo.bg} ${colorVehiculo.text} px-2 py-1 rounded text-xs mb-1 group transition-all flex items-center justify-between ${
                                   esContinuacionTrabajo ? 'opacity-75' : ''
                                 }`}
                                 style={{
