@@ -496,9 +496,8 @@ export default function PendientesPage() {
                 </div>
 
                 {/* Notas Recordatorio - Estilo Post-it */}
-                {(notasRecordatorio.length > 0 || mostrarFormNota) && (
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                    <div className="flex flex-wrap gap-3">
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                  <div className="flex flex-wrap gap-3">
                       {/* Notas existentes */}
                       {notasRecordatorio.map((nota) => (
                         <div
@@ -583,7 +582,7 @@ export default function PendientesPage() {
                       )}
                     </div>
                   </div>
-                )}
+                </div>
 
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
