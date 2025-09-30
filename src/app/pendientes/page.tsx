@@ -453,6 +453,94 @@ export default function PendientesPage() {
               Última actualización: {ultimaActualizacion}
             </div>
           )}
+
+          {/* Notas Recordatorio - Estilo Post-it */}
+          <div className="mt-6">
+            <div className="flex flex-wrap gap-3">
+              {/* Notas existentes */}
+              {notasRecordatorio.map((nota) => (
+                <div
+                  key={nota.id}
+                  className="relative bg-yellow-100 border-t-4 border-yellow-400 rounded-lg shadow-md p-3 w-64 transform hover:scale-105 transition-transform"
+                  style={{ boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                >
+                  <button
+                    onClick={() => eliminarNota(nota.id)}
+                    className="absolute top-1 right-1 text-yellow-700 hover:text-red-600 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <div className="mt-2">
+                    <div className="flex items-start mb-2">
+                      <span className="text-xs font-semibold text-yellow-800 mr-1">Recoger:</span>
+                      <span className="text-sm font-bold text-yellow-900">{nota.recoger}</span>
+                    </div>
+                    <div className="flex items-start mb-1">
+                      <span className="text-xs font-semibold text-yellow-800 mr-1">De:</span>
+                      <span className="text-sm text-yellow-900">{nota.de}</span>
+                    </div>
+                    {nota.comentario && (
+                      <div className="mt-2 pt-2 border-t border-yellow-300">
+                        <p className="text-xs text-yellow-800 italic">{nota.comentario}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Formulario para nueva nota */}
+              {mostrarFormNota ? (
+                <div className="relative bg-green-100 border-t-4 border-green-400 rounded-lg shadow-md p-3 w-64">
+                  <button
+                    onClick={() => {
+                      setMostrarFormNota(false)
+                      setNuevaNota({ recoger: '', de: '', comentario: '' })
+                    }}
+                    className="absolute top-1 right-1 text-green-700 hover:text-red-600 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <div className="mt-2 space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Recoger (ej: 74 o Repuestos)"
+                      value={nuevaNota.recoger}
+                      onChange={(e) => setNuevaNota({ ...nuevaNota, recoger: e.target.value })}
+                      className="w-full px-2 py-1 text-sm border border-green-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="De (ej: IDISA, Disbral)"
+                      value={nuevaNota.de}
+                      onChange={(e) => setNuevaNota({ ...nuevaNota, de: e.target.value })}
+                      className="w-full px-2 py-1 text-sm border border-green-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                    />
+                    <textarea
+                      placeholder="Comentario (opcional)"
+                      value={nuevaNota.comentario}
+                      onChange={(e) => setNuevaNota({ ...nuevaNota, comentario: e.target.value })}
+                      className="w-full px-2 py-1 text-sm border border-green-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
+                      rows={2}
+                    />
+                    <button
+                      onClick={agregarNota}
+                      className="w-full px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                    >
+                      Guardar Nota
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setMostrarFormNota(true)}
+                  className="bg-gray-200 border-2 border-dashed border-gray-400 rounded-lg p-3 w-64 hover:bg-gray-300 hover:border-gray-500 transition-colors flex items-center justify-center"
+                >
+                  <Plus className="h-5 w-5 text-gray-600 mr-2" />
+                  <span className="text-sm font-medium text-gray-600">Nueva Nota</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -494,94 +582,6 @@ export default function PendientesPage() {
                     Lista controlada desde taller - vehículos que requieren coordinación operativa
                   </p>
                 </div>
-
-                {/* Notas Recordatorio - Estilo Post-it */}
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                  <div className="flex flex-wrap gap-3">
-                      {/* Notas existentes */}
-                      {notasRecordatorio.map((nota) => (
-                        <div
-                          key={nota.id}
-                          className="relative bg-yellow-100 border-t-4 border-yellow-400 rounded-lg shadow-md p-3 w-64 transform hover:scale-105 transition-transform"
-                          style={{ boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
-                        >
-                          <button
-                            onClick={() => eliminarNota(nota.id)}
-                            className="absolute top-1 right-1 text-yellow-700 hover:text-red-600 transition-colors"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                          <div className="mt-2">
-                            <div className="flex items-start mb-2">
-                              <span className="text-xs font-semibold text-yellow-800 mr-1">Recoger:</span>
-                              <span className="text-sm font-bold text-yellow-900">{nota.recoger}</span>
-                            </div>
-                            <div className="flex items-start mb-1">
-                              <span className="text-xs font-semibold text-yellow-800 mr-1">De:</span>
-                              <span className="text-sm text-yellow-900">{nota.de}</span>
-                            </div>
-                            {nota.comentario && (
-                              <div className="mt-2 pt-2 border-t border-yellow-300">
-                                <p className="text-xs text-yellow-800 italic">{nota.comentario}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* Formulario para nueva nota */}
-                      {mostrarFormNota ? (
-                        <div className="relative bg-green-100 border-t-4 border-green-400 rounded-lg shadow-md p-3 w-64">
-                          <button
-                            onClick={() => {
-                              setMostrarFormNota(false)
-                              setNuevaNota({ recoger: '', de: '', comentario: '' })
-                            }}
-                            className="absolute top-1 right-1 text-green-700 hover:text-red-600 transition-colors"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                          <div className="mt-2 space-y-2">
-                            <input
-                              type="text"
-                              placeholder="Recoger (ej: 74 o Repuestos)"
-                              value={nuevaNota.recoger}
-                              onChange={(e) => setNuevaNota({ ...nuevaNota, recoger: e.target.value })}
-                              className="w-full px-2 py-1 text-sm border border-green-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
-                            />
-                            <input
-                              type="text"
-                              placeholder="De (ej: IDISA, Disbral)"
-                              value={nuevaNota.de}
-                              onChange={(e) => setNuevaNota({ ...nuevaNota, de: e.target.value })}
-                              className="w-full px-2 py-1 text-sm border border-green-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
-                            />
-                            <textarea
-                              placeholder="Comentario (opcional)"
-                              value={nuevaNota.comentario}
-                              onChange={(e) => setNuevaNota({ ...nuevaNota, comentario: e.target.value })}
-                              className="w-full px-2 py-1 text-sm border border-green-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
-                              rows={2}
-                            />
-                            <button
-                              onClick={agregarNota}
-                              className="w-full px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                            >
-                              Guardar Nota
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setMostrarFormNota(true)}
-                          className="bg-gray-200 border-2 border-dashed border-gray-400 rounded-lg p-3 w-64 hover:bg-gray-300 hover:border-gray-500 transition-colors flex items-center justify-center"
-                        >
-                          <Plus className="h-5 w-5 text-gray-600 mr-2" />
-                          <span className="text-sm font-medium text-gray-600">Nueva Nota</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
 
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
