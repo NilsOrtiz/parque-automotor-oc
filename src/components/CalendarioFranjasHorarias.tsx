@@ -88,6 +88,53 @@ export default function CalendarioFranjasHorarias({
       }))
   }
 
+  // Función para obtener trabajos que empezaron días anteriores pero continúan en esta fecha
+  function getTrabajosDesdeOtrosDias(fecha: string): ScheduledVehicle[] {
+    const fechaActual = new Date(fecha)
+    const trabajosContinuos: ScheduledVehicle[] = []
+
+    // Buscar trabajos que empezaron antes y podrían continuar
+    const trabajosAnteriores = pendientes.filter(p =>
+      p.fecha_programada &&
+      p.fecha_programada < fecha &&
+      p.fecha_fin_estimada &&
+      p.fecha_fin_estimada >= fecha &&
+      p.estado === 'programado' &&
+      p.franja_horaria_inicio
+    )
+
+    for (const trabajo of trabajosAnteriores) {
+      const fechaInicio = new Date(trabajo.fecha_programada!)
+      const franjaInicioIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === trabajo.franja_horaria_inicio)
+      const duracion = trabajo.duracion_franjas || 1
+
+      // Calcular cuántos días han pasado
+      const diasTranscurridos = Math.floor((fechaActual.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24))
+
+      // Calcular franja de inicio en este día
+      const franjasDelDiaInicio = 5 - franjaInicioIndex
+      const franjasYaConsumidas = franjasDelDiaInicio + (diasTranscurridos - 1) * 5
+      const franjasRestantes = duracion - franjasYaConsumidas
+
+      if (franjasRestantes > 0) {
+        trabajosContinuos.push({
+          pendienteId: trabajo.id,
+          interno: trabajo.interno?.toString() || '',
+          placa: trabajo.placa,
+          fecha: fecha,
+          turno: 'mañana' as const,
+          franja_horaria_inicio: '08:00', // Empieza desde el principio del día
+          franja_horaria_fin: trabajo.franja_horaria_fin,
+          duracion_franjas: franjasRestantes,
+          es_trabajo_continuo: false,
+          esContinuacionDeOtroDia: true
+        } as ScheduledVehicle & { esContinuacionDeOtroDia: boolean })
+      }
+    }
+
+    return trabajosContinuos
+  }
+
   // Función para obtener TODOS los trabajos multi-franja que ocupan una franja específica
   function getTrabajosMultiFranjaEn(fecha: string, franjaInicio: string): ScheduledVehicle[] {
     const franjaIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === franjaInicio)
@@ -219,10 +266,22 @@ export default function CalendarioFranjasHorarias({
                     const vehiculosEnFranja = getScheduledVehiclesForFranja(dateKey, franja.inicio)
                     const trabajosMultiFranja = getTrabajosMultiFranjaEn(dateKey, franja.inicio)
 
+                    // Obtener trabajos que continúan desde días anteriores
+                    const trabajosDesdeOtrosDias = getTrabajosDesdeOtrosDias(dateKey)
+
                     // Obtener TODOS los vehículos de TODAS las franjas del día para determinar orden global
-                    const todosLosVehiculos = pendientes
+                    const todosLosVehiculosDelDia = pendientes
                       .filter(p => p.fecha_programada === dateKey && p.estado === 'programado')
-                      .sort((a, b) => a.id - b.id) // Ordenar por ID (orden de creación)
+
+                    // Combinar: primero trabajos de días anteriores, luego trabajos del día actual
+                    const todosLosVehiculos = [
+                      ...trabajosDesdeOtrosDias.map(t => ({
+                        ...pendientes.find(p => p.id === t.pendienteId)!,
+                        // Sobrescribir con datos ajustados para este día
+                        _continuacionData: t
+                      })),
+                      ...todosLosVehiculosDelDia
+                    ].sort((a, b) => a.id - b.id) // Ordenar por ID (orden de creación)
 
                     // Crear mapa de posiciones globales: cada vehículo tiene su índice fijo
                     const posicionesGlobales = new Map<number, number>()
@@ -236,8 +295,21 @@ export default function CalendarioFranjasHorarias({
                     const slotsConEspacios: (ScheduledVehicle | null)[] = new Array(maxPosiciones).fill(null)
 
                     todosLosVehiculos.forEach(trabajo => {
-                      const inicioIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === trabajo.franja_horaria_inicio)
-                      const duracion = trabajo.duracion_franjas || 1
+                      // Verificar si es una continuación de otro día
+                      const continuacionData = (trabajo as any)._continuacionData
+
+                      let inicioIndex: number
+                      let duracion: number
+
+                      if (continuacionData) {
+                        // Es un trabajo que viene de otro día
+                        inicioIndex = 0 // Empieza desde el principio del día
+                        duracion = continuacionData.duracion_franjas
+                      } else {
+                        // Trabajo que empieza en este día
+                        inicioIndex = FRANJAS_HORARIAS.findIndex(f => f.inicio === trabajo.franja_horaria_inicio)
+                        duracion = trabajo.duracion_franjas || 1
+                      }
 
                       // Verificar si este trabajo ocupa la franja actual
                       if (franjaActualIndex >= inicioIndex && franjaActualIndex < inicioIndex + duracion) {
@@ -248,9 +320,9 @@ export default function CalendarioFranjasHorarias({
                           placa: trabajo.placa,
                           fecha: dateKey,
                           turno: trabajo.turno_programado as 'mañana' | 'tarde',
-                          franja_horaria_inicio: trabajo.franja_horaria_inicio,
+                          franja_horaria_inicio: continuacionData ? '08:00' : trabajo.franja_horaria_inicio,
                           franja_horaria_fin: trabajo.franja_horaria_fin,
-                          duracion_franjas: trabajo.duracion_franjas,
+                          duracion_franjas: duracion,
                           es_trabajo_continuo: trabajo.es_trabajo_continuo
                         }
                       }
