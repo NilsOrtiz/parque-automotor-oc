@@ -106,9 +106,9 @@ export default function PendientesPage() {
   }
 
   function getPrioridadColor(criticidad: string, estado?: string): string {
-    // Si está programado, usar color verde
+    // Si está programado, usar color verde más intenso
     if (estado === 'programado') {
-      return 'border-l-green-600 bg-green-50'
+      return 'border-l-green-600 bg-green-100'
     }
 
     // Si no está programado, usar color según criticidad
