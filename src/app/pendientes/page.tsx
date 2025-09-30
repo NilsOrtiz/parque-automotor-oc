@@ -164,15 +164,13 @@ export default function PendientesPage() {
   // Funciones para el calendario (similar a la versión anterior)
   function getWeekDays(startDate: Date): Date[] {
     const days: Date[] = []
-    const start = new Date(startDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-    const dayOfWeek = start.getDay()
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-    start.setDate(start.getDate() + diff)
-
+    // Generar 7 días consecutivos desde hoy
     for (let i = 0; i < 7; i++) {
-      const day = new Date(start)
-      day.setDate(start.getDate() + i)
+      const day = new Date(today)
+      day.setDate(today.getDate() + i)
       days.push(day)
     }
 
