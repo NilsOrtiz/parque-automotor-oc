@@ -1,15 +1,75 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle, List, Fuel, Circle, Droplets, Link2 } from 'lucide-react'
+import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle, List, Fuel, Circle, Droplets, Link2, Cog } from 'lucide-react'
+import { useState } from 'react'
 
 export default function VehiculosPage() {
+  const [showAdminMenu, setShowAdminMenu] = useState(false)
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Vehículos</h1>
-          <p className="text-gray-600">Selecciona una opción para continuar</p>
+        <div className="mb-8 relative">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Vehículos</h1>
+              <p className="text-gray-600">Selecciona una opción para continuar</p>
+            </div>
+
+            {/* Botón de administración discreto */}
+            <div className="relative">
+              <button
+                onClick={() => setShowAdminMenu(!showAdminMenu)}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Administración"
+              >
+                <Cog className="h-5 w-5" />
+              </button>
+
+              {/* Menú desplegable */}
+              {showAdminMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
+                  <Link
+                    href="/admin/schema"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Administrar Schema
+                    </div>
+                  </Link>
+                  <Link
+                    href="/vehiculos/perfiles"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <List className="h-4 w-4 mr-2" />
+                      Perfiles de Vehículos
+                    </div>
+                  </Link>
+                  <Link
+                    href="/admin/exclusiones"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Exclusiones
+                    </div>
+                  </Link>
+                  <Link
+                    href="/admin/alias"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <Link2 className="h-4 w-4 mr-2" />
+                      Alias de Columnas
+                    </div>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
