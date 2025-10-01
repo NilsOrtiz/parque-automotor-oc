@@ -59,13 +59,15 @@ export default function PerfilesVehiculoPage() {
 
       if (error) throw error
 
-      // Asegurar que componentes_aplicables siempre sea un array
-      const perfilesNormalizados = (data || []).map(perfil => ({
-        ...perfil,
-        componentes_aplicables: Array.isArray(perfil.componentes_aplicables)
-          ? perfil.componentes_aplicables
-          : []
-      }))
+      // Filtrar configuraciones del sistema y normalizar componentes_aplicables
+      const perfilesNormalizados = (data || [])
+        .filter(perfil => perfil.id !== 999998 && perfil.id !== 999999) // Excluir alias y exclusiones
+        .map(perfil => ({
+          ...perfil,
+          componentes_aplicables: Array.isArray(perfil.componentes_aplicables)
+            ? perfil.componentes_aplicables
+            : []
+        }))
 
       setPerfiles(perfilesNormalizados)
     } catch (error) {
@@ -108,7 +110,7 @@ export default function PerfilesVehiculoPage() {
     })
   }
 
-  function toggleCategoria(categoria: typeof CATEGORIAS_COMPONENTES[0]) {
+  function toggleCategoria(categoria: CategoriaComponentes) {
     const idsCategoria = categoria.componentes.map(c => c.id)
     const todosSeleccionados = idsCategoria.every(id =>
       formData.componentes_aplicables.includes(id)
