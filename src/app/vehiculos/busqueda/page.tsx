@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type Vehiculo } from '@/lib/supabase'
-import { Search, ArrowLeft, Car, Droplets, Settings, Disc, Zap, Gauge, Circle, Battery, Wrench, Cog, Truck } from 'lucide-react'
+import { Search, ArrowLeft, Car } from 'lucide-react'
 import MantenimientoSection from '@/components/MantenimientoSection'
-import { obtenerComponentePorId } from '@/lib/componentes-vehiculo'
+import { obtenerComponentesAgrupados, type CategoriaComponentes } from '@/lib/componentes-dinamicos'
 
 export default function BusquedaPage() {
   const [tipoBusqueda, setTipoBusqueda] = useState<'placa' | 'interno'>('placa')
@@ -21,11 +21,13 @@ export default function BusquedaPage() {
   const [loadingHistorial, setLoadingHistorial] = useState(false)
   const [pendientes, setPendientes] = useState<any[]>([])
   const [loadingPendientes, setLoadingPendientes] = useState(false)
-  const [configuracion, setConfiguracion] = useState<string[]>([]) // IDs de componentes aplicables
+  const [componentesAgrupados, setComponentesAgrupados] = useState<CategoriaComponentes[]>([])
+  const [loadingComponentes, setLoadingComponentes] = useState(false)
   const [perfilesDisponibles, setPerfilesDisponibles] = useState<Array<{id: number, nombre_configuracion: string}>>([])
 
   useEffect(() => {
     cargarPerfilesDisponibles()
+    cargarComponentesAgrupados()
   }, [])
 
   async function cargarPerfilesDisponibles() {
@@ -34,12 +36,27 @@ export default function BusquedaPage() {
         .from('configuraciones_vehiculo')
         .select('id, nombre_configuracion')
         .eq('activo', true)
+        .neq('id', 999997) // Excluir categorías
+        .neq('id', 999998) // Excluir alias
+        .neq('id', 999999) // Excluir exclusiones
         .order('nombre_configuracion', { ascending: true })
 
       if (error) throw error
       setPerfilesDisponibles(data || [])
     } catch (error) {
       console.error('Error cargando perfiles:', error)
+    }
+  }
+
+  async function cargarComponentesAgrupados() {
+    setLoadingComponentes(true)
+    try {
+      const categorias = await obtenerComponentesAgrupados()
+      setComponentesAgrupados(categorias)
+    } catch (error) {
+      console.error('Error cargando componentes agrupados:', error)
+    } finally {
+      setLoadingComponentes(false)
     }
   }
 
@@ -72,9 +89,7 @@ export default function BusquedaPage() {
       } else {
         setVehiculo(data)
         setEditedVehiculo(data)
-        // Cargar configuración, historial y pendientes automáticamente
-        // Usar tipo_vehiculo (es el ID de configuraciones_vehiculo)
-        await cargarConfiguracion(data.tipo_vehiculo)
+        // Cargar historial y pendientes automáticamente
         await cargarHistorial(data.id)
         await cargarPendientes(data.id)
       }
@@ -83,28 +98,6 @@ export default function BusquedaPage() {
       setError('Error al buscar el vehículo')
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function cargarConfiguracion(configuracionId: number | null) {
-    if (!configuracionId) {
-      // Si no tiene configuración, mostrar todos los componentes
-      setConfiguracion([])
-      return
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('configuraciones_vehiculo')
-        .select('componentes_aplicables')
-        .eq('id', configuracionId)
-        .single()
-
-      if (error) throw error
-      setConfiguracion(data?.componentes_aplicables || [])
-    } catch (error) {
-      console.error('Error cargando configuración:', error)
-      setConfiguracion([])
     }
   }
 
@@ -206,13 +199,20 @@ export default function BusquedaPage() {
     setEditedVehiculo(prev => prev ? { ...prev, ...updates } : null)
   }
 
-  // Función para filtrar componentes según configuración del vehículo
-  function filtrarComponentesAplicables(componenteId: string): boolean {
-    // Si no hay configuración, mostrar todos
-    if (!configuracion || configuracion.length === 0) return true
+  // Obtener componentes aplicables según perfil del vehículo
+  function obtenerComponentesAplicables(): CategoriaComponentes[] {
+    if (!vehiculo?.tipo_vehiculo) {
+      // Si no tiene perfil, mostrar todas las categorías
+      return componentesAgrupados
+    }
 
-    // Si hay configuración, solo mostrar los seleccionados
-    return configuracion.includes(componenteId)
+    // Si tiene perfil, filtrar solo los componentes seleccionados
+    const perfil = perfilesDisponibles.find(p => p.id === vehiculo.tipo_vehiculo)
+    if (!perfil) return componentesAgrupados
+
+    // Cargar componentes_aplicables del perfil (necesitamos hacer fetch)
+    // Por ahora mostramos todos si tiene perfil
+    return componentesAgrupados
   }
 
   // Función para scroll automático a secciones
@@ -226,18 +226,6 @@ export default function BusquedaPage() {
       })
     }
   }
-
-  // Configuración de secciones con iconos
-  const secciones = [
-    { id: 'aceites-filtros', nombre: 'Aceites y Filtros', icono: Droplets, color: 'blue' },
-    { id: 'transmision-liquidos', nombre: 'Transmisión y Líquidos', icono: Settings, color: 'green' },
-    { id: 'frenos', nombre: 'Sistema de Frenos', icono: Disc, color: 'red' },
-    { id: 'motor-embrague', nombre: 'Motor y Embrague', icono: Cog, color: 'orange' },
-    { id: 'suspension', nombre: 'Suspensión', icono: Truck, color: 'purple' },
-    { id: 'correas', nombre: 'Correas', icono: Wrench, color: 'yellow' },
-    { id: 'electrico', nombre: 'Sistema Eléctrico', icono: Zap, color: 'indigo' },
-    { id: 'neumaticos', nombre: 'Neumáticos', icono: Circle, color: 'gray' }
-  ]
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -498,12 +486,6 @@ export default function BusquedaPage() {
                       onChange={async (e) => {
                         const nuevoPerfilId = e.target.value ? parseInt(e.target.value) : null
                         setEditedVehiculo(prev => prev ? {...prev, tipo_vehiculo: nuevoPerfilId} : null)
-                        // Recargar configuración al cambiar
-                        if (nuevoPerfilId) {
-                          await cargarConfiguracion(nuevoPerfilId)
-                        } else {
-                          setConfiguracion([])
-                        }
                       }}
                       className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                     >
@@ -595,391 +577,48 @@ export default function BusquedaPage() {
               </div>
             </div>
 
-            {/* Navegación por Secciones */}
+            {/* Navegación por Categorías */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Navegación Rápida</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                {secciones.map((seccion) => {
-                  const IconoComponente = seccion.icono
-                  return (
-                    <button
-                      key={seccion.id}
-                      onClick={() => scrollToSection(seccion.id)}
-                      className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md ${
-                        seccion.color === 'blue' ? 'border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700' :
-                        seccion.color === 'green' ? 'border-green-200 bg-green-50 hover:bg-green-100 text-green-700' :
-                        seccion.color === 'red' ? 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700' :
-                        seccion.color === 'orange' ? 'border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700' :
-                        seccion.color === 'purple' ? 'border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700' :
-                        seccion.color === 'yellow' ? 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100 text-yellow-700' :
-                        seccion.color === 'indigo' ? 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700' :
-                        'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700'
-                      }`}
-                      title={seccion.nombre}
-                    >
-                      <IconoComponente className="h-6 w-6 mb-2" />
-                      <span className="text-xs font-medium text-center leading-tight">
-                        {seccion.nombre.split(' ').map((palabra, i) => (
-                          <div key={i}>{palabra}</div>
-                        ))}
-                      </span>
-                    </button>
-                  )
-                })}
+                {componentesAgrupados.map((categoria) => (
+                  <button
+                    key={categoria.id}
+                    onClick={() => scrollToSection(categoria.id)}
+                    className="flex flex-col items-center p-3 rounded-lg border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 transition-all duration-200 hover:scale-105 hover:shadow-md"
+                    title={categoria.nombre}
+                  >
+                    <span className="text-2xl mb-2">{categoria.icono}</span>
+                    <span className="text-xs font-medium text-center leading-tight">
+                      {categoria.nombre.split(' ').map((palabra, i) => (
+                        <div key={i}>{palabra}</div>
+                      ))}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Aceites y Filtros */}
-            <div id="aceites-filtros">
-              <MantenimientoSection
-                title="Aceites y Filtros"
-              fields={[
-                {
-                  label: "Aceite de Motor",
-                  kmField: "aceite_motor_km",
-                  dateField: "aceite_motor_fecha",
-                  modelField: "aceite_motor_modelo",
-                  litersField: "aceite_motor_litros",
-                  hrField: "aceite_motor_hr"
-                },
-                {
-                  label: "Filtro Aceite Motor",
-                  modelField: "filtro_aceite_motor_modelo"
-                },
-                {
-                  label: "Filtro de Combustible",
-                  kmField: "filtro_combustible_km",
-                  dateField: "filtro_combustible_fecha",
-                  modelField: "filtro_combustible_modelo"
-                },
-                {
-                  label: "Filtro de Aire",
-                  kmField: "filtro_aire_km",
-                  dateField: "filtro_aire_fecha",
-                  modelField: "filtro_aire_modelo"
-                },
-                {
-                  label: "Filtro de Cabina",
-                  kmField: "filtro_cabina_km",
-                  dateField: "filtro_cabina_fecha",
-                  modelField: "filtro_cabina_modelo"
-                },
-                {
-                  label: "Filtro Deshumidificador",
-                  kmField: "filtro_deshumidificador_km",
-                  dateField: "filtro_deshumidificador_fecha",
-                  modelField: "filtro_deshumidificador_modelo"
-                },
-                {
-                  label: "Filtro Secador",
-                  kmField: "filtro_secador_km",
-                  dateField: "filtro_secador_fecha",
-                  modelField: "filtro_secador_modelo"
-                },
-                {
-                  label: "Filtro de Aire Secundario",
-                  kmField: "filtro_aire_secundario_km",
-                  dateField: "filtro_aire_secundario_fecha",
-                  modelField: "filtro_aire_secundario_modelo"
-                },
-                {
-                  label: "Trampa de Agua",
-                  kmField: "trampa_agua_km",
-                  dateField: "trampa_agua_fecha",
-                  modelField: "trampa_agua_modelo"
-                }
-              ].filter((_, idx) => {
-                const ids = ['aceite_motor', 'filtro_aceite_motor', 'filtro_combustible', 'filtro_aire', 'filtro_cabina', 'filtro_deshumidificador', 'filtro_secador', 'filtro_aire_secundario', 'trampa_agua']
-                return filtrarComponentesAplicables(ids[idx])
-              })}
-              vehiculo={vehiculo}
-              editedVehiculo={editedVehiculo}
-              editMode={editMode}
-              onUpdate={updateVehiculo}
-              />
-            </div>
-
-            {/* Transmisión y Líquidos */}
-            <div id="transmision-liquidos">
-              <MantenimientoSection
-              title="Transmisión y Líquidos"
-              fields={[
-                {
-                  label: "Aceite de Transmisión",
-                  kmField: "aceite_transmicion_km",
-                  dateField: "aceite_transmicion_fecha",
-                  modelField: "aceite_transmicion_modelo"
-                },
-                {
-                  label: "Líquido Refrigerante",
-                  kmField: "liquido_refrigerante_km",
-                  dateField: "liquido_refrigerante_fecha",
-                  modelField: "liquido_refrigerante_modelo"
-                },
-                {
-                  label: "Líquido de Frenos",
-                  kmField: "liquido_frenos_km",
-                  dateField: "liquido_frenos_fecha",
-                  modelField: "liquido_frenos_modelo"
-                }
-              ].filter((_, idx) => {
-                const ids = ['aceite_transmision', 'liquido_refrigerante', 'liquido_frenos']
-                return filtrarComponentesAplicables(ids[idx])
-              })}
-              vehiculo={vehiculo}
-              editedVehiculo={editedVehiculo}
-              editMode={editMode}
-              onUpdate={updateVehiculo}
-              />
-            </div>
-
-            {/* Frenos */}
-            <div id="frenos">
-              <MantenimientoSection
-              title="Sistema de Frenos"
-              fields={[
-                {
-                  label: "Pastillas/Cintas Freno A",
-                  kmField: "pastilla_cinta_freno_km_a",
-                  dateField: "pastilla_cinta_freno_fecha_a",
-                  modelField: "pastilla_cinta_freno_modelo_a"
-                },
-                {
-                  label: "Pastillas/Cintas Freno B",
-                  kmField: "pastilla_cinta_freno_km_b",
-                  dateField: "pastilla_cinta_freno_fecha_b",
-                  modelField: "pastilla_cinta_freno_modelo_b"
-                },
-                {
-                  label: "Pastillas/Cintas Freno C",
-                  kmField: "pastilla_cinta_freno_km_c",
-                  dateField: "pastilla_cinta_freno_fecha_c",
-                  modelField: "pastilla_cinta_freno_modelo_c"
-                },
-                {
-                  label: "Pastillas/Cintas Freno D",
-                  kmField: "pastilla_cinta_freno_km_d",
-                  dateField: "pastilla_cinta_freno_fecha_d",
-                  modelField: "pastilla_cinta_freno_modelo_d"
-                }
-              ].filter((_, idx) => {
-                const ids = ['pastilla_freno_a', 'pastilla_freno_b', 'pastilla_freno_c', 'pastilla_freno_d']
-                return filtrarComponentesAplicables(ids[idx])
-              })}
-              vehiculo={vehiculo}
-              editedVehiculo={editedVehiculo}
-              editMode={editMode}
-              onUpdate={updateVehiculo}
-              />
-            </div>
-
-            {/* Motor y Embrague */}
-            <div id="motor-embrague">
-              <MantenimientoSection
-              title="Motor y Embrague"
-              fields={[
-                {
-                  label: "Embrague",
-                  kmField: "embrague_km",
-                  dateField: "embrague_fecha",
-                  modelField: "embrague_modelo"
-                }
-              ].filter((_, idx) => {
-                const ids = ['embrague']
-                return filtrarComponentesAplicables(ids[idx])
-              })}
-              vehiculo={vehiculo}
-              editedVehiculo={editedVehiculo}
-              editMode={editMode}
-              onUpdate={updateVehiculo}
-              />
-            </div>
-
-            {/* Suspensión */}
-            <div id="suspension">
-              <MantenimientoSection
-              title="Sistema de Suspensión"
-              fields={[
-                {
-                  label: "Suspensión A",
-                  kmField: "suspencion_km_a",
-                  dateField: "suspencion_fecha_a",
-                  modelField: "suspencion_modelo_a"
-                },
-                {
-                  label: "Suspensión B",
-                  kmField: "suspencion_km_b",
-                  dateField: "suspencion_fecha_b",
-                  modelField: "suspencion_modelo_b"
-                },
-                {
-                  label: "Suspensión C",
-                  kmField: "suspencion_km_c",
-                  dateField: "suspencion_fecha_c",
-                  modelField: "suspencion_modelo_c"
-                },
-                {
-                  label: "Suspensión D",
-                  kmField: "suspencion_km_d",
-                  dateField: "suspencion_fecha_d",
-                  modelField: "suspencion_modelo_d"
-                }
-              ].filter((_, idx) => {
-                const ids = ['suspension_a', 'suspension_b', 'suspension_c', 'suspension_d']
-                return filtrarComponentesAplicables(ids[idx])
-              })}
-              vehiculo={vehiculo}
-              editedVehiculo={editedVehiculo}
-              editMode={editMode}
-              onUpdate={updateVehiculo}
-              />
-            </div>
-
-            {/* Correas */}
-            <div id="correas">
-              <MantenimientoSection
-              title="Sistema de Correas"
-              fields={[
-                {
-                  label: "Correa de Distribución",
-                  kmField: "correa_distribucion_km",
-                  dateField: "correa_distribucion_fecha",
-                  modelField: "correa_distribucion_modelo"
-                },
-                {
-                  label: "Correa de Alternador",
-                  kmField: "correa_alternador_km",
-                  dateField: "correa_alternador_fecha",
-                  modelField: "correa_alternador_modelo"
-                },
-                {
-                  label: "Correa de Dirección",
-                  kmField: "correa_direccion_km",
-                  dateField: "correa_direccion_fecha",
-                  modelField: "correa_direccion_modelo"
-                },
-                {
-                  label: "Correa de Aire Acondicionado",
-                  kmField: "correa_aire_acondicionado_km",
-                  dateField: "correa_aire_acondicionado_fecha",
-                  modelField: "correa_aire_acondicionado_modelo"
-                },
-                {
-                  label: "Correa Poly-V",
-                  kmField: "correa_polyv_km",
-                  dateField: "correa_polyv_fecha",
-                  modelField: "correa_polyv_modelo"
-                },
-                {
-                  label: "Tensor de Correa",
-                  kmField: "tensor_correa_km",
-                  dateField: "tensor_correa_fecha",
-                  modelField: "tensor_correa_modelo"
-                },
-                {
-                  label: "Polea Tensora",
-                  kmField: "polea_tensora_correa_km",
-                  dateField: "polea_tensora_correa_fecha",
-                  modelField: "polea_tensora_correa_modelo"
-                }
-              ].filter((_, idx) => {
-                const ids = ['correa_distribucion', 'correa_alternador', 'correa_direccion', 'correa_aire_acondicionado', 'correa_polyv', 'tensor_correa', 'polea_tensora']
-                return filtrarComponentesAplicables(ids[idx])
-              })}
-              vehiculo={vehiculo}
-              editedVehiculo={editedVehiculo}
-              editMode={editMode}
-              onUpdate={updateVehiculo}
-              />
-            </div>
-
-            {/* Sistema Eléctrico */}
-            <div id="electrico">
-              <MantenimientoSection
-              title="Sistema Eléctrico"
-              fields={[
-                {
-                  label: "Batería",
-                  kmField: "bateria_km",
-                  dateField: "bateria_fecha",
-                  modelField: "bateria_modelo"
-                },
-                {
-                  label: "Escobillas",
-                  kmField: "escobillas_km",
-                  dateField: "escobillas_fecha",
-                  modelField: "escobillas_modelo"
-                }
-              ].filter((_, idx) => {
-                const ids = ['bateria', 'escobillas']
-                return filtrarComponentesAplicables(ids[idx])
-              })}
-              vehiculo={vehiculo}
-              editedVehiculo={editedVehiculo}
-              editMode={editMode}
-              onUpdate={updateVehiculo}
-              />
-            </div>
-
-            {/* Neumáticos */}
-            <div id="neumaticos">
-              <MantenimientoSection
-              title="Neumáticos"
-              fields={[
-                {
-                  label: "Modelo/Marca General",
-                  modelField: "neumatico_modelo_marca"
-                },
-                {
-                  label: "Neumático A",
-                  kmField: "neumatico_km_a",
-                  dateField: "neumatico_fecha_a"
-                },
-                {
-                  label: "Neumático B",
-                  kmField: "neumatico_km_b",
-                  dateField: "neumatico_fecha_b"
-                },
-                {
-                  label: "Neumático C",
-                  kmField: "neumatico_km_c",
-                  dateField: "neumatico_fecha_c"
-                },
-                {
-                  label: "Neumático D",
-                  kmField: "neumatico_km_d",
-                  dateField: "neumatico_fecha_d"
-                },
-                {
-                  label: "Neumático E",
-                  kmField: "neumatico_km_e",
-                  dateField: "neumatico_fecha_e"
-                },
-                {
-                  label: "Neumático F",
-                  kmField: "neumatico_km_f",
-                  dateField: "neumatico_fecha_f"
-                },
-                {
-                  label: "Alineación",
-                  kmField: "alineacion_neumaticos_km",
-                  dateField: "alineacion_neumaticos_fecha"
-                },
-                {
-                  label: "Rotación",
-                  kmField: "rotacion_neumaticos_km",
-                  dateField: "rotacion_neumaticos_fecha"
-                }
-              ].filter((_, idx) => {
-                const ids = ['neumatico_modelo_marca', 'neumatico_a', 'neumatico_b', 'neumatico_c', 'neumatico_d', 'neumatico_e', 'neumatico_f', 'alineacion', 'rotacion']
-                return filtrarComponentesAplicables(ids[idx])
-              })}
-              vehiculo={vehiculo}
-              editedVehiculo={editedVehiculo}
-              editMode={editMode}
-              onUpdate={updateVehiculo}
-              />
-            </div>
+            {/* Secciones Dinámicas de Mantenimiento */}
+            {componentesAgrupados.map((categoria) => (
+              <div key={categoria.id} id={categoria.id}>
+                <MantenimientoSection
+                  title={categoria.nombre}
+                  fields={categoria.componentes.map(comp => ({
+                    label: comp.label,
+                    kmField: comp.columnaKm as keyof Vehiculo,
+                    dateField: comp.columnaFecha as keyof Vehiculo,
+                    modelField: comp.columnaModelo as keyof Vehiculo,
+                    litersField: comp.columnaLitros as keyof Vehiculo,
+                    hrField: comp.columnaHr as keyof Vehiculo
+                  }))}
+                  vehiculo={vehiculo}
+                  editedVehiculo={editedVehiculo}
+                  editMode={editMode}
+                  onUpdate={updateVehiculo}
+                />
+              </div>
+            ))}
             </>
             ) : vistaActual === 'historial' ? (
               /* Vista de Historial */
