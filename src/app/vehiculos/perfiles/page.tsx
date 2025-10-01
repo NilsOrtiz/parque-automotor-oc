@@ -42,7 +42,16 @@ export default function PerfilesVehiculoPage() {
         .order('nombre_configuracion', { ascending: true })
 
       if (error) throw error
-      setPerfiles(data || [])
+
+      // Asegurar que componentes_aplicables siempre sea un array
+      const perfilesNormalizados = (data || []).map(perfil => ({
+        ...perfil,
+        componentes_aplicables: Array.isArray(perfil.componentes_aplicables)
+          ? perfil.componentes_aplicables
+          : []
+      }))
+
+      setPerfiles(perfilesNormalizados)
     } catch (error) {
       console.error('Error cargando perfiles:', error)
       alert('Error cargando perfiles')
