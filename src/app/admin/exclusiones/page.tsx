@@ -165,34 +165,34 @@ export default function ExclusionesPage() {
                 Todas las Columnas de la Tabla Vehiculos
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {todasColumnas.map(nombreColumna => {
                   const esExcluida = columnasExcluidas.includes(nombreColumna)
                   return (
                     <button
                       key={nombreColumna}
                       onClick={() => toggleColumna(nombreColumna)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left ${
+                      className={`flex items-center gap-4 px-5 py-4 rounded-lg border-2 transition-all text-left ${
                         esExcluida
                           ? 'border-yellow-300 bg-yellow-50 hover:bg-yellow-100'
                           : 'border-green-300 bg-green-50 hover:bg-green-100'
                       }`}
                     >
                       {esExcluida ? (
-                        <CheckSquare className="h-5 w-5 text-yellow-700 flex-shrink-0" />
+                        <CheckSquare className="h-6 w-6 text-yellow-700 flex-shrink-0" />
                       ) : (
-                        <Square className="h-5 w-5 text-green-700 flex-shrink-0" />
+                        <Square className="h-6 w-6 text-green-700 flex-shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className={`font-mono text-sm font-medium truncate ${
+                        <div className={`font-mono text-base font-bold mb-1 ${
                           esExcluida ? 'text-yellow-900' : 'text-green-900'
                         }`}>
                           {nombreColumna}
                         </div>
-                        <div className={`text-xs ${
+                        <div className={`text-sm font-medium ${
                           esExcluida ? 'text-yellow-700' : 'text-green-700'
                         }`}>
-                          {esExcluida ? '✗ No es mantenimiento' : '✓ Es mantenimiento'}
+                          {esExcluida ? '✗ Columna administrativa / No es mantenimiento' : '✓ Componente de mantenimiento'}
                         </div>
                       </div>
                     </button>
