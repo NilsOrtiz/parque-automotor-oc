@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Plus, Edit2, Trash2, Save, X, CheckSquare, Square } from 'lucide-react'
-import { CATEGORIAS_COMPONENTES, type ComponenteVehiculo } from '@/lib/componentes-vehiculo'
+import { ArrowLeft, Plus, Edit2, Trash2, Save, X, CheckSquare, Square, RefreshCw } from 'lucide-react'
+import { cargarComponentesDinamicos, type ComponenteVehiculo, type CategoriaComponentes } from '@/lib/componentes-dinamicos'
 
 type ConfiguracionVehiculo = {
   id: number
@@ -18,7 +18,9 @@ type ConfiguracionVehiculo = {
 
 export default function PerfilesVehiculoPage() {
   const [perfiles, setPerfiles] = useState<ConfiguracionVehiculo[]>([])
+  const [categorias, setCategorias] = useState<CategoriaComponentes[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingComponentes, setLoadingComponentes] = useState(true)
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState<number | null>(null)
 
@@ -31,7 +33,21 @@ export default function PerfilesVehiculoPage() {
 
   useEffect(() => {
     cargarPerfiles()
+    cargarComponentes()
   }, [])
+
+  async function cargarComponentes() {
+    setLoadingComponentes(true)
+    try {
+      const cats = await cargarComponentesDinamicos()
+      setCategorias(cats)
+    } catch (error) {
+      console.error('Error cargando componentes:', error)
+      alert('Error cargando componentes')
+    } finally {
+      setLoadingComponentes(false)
+    }
+  }
 
   async function cargarPerfiles() {
     setLoading(true)
@@ -182,15 +198,26 @@ export default function PerfilesVehiculoPage() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Perfiles de Vehículos</h1>
               <p className="text-gray-600">Configura qué componentes aplican para cada tipo de vehículo</p>
             </div>
-            {!mostrarForm && (
+            <div className="flex gap-3">
               <button
-                onClick={nuevoPerfi}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+                onClick={cargarComponentes}
+                disabled={loadingComponentes}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-colors"
+                title="Recargar componentes desde la base de datos"
               >
-                <Plus className="h-5 w-5" />
-                Nuevo Perfil
+                <RefreshCw className={`h-5 w-5 ${loadingComponentes ? 'animate-spin' : ''}`} />
+                {loadingComponentes ? 'Cargando...' : 'Recargar'}
               </button>
-            )}
+              {!mostrarForm && (
+                <button
+                  onClick={nuevoPerfi}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <Plus className="h-5 w-5" />
+                  Nuevo Perfil
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -250,8 +277,14 @@ export default function PerfilesVehiculoPage() {
                 </span>
               </h3>
 
-              <div className="space-y-6">
-                {CATEGORIAS_COMPONENTES.map((categoria) => {
+              {loadingComponentes ? (
+                <div className="text-center py-8">
+                  <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+                  <p className="text-gray-600">Cargando componentes...</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {categorias.map((categoria) => {
                   const idsCategoria = categoria.componentes.map(c => c.id)
                   const todosSeleccionados = idsCategoria.every(id =>
                     formData.componentes_aplicables.includes(id)
@@ -311,8 +344,9 @@ export default function PerfilesVehiculoPage() {
                       </div>
                     </div>
                   )
-                })}
-              </div>
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Botones de acción */}
