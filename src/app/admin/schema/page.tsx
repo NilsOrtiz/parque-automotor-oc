@@ -322,30 +322,54 @@ export default function AdminSchemaPage() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {comp.tieneKm ? (
-                          <CheckCircle className="h-4 w-4 text-green-600 mx-auto" />
+                          <div className="flex flex-col items-center gap-1">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            <span className="text-xs font-mono text-green-700">{comp.nombre}_km</span>
+                          </div>
                         ) : (
-                          <span className="text-red-500">✗</span>
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-red-500 text-lg">✗</span>
+                            <span className="text-xs font-mono text-gray-400">{comp.nombre}_km</span>
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {comp.tieneFecha ? (
-                          <CheckCircle className="h-4 w-4 text-green-600 mx-auto" />
+                          <div className="flex flex-col items-center gap-1">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            <span className="text-xs font-mono text-green-700">{comp.nombre}_fecha</span>
+                          </div>
                         ) : (
-                          <span className="text-red-500">✗</span>
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-red-500 text-lg">✗</span>
+                            <span className="text-xs font-mono text-gray-400">{comp.nombre}_fecha</span>
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {comp.tieneModelo ? (
-                          <CheckCircle className="h-4 w-4 text-green-600 mx-auto" />
+                          <div className="flex flex-col items-center gap-1">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            <span className="text-xs font-mono text-green-700">{comp.nombre}_modelo</span>
+                          </div>
                         ) : (
-                          <span className="text-red-500">✗</span>
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-red-500 text-lg">✗</span>
+                            <span className="text-xs font-mono text-gray-400">{comp.nombre}_modelo</span>
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {comp.tieneIntervalo ? (
-                          <CheckCircle className="h-4 w-4 text-green-600 mx-auto" />
+                          <div className="flex flex-col items-center gap-1">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            <span className="text-xs font-mono text-green-700">{comp.nombre}_intervalo</span>
+                          </div>
                         ) : (
-                          <span className="text-red-500">✗</span>
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-red-500 text-lg">✗</span>
+                            <span className="text-xs font-mono text-gray-400">{comp.nombre}_intervalo</span>
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
