@@ -3,6 +3,7 @@
 
 import { supabase } from './supabase'
 import { cargarColumnasExcluidas } from './exclusiones-mantenimiento'
+import { cargarAlias, convertirAliasARecord } from './alias-columnas'
 
 export type ComponenteVehiculo = {
   id: string
@@ -37,21 +38,19 @@ const CATEGORIAS_CONFIG = [
   { id: 'otros', nombre: 'Otros Componentes', icono: '🔩', prefijos: [] } // Catch-all
 ]
 
-// Alias para columnas con nombres no estándar (legacy)
-// Mapea nombre real → nombre estándar esperado
-const COLUMNAS_ALIAS: Record<string, { componente: string, tipo: 'intervalo' | 'km' | 'fecha' | 'modelo' }> = {
-  'intervalo_cambio_aceite': { componente: 'aceite_motor', tipo: 'intervalo' },
-  'intervalo_cambio_aceite_hr': { componente: 'aceite_motor', tipo: 'intervalo' }, // Alias adicional para horas
-  'intervalo_rotacion_neumaticos': { componente: 'rotacion_neumaticos', tipo: 'intervalo' }
-}
-
 /**
  * Lee los componentes dinámicamente desde la tabla vehiculos
  */
 export async function cargarComponentesDinamicos(): Promise<CategoriaComponentes[]> {
   try {
-    // Cargar exclusiones dinámicas
-    const columnasExcluidas = await cargarColumnasExcluidas()
+    // Cargar exclusiones y alias dinámicamente
+    const [columnasExcluidas, aliasArray] = await Promise.all([
+      cargarColumnasExcluidas(),
+      cargarAlias()
+    ])
+
+    // Convertir alias a Record para búsqueda rápida
+    const COLUMNAS_ALIAS = convertirAliasARecord(aliasArray)
 
     // Obtener un registro de vehiculos para extraer las columnas
     const { data, error } = await supabase

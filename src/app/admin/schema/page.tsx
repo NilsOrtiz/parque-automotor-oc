@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { ArrowLeft, Plus, Code, Copy, CheckCircle, AlertTriangle, RefreshCw, Settings } from 'lucide-react'
 import { cargarColumnasExcluidas } from '@/lib/exclusiones-mantenimiento'
+import { cargarAlias, convertirAliasARecord } from '@/lib/alias-columnas'
 
 type ComponenteSchema = {
   nombre: string // Ej: "filtro_combustible"
@@ -40,15 +41,14 @@ export default function AdminSchemaPage() {
   async function cargarSchemaReal() {
     setLoading(true)
     try {
-      // Cargar exclusiones dinámicas
-      const exclusiones = await cargarColumnasExcluidas()
+      // Cargar exclusiones y alias dinámicamente
+      const [exclusiones, aliasArray] = await Promise.all([
+        cargarColumnasExcluidas(),
+        cargarAlias()
+      ])
 
-      // Alias para columnas con nombres no estándar (legacy)
-      const COLUMNAS_ALIAS: Record<string, { componente: string, tipo: string }> = {
-        'intervalo_cambio_aceite': { componente: 'aceite_motor', tipo: 'intervalo' },
-        'intervalo_cambio_aceite_hr': { componente: 'aceite_motor', tipo: 'intervalo' },
-        'intervalo_rotacion_neumaticos': { componente: 'rotacion_neumaticos', tipo: 'intervalo' }
-      }
+      // Convertir alias a Record para búsqueda rápida
+      const COLUMNAS_ALIAS = convertirAliasARecord(aliasArray)
 
       // Obtener las columnas de la tabla vehiculos
       const { data, error } = await supabase
@@ -233,6 +233,13 @@ export default function AdminSchemaPage() {
               >
                 <Settings className="h-4 w-4" />
                 Configurar Exclusiones
+              </Link>
+              <Link
+                href="/admin/alias"
+                className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                Configurar Alias
               </Link>
               <button
                 onClick={cargarSchemaReal}
