@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type Vehiculo } from '@/lib/supabase'
 import { Search, ArrowLeft, Car, Droplets, Settings, Disc, Zap, Gauge, Circle, Battery, Wrench, Cog, Truck } from 'lucide-react'
