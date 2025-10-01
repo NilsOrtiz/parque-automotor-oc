@@ -86,6 +86,7 @@ export default function AdminSchemaPage() {
           const alias = COLUMNAS_ALIAS[col]
           nombreComponente = alias.componente
           tipoColumna = alias.tipo
+          console.log('🔍 Alias detectado:', col, '→', nombreComponente, tipoColumna)
         } else if (col.endsWith('_km')) {
           nombreComponente = col.replace('_km', '')
           tipoColumna = 'km'
@@ -128,26 +129,32 @@ export default function AdminSchemaPage() {
         if (tipoColumna === 'km') {
           comp.tieneKm = true
           comp.columnaKm = col
+          console.log('  ✅ Guardado km:', comp.nombre, '→', col)
         }
         if (tipoColumna === 'fecha') {
           comp.tieneFecha = true
           comp.columnaFecha = col
+          console.log('  ✅ Guardado fecha:', comp.nombre, '→', col)
         }
         if (tipoColumna === 'modelo') {
           comp.tieneModelo = true
           comp.columnaModelo = col
+          console.log('  ✅ Guardado modelo:', comp.nombre, '→', col)
         }
         if (tipoColumna === 'intervalo') {
           comp.tieneIntervalo = true
           comp.columnaIntervalo = col
+          console.log('  ✅ Guardado intervalo:', comp.nombre, '→', col)
         }
         if (tipoColumna === 'litros') {
           comp.tieneLitros = true
           comp.columnaLitros = col
+          console.log('  ✅ Guardado litros:', comp.nombre, '→', col)
         }
         if (tipoColumna === 'hr') {
           comp.tieneHr = true
           comp.columnaHr = col
+          console.log('  ✅ Guardado hr:', comp.nombre, '→', col)
         }
       })
 
