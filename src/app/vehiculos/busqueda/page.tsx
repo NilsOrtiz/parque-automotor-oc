@@ -721,7 +721,10 @@ export default function BusquedaPage() {
                   dateField: "liquido_frenos_fecha",
                   modelField: "liquido_frenos_modelo"
                 }
-              ]}
+              ].filter((_, idx) => {
+                const ids = ['aceite_transmision', 'liquido_refrigerante', 'liquido_frenos']
+                return filtrarComponentesAplicables(ids[idx])
+              })}
               vehiculo={vehiculo}
               editedVehiculo={editedVehiculo}
               editMode={editMode}
@@ -758,7 +761,10 @@ export default function BusquedaPage() {
                   dateField: "pastilla_cinta_freno_fecha_d",
                   modelField: "pastilla_cinta_freno_modelo_d"
                 }
-              ]}
+              ].filter((_, idx) => {
+                const ids = ['pastilla_freno_a', 'pastilla_freno_b', 'pastilla_freno_c', 'pastilla_freno_d']
+                return filtrarComponentesAplicables(ids[idx])
+              })}
               vehiculo={vehiculo}
               editedVehiculo={editedVehiculo}
               editMode={editMode}
@@ -777,7 +783,10 @@ export default function BusquedaPage() {
                   dateField: "embrague_fecha",
                   modelField: "embrague_modelo"
                 }
-              ]}
+              ].filter((_, idx) => {
+                const ids = ['embrague']
+                return filtrarComponentesAplicables(ids[idx])
+              })}
               vehiculo={vehiculo}
               editedVehiculo={editedVehiculo}
               editMode={editMode}
@@ -814,7 +823,10 @@ export default function BusquedaPage() {
                   dateField: "suspencion_fecha_d",
                   modelField: "suspencion_modelo_d"
                 }
-              ]}
+              ].filter((_, idx) => {
+                const ids = ['suspension_a', 'suspension_b', 'suspension_c', 'suspension_d']
+                return filtrarComponentesAplicables(ids[idx])
+              })}
               vehiculo={vehiculo}
               editedVehiculo={editedVehiculo}
               editMode={editMode}
@@ -869,7 +881,10 @@ export default function BusquedaPage() {
                   dateField: "polea_tensora_correa_fecha",
                   modelField: "polea_tensora_correa_modelo"
                 }
-              ]}
+              ].filter((_, idx) => {
+                const ids = ['correa_distribucion', 'correa_alternador', 'correa_direccion', 'correa_aire_acondicionado', 'correa_polyv', 'tensor_correa', 'polea_tensora']
+                return filtrarComponentesAplicables(ids[idx])
+              })}
               vehiculo={vehiculo}
               editedVehiculo={editedVehiculo}
               editMode={editMode}
@@ -894,7 +909,10 @@ export default function BusquedaPage() {
                   dateField: "escobillas_fecha",
                   modelField: "escobillas_modelo"
                 }
-              ]}
+              ].filter((_, idx) => {
+                const ids = ['bateria', 'escobillas']
+                return filtrarComponentesAplicables(ids[idx])
+              })}
               vehiculo={vehiculo}
               editedVehiculo={editedVehiculo}
               editMode={editMode}
@@ -951,7 +969,10 @@ export default function BusquedaPage() {
                   kmField: "rotacion_neumaticos_km",
                   dateField: "rotacion_neumaticos_fecha"
                 }
-              ]}
+              ].filter((_, idx) => {
+                const ids = ['neumatico_modelo_marca', 'neumatico_a', 'neumatico_b', 'neumatico_c', 'neumatico_d', 'neumatico_e', 'neumatico_f', 'alineacion', 'rotacion']
+                return filtrarComponentesAplicables(ids[idx])
+              })}
               vehiculo={vehiculo}
               editedVehiculo={editedVehiculo}
               editMode={editMode}
