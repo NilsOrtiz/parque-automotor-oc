@@ -17,6 +17,13 @@ type ComponenteSchema = {
   // Extras opcionales
   tieneHr?: boolean
   tieneLitros?: boolean
+  // Nombres reales de columnas (para mostrar alias)
+  columnaKm?: string
+  columnaFecha?: string
+  columnaModelo?: string
+  columnaIntervalo?: string
+  columnaHr?: string
+  columnaLitros?: string
 }
 
 export default function AdminSchemaPage() {
@@ -118,12 +125,30 @@ export default function AdminSchemaPage() {
         }
 
         const comp = componentesMap.get(nombreComponente)!
-        if (tipoColumna === 'km') comp.tieneKm = true
-        if (tipoColumna === 'fecha') comp.tieneFecha = true
-        if (tipoColumna === 'modelo') comp.tieneModelo = true
-        if (tipoColumna === 'intervalo') comp.tieneIntervalo = true
-        if (tipoColumna === 'litros') comp.tieneLitros = true
-        if (tipoColumna === 'hr') comp.tieneHr = true
+        if (tipoColumna === 'km') {
+          comp.tieneKm = true
+          comp.columnaKm = col
+        }
+        if (tipoColumna === 'fecha') {
+          comp.tieneFecha = true
+          comp.columnaFecha = col
+        }
+        if (tipoColumna === 'modelo') {
+          comp.tieneModelo = true
+          comp.columnaModelo = col
+        }
+        if (tipoColumna === 'intervalo') {
+          comp.tieneIntervalo = true
+          comp.columnaIntervalo = col
+        }
+        if (tipoColumna === 'litros') {
+          comp.tieneLitros = true
+          comp.columnaLitros = col
+        }
+        if (tipoColumna === 'hr') {
+          comp.tieneHr = true
+          comp.columnaHr = col
+        }
       })
 
       // Convertir a array y ordenar
@@ -343,7 +368,10 @@ export default function AdminSchemaPage() {
                         {comp.tieneKm ? (
                           <div className="flex flex-col items-center gap-1">
                             <CheckCircle className="h-5 w-5 text-green-600" />
-                            <span className="text-xs font-mono text-green-700">{comp.nombre}_km</span>
+                            <span className="text-xs font-mono text-green-700">{comp.columnaKm || `${comp.nombre}_km`}</span>
+                            {comp.columnaKm && comp.columnaKm !== `${comp.nombre}_km` && (
+                              <span className="text-xs text-blue-600 font-semibold">📌 Alias</span>
+                            )}
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-1">
@@ -356,7 +384,10 @@ export default function AdminSchemaPage() {
                         {comp.tieneFecha ? (
                           <div className="flex flex-col items-center gap-1">
                             <CheckCircle className="h-5 w-5 text-green-600" />
-                            <span className="text-xs font-mono text-green-700">{comp.nombre}_fecha</span>
+                            <span className="text-xs font-mono text-green-700">{comp.columnaFecha || `${comp.nombre}_fecha`}</span>
+                            {comp.columnaFecha && comp.columnaFecha !== `${comp.nombre}_fecha` && (
+                              <span className="text-xs text-blue-600 font-semibold">📌 Alias</span>
+                            )}
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-1">
@@ -369,7 +400,10 @@ export default function AdminSchemaPage() {
                         {comp.tieneModelo ? (
                           <div className="flex flex-col items-center gap-1">
                             <CheckCircle className="h-5 w-5 text-green-600" />
-                            <span className="text-xs font-mono text-green-700">{comp.nombre}_modelo</span>
+                            <span className="text-xs font-mono text-green-700">{comp.columnaModelo || `${comp.nombre}_modelo`}</span>
+                            {comp.columnaModelo && comp.columnaModelo !== `${comp.nombre}_modelo` && (
+                              <span className="text-xs text-blue-600 font-semibold">📌 Alias</span>
+                            )}
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-1">
@@ -382,7 +416,10 @@ export default function AdminSchemaPage() {
                         {comp.tieneIntervalo ? (
                           <div className="flex flex-col items-center gap-1">
                             <CheckCircle className="h-5 w-5 text-green-600" />
-                            <span className="text-xs font-mono text-green-700">{comp.nombre}_intervalo</span>
+                            <span className="text-xs font-mono text-green-700">{comp.columnaIntervalo || `${comp.nombre}_intervalo`}</span>
+                            {comp.columnaIntervalo && comp.columnaIntervalo !== `${comp.nombre}_intervalo` && (
+                              <span className="text-xs text-blue-600 font-semibold">📌 Alias</span>
+                            )}
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-1">
