@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase, type Vehiculo } from '@/lib/supabase'
 import { Search, ArrowLeft, Car, Droplets, Settings, Disc, Zap, Gauge, Circle, Battery, Wrench, Cog, Truck } from 'lucide-react'
 import MantenimientoSection from '@/components/MantenimientoSection'
+import { obtenerComponentePorId } from '@/lib/componentes-vehiculo'
 
 export default function BusquedaPage() {
   const [tipoBusqueda, setTipoBusqueda] = useState<'placa' | 'interno'>('placa')
@@ -20,6 +21,27 @@ export default function BusquedaPage() {
   const [loadingHistorial, setLoadingHistorial] = useState(false)
   const [pendientes, setPendientes] = useState<any[]>([])
   const [loadingPendientes, setLoadingPendientes] = useState(false)
+  const [configuracion, setConfiguracion] = useState<string[]>([]) // IDs de componentes aplicables
+  const [perfilesDisponibles, setPerfilesDisponibles] = useState<Array<{id: number, nombre_configuracion: string}>>([])
+
+  useEffect(() => {
+    cargarPerfilesDisponibles()
+  }, [])
+
+  async function cargarPerfilesDisponibles() {
+    try {
+      const { data, error } = await supabase
+        .from('configuraciones_vehiculo')
+        .select('id, nombre_configuracion')
+        .eq('activo', true)
+        .order('nombre_configuracion', { ascending: true })
+
+      if (error) throw error
+      setPerfilesDisponibles(data || [])
+    } catch (error) {
+      console.error('Error cargando perfiles:', error)
+    }
+  }
 
   async function buscarVehiculo() {
     if (!termino.trim()) {
@@ -50,7 +72,8 @@ export default function BusquedaPage() {
       } else {
         setVehiculo(data)
         setEditedVehiculo(data)
-        // Cargar historial y pendientes automáticamente
+        // Cargar configuración, historial y pendientes automáticamente
+        await cargarConfiguracion(data.configuracion_id)
         await cargarHistorial(data.id)
         await cargarPendientes(data.id)
       }
@@ -59,6 +82,28 @@ export default function BusquedaPage() {
       setError('Error al buscar el vehículo')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function cargarConfiguracion(configuracionId: number | null) {
+    if (!configuracionId) {
+      // Si no tiene configuración, mostrar todos los componentes
+      setConfiguracion([])
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('configuraciones_vehiculo')
+        .select('componentes_aplicables')
+        .eq('id', configuracionId)
+        .single()
+
+      if (error) throw error
+      setConfiguracion(data?.componentes_aplicables || [])
+    } catch (error) {
+      console.error('Error cargando configuración:', error)
+      setConfiguracion([])
     }
   }
 
@@ -160,11 +205,20 @@ export default function BusquedaPage() {
     setEditedVehiculo(prev => prev ? { ...prev, ...updates } : null)
   }
 
+  // Función para filtrar componentes según configuración del vehículo
+  function filtrarComponentesAplicables(componenteId: string): boolean {
+    // Si no hay configuración, mostrar todos
+    if (!configuracion || configuracion.length === 0) return true
+
+    // Si hay configuración, solo mostrar los seleccionados
+    return configuracion.includes(componenteId)
+  }
+
   // Función para scroll automático a secciones
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId)
     if (element) {
-      element.scrollIntoView({ 
+      element.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
         inline: 'nearest'
@@ -430,6 +484,57 @@ export default function BusquedaPage() {
               </div>
             </div>
 
+            {/* Perfil de Configuración */}
+            <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-blue-900 mb-1">
+                    Perfil de Configuración
+                  </label>
+                  {editMode ? (
+                    <select
+                      value={editedVehiculo?.configuracion_id || ''}
+                      onChange={async (e) => {
+                        const nuevoPerfilId = e.target.value ? parseInt(e.target.value) : null
+                        setEditedVehiculo(prev => prev ? {...prev, configuracion_id: nuevoPerfilId} : null)
+                        // Recargar configuración al cambiar
+                        if (nuevoPerfilId) {
+                          await cargarConfiguracion(nuevoPerfilId)
+                        } else {
+                          setConfiguracion([])
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="">Sin perfil (mostrar todos los componentes)</option>
+                      {perfilesDisponibles.map(perfil => (
+                        <option key={perfil.id} value={perfil.id}>
+                          {perfil.nombre_configuracion}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-blue-900 font-medium">
+                      {vehiculo.configuracion_id
+                        ? perfilesDisponibles.find(p => p.id === vehiculo.configuracion_id)?.nombre_configuracion || 'Perfil no encontrado'
+                        : 'Sin perfil configurado (muestra todos los componentes)'}
+                    </p>
+                  )}
+                </div>
+                {!editMode && (
+                  <Link
+                    href="/vehiculos/perfiles"
+                    className="ml-4 text-xs text-blue-700 hover:text-blue-900 underline"
+                  >
+                    Gestionar Perfiles
+                  </Link>
+                )}
+              </div>
+              <p className="text-xs text-blue-700 mt-2">
+                El perfil determina qué componentes se muestran para este vehículo
+              </p>
+            </div>
+
             {/* Información del vehículo */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Información del Vehículo</h3>
@@ -582,7 +687,10 @@ export default function BusquedaPage() {
                   dateField: "trampa_agua_fecha",
                   modelField: "trampa_agua_modelo"
                 }
-              ]}
+              ].filter((_, idx) => {
+                const ids = ['aceite_motor', 'filtro_aceite_motor', 'filtro_combustible', 'filtro_aire', 'filtro_cabina', 'filtro_deshumidificador', 'filtro_secador', 'filtro_aire_secundario', 'trampa_agua']
+                return filtrarComponentesAplicables(ids[idx])
+              })}
               vehiculo={vehiculo}
               editedVehiculo={editedVehiculo}
               editMode={editMode}
