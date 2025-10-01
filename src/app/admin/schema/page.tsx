@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Code, Copy, CheckCircle, AlertTriangle } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { ArrowLeft, Plus, Code, Copy, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react'
 
 type ComponenteSchema = {
   nombre: string // Ej: "filtro_combustible"
@@ -16,35 +17,9 @@ type ComponenteSchema = {
   tieneLitros?: boolean
 }
 
-// Componentes actuales según análisis
-const COMPONENTES_ACTUALES: ComponenteSchema[] = [
-  { nombre: 'aceite_motor', label: 'Aceite de Motor', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: true, tieneHr: true, tieneLitros: true },
-  { nombre: 'filtro_aceite_motor', label: 'Filtro Aceite Motor', tieneKm: false, tieneFecha: false, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'filtro_combustible', label: 'Filtro de Combustible', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'filtro_aire', label: 'Filtro de Aire', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'filtro_cabina', label: 'Filtro de Cabina', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'aceite_transmicion', label: 'Aceite de Transmisión', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'filtro_deshumidificador', label: 'Filtro Deshumidificador', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'liquido_refrigerante', label: 'Líquido Refrigerante', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'liquido_frenos', label: 'Líquido de Frenos', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'embrague', label: 'Embrague', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'correa_distribucion', label: 'Correa de Distribución', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'correa_alternador', label: 'Correa de Alternador', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'correa_direccion', label: 'Correa de Dirección', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'correa_aire_acondicionado', label: 'Correa de Aire Acondicionado', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'correa_polyv', label: 'Correa Poly-V', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'tensor_correa', label: 'Tensor de Correa', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'polea_tensora_correa', label: 'Polea Tensora', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'bateria', label: 'Batería', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'escobillas', label: 'Escobillas', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'filtro_secador', label: 'Filtro Secador', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'filtro_aire_secundario', label: 'Filtro de Aire Secundario', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'trampa_agua', label: 'Trampa de Agua', tieneKm: true, tieneFecha: true, tieneModelo: true, tieneIntervalo: false },
-  { nombre: 'alineacion_neumaticos', label: 'Alineación de Neumáticos', tieneKm: true, tieneFecha: true, tieneModelo: false, tieneIntervalo: false },
-  { nombre: 'rotacion_neumaticos', label: 'Rotación de Neumáticos', tieneKm: true, tieneFecha: true, tieneModelo: false, tieneIntervalo: true },
-]
-
 export default function AdminSchemaPage() {
+  const [componentesReales, setComponentesReales] = useState<ComponenteSchema[]>([])
+  const [loading, setLoading] = useState(true)
   const [nuevoComponente, setNuevoComponente] = useState({
     nombre: '',
     label: '',
@@ -57,13 +32,104 @@ export default function AdminSchemaPage() {
   const [copiado, setCopiado] = useState(false)
   const [mostrarFormNuevo, setMostrarFormNuevo] = useState(false)
 
+  useEffect(() => {
+    cargarSchemaReal()
+  }, [])
+
+  async function cargarSchemaReal() {
+    setLoading(true)
+    try {
+      // Obtener las columnas de la tabla vehiculos
+      const { data, error } = await supabase
+        .from('vehiculos')
+        .select('*')
+        .limit(1)
+        .single()
+
+      if (error) throw error
+
+      // Extraer componentes del schema
+      const columnas = Object.keys(data || {})
+      const componentesMap = new Map<string, ComponenteSchema>()
+
+      // Procesar columnas y agrupar por componente
+      columnas.forEach(col => {
+        // Ignorar columnas que no son de componentes
+        if (['id', 'created_at', 'Nro_Interno', 'Placa', 'Titular', 'Marca', 'Modelo', 'Año', 'Nro_Chasis', 'kilometraje_actual', 'hora_actual', 'configuracion_id'].includes(col)) {
+          return
+        }
+
+        // Detectar patrón: {componente}_{tipo}
+        let nombreComponente = ''
+        let tipoColumna = ''
+
+        if (col.endsWith('_km')) {
+          nombreComponente = col.replace('_km', '')
+          tipoColumna = 'km'
+        } else if (col.endsWith('_fecha')) {
+          nombreComponente = col.replace('_fecha', '')
+          tipoColumna = 'fecha'
+        } else if (col.endsWith('_modelo')) {
+          nombreComponente = col.replace('_modelo', '')
+          tipoColumna = 'modelo'
+        } else if (col.endsWith('_intervalo')) {
+          nombreComponente = col.replace('_intervalo', '')
+          tipoColumna = 'intervalo'
+        } else if (col.endsWith('_litros')) {
+          nombreComponente = col.replace('_litros', '')
+          tipoColumna = 'litros'
+        } else if (col.endsWith('_hr')) {
+          nombreComponente = col.replace('_hr', '')
+          tipoColumna = 'hr'
+        } else if (col === 'intervalo_cambio_aceite' || col === 'intervalo_cambio_aceite_hr' || col === 'intervalo_rotacion_neumaticos') {
+          // Casos especiales
+          return
+        } else {
+          // Columna que no sigue el patrón estándar
+          return
+        }
+
+        // Crear o actualizar componente en el map
+        if (!componentesMap.has(nombreComponente)) {
+          componentesMap.set(nombreComponente, {
+            nombre: nombreComponente,
+            label: nombreComponente.split('_').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' '),
+            tieneKm: false,
+            tieneFecha: false,
+            tieneModelo: false,
+            tieneIntervalo: false
+          })
+        }
+
+        const comp = componentesMap.get(nombreComponente)!
+        if (tipoColumna === 'km') comp.tieneKm = true
+        if (tipoColumna === 'fecha') comp.tieneFecha = true
+        if (tipoColumna === 'modelo') comp.tieneModelo = true
+        if (tipoColumna === 'intervalo') comp.tieneIntervalo = true
+        if (tipoColumna === 'litros') comp.tieneLitros = true
+        if (tipoColumna === 'hr') comp.tieneHr = true
+      })
+
+      // Convertir a array y ordenar
+      const componentesArray = Array.from(componentesMap.values())
+        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+      setComponentesReales(componentesArray)
+    } catch (error) {
+      console.error('Error cargando schema:', error)
+      alert('Error cargando el schema de la base de datos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   function generarSQLCompletarExistentes() {
     let sql = `-- SQL para completar componentes existentes con columnas faltantes\n`
     sql += `-- Ejecutar en Supabase SQL Editor\n\n`
 
     const columnasFaltantes: string[] = []
 
-    COMPONENTES_ACTUALES.forEach(comp => {
+    componentesReales.forEach(comp => {
       // Verificar columnas faltantes
       if (!comp.tieneKm) {
         columnasFaltantes.push(`ALTER TABLE public.vehiculos ADD COLUMN IF NOT EXISTS ${comp.nombre}_km integer;`)
@@ -119,7 +185,7 @@ export default function AdminSchemaPage() {
   }
 
   const sqlCompleto = generarSQLCompletarExistentes()
-  const componentesIncompletos = COMPONENTES_ACTUALES.filter(c =>
+  const componentesIncompletos = componentesReales.filter(c =>
     !c.tieneKm || !c.tieneFecha || !c.tieneModelo || !c.tieneIntervalo
   )
 
@@ -135,12 +201,24 @@ export default function AdminSchemaPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver a Vehículos
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Administración de Schema - Tabla Vehiculos
-          </h1>
-          <p className="text-gray-600">
-            Gestiona las columnas de la tabla vehiculos y genera SQL para modificaciones
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Administración de Schema - Tabla Vehiculos
+              </h1>
+              <p className="text-gray-600">
+                Gestiona las columnas de la tabla vehiculos y genera SQL para modificaciones
+              </p>
+            </div>
+            <button
+              onClick={cargarSchemaReal}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Cargando...' : 'Recargar Schema'}
+            </button>
+          </div>
         </div>
 
         {/* Alert de componentes incompletos */}
@@ -187,35 +265,41 @@ export default function AdminSchemaPage() {
         {/* Lista de componentes actuales */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Componentes Actuales ({COMPONENTES_ACTUALES.length})
+            Componentes Actuales ({componentesReales.length})
           </h2>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Componente
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                    KM
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                    Fecha
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                    Modelo
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                    Intervalo
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                    Estado
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {COMPONENTES_ACTUALES.map((comp, idx) => {
+          {loading ? (
+            <div className="text-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+              <p className="text-gray-600">Cargando schema desde la base de datos...</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Componente
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                      KM
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                      Fecha
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                      Modelo
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                      Intervalo
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                      Estado
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {componentesReales.map((comp, idx) => {
                   const completo = comp.tieneKm && comp.tieneFecha && comp.tieneModelo && comp.tieneIntervalo
                   return (
                     <tr key={idx} className={completo ? '' : 'bg-yellow-50'}>
@@ -264,10 +348,11 @@ export default function AdminSchemaPage() {
                       </td>
                     </tr>
                   )
-                })}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Agregar nuevo componente */}
