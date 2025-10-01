@@ -2,6 +2,7 @@
 // Lee los componentes directamente de la tabla vehiculos en Supabase
 
 import { supabase } from './supabase'
+import { cargarColumnasExcluidas } from './exclusiones-mantenimiento'
 
 export type ComponenteVehiculo = {
   id: string
@@ -41,6 +42,9 @@ const CATEGORIAS_CONFIG = [
  */
 export async function cargarComponentesDinamicos(): Promise<CategoriaComponentes[]> {
   try {
+    // Cargar exclusiones dinámicas
+    const columnasExcluidas = await cargarColumnasExcluidas()
+
     // Obtener un registro de vehiculos para extraer las columnas
     const { data, error } = await supabase
       .from('vehiculos')
@@ -53,15 +57,6 @@ export async function cargarComponentesDinamicos(): Promise<CategoriaComponentes
     // Extraer componentes del schema
     const columnas = Object.keys(data || {})
     const componentesMap = new Map<string, ComponenteVehiculo>()
-
-    // Columnas que NO son componentes
-    const columnasExcluidas = [
-      'id', 'created_at', 'Nro_Interno', 'Placa', 'Titular',
-      'Marca', 'Modelo', 'Año', 'Nro_Chasis',
-      'kilometraje_actual', 'hora_actual', 'configuracion_id',
-      'intervalo_cambio_aceite', 'intervalo_cambio_aceite_hr',
-      'intervalo_rotacion_neumaticos'
-    ]
 
     // Procesar columnas y agrupar por componente
     columnas.forEach(col => {

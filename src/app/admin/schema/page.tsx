@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Plus, Code, Copy, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Plus, Code, Copy, CheckCircle, AlertTriangle, RefreshCw, Settings } from 'lucide-react'
+import { cargarColumnasExcluidas } from '@/lib/exclusiones-mantenimiento'
 
 type ComponenteSchema = {
   nombre: string // Ej: "filtro_combustible"
@@ -39,6 +40,9 @@ export default function AdminSchemaPage() {
   async function cargarSchemaReal() {
     setLoading(true)
     try {
+      // Cargar exclusiones dinámicas
+      const exclusiones = await cargarColumnasExcluidas()
+
       // Obtener las columnas de la tabla vehiculos
       const { data, error } = await supabase
         .from('vehiculos')
@@ -54,8 +58,8 @@ export default function AdminSchemaPage() {
 
       // Procesar columnas y agrupar por componente
       columnas.forEach(col => {
-        // Ignorar columnas que no son de componentes
-        if (['id', 'created_at', 'Nro_Interno', 'Placa', 'Titular', 'Marca', 'Modelo', 'Año', 'Nro_Chasis', 'kilometraje_actual', 'hora_actual', 'configuracion_id'].includes(col)) {
+        // Ignorar columnas excluidas dinámicamente
+        if (exclusiones.includes(col)) {
           return
         }
 
@@ -210,14 +214,23 @@ export default function AdminSchemaPage() {
                 Gestiona las columnas de la tabla vehiculos y genera SQL para modificaciones
               </p>
             </div>
-            <button
-              onClick={cargarSchemaReal}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? 'Cargando...' : 'Recargar Schema'}
-            </button>
+            <div className="flex gap-3">
+              <Link
+                href="/admin/exclusiones"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                Configurar Exclusiones
+              </Link>
+              <button
+                onClick={cargarSchemaReal}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Cargando...' : 'Recargar Schema'}
+              </button>
+            </div>
           </div>
         </div>
 
