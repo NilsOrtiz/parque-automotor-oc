@@ -188,7 +188,8 @@ export interface Vehiculo {
   rotacion_neumaticos_fecha?: string
   rotacion_neumaticos_km?: number
   intervalo_rotacion_neumaticos?: number
-  tipo_vehiculo?: number
+  tipo_vehiculo?: number // ID de configuraciones_vehiculo
+  configuracion_id?: number // Alias para tipo_vehiculo (retrocompatibilidad)
   rotacion_actual?: string
   escobillas_modelo?: string
   escobillas_fecha?: string

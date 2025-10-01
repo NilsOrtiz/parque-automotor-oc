@@ -73,7 +73,8 @@ export default function BusquedaPage() {
         setVehiculo(data)
         setEditedVehiculo(data)
         // Cargar configuración, historial y pendientes automáticamente
-        await cargarConfiguracion(data.configuracion_id)
+        // Usar tipo_vehiculo (es el ID de configuraciones_vehiculo)
+        await cargarConfiguracion(data.tipo_vehiculo)
         await cargarHistorial(data.id)
         await cargarPendientes(data.id)
       }
@@ -493,10 +494,10 @@ export default function BusquedaPage() {
                   </label>
                   {editMode ? (
                     <select
-                      value={editedVehiculo?.configuracion_id || ''}
+                      value={editedVehiculo?.tipo_vehiculo || ''}
                       onChange={async (e) => {
                         const nuevoPerfilId = e.target.value ? parseInt(e.target.value) : null
-                        setEditedVehiculo(prev => prev ? {...prev, configuracion_id: nuevoPerfilId} : null)
+                        setEditedVehiculo(prev => prev ? {...prev, tipo_vehiculo: nuevoPerfilId} : null)
                         // Recargar configuración al cambiar
                         if (nuevoPerfilId) {
                           await cargarConfiguracion(nuevoPerfilId)
@@ -515,8 +516,8 @@ export default function BusquedaPage() {
                     </select>
                   ) : (
                     <p className="text-blue-900 font-medium">
-                      {vehiculo.configuracion_id
-                        ? perfilesDisponibles.find(p => p.id === vehiculo.configuracion_id)?.nombre_configuracion || 'Perfil no encontrado'
+                      {vehiculo.tipo_vehiculo
+                        ? perfilesDisponibles.find(p => p.id === vehiculo.tipo_vehiculo)?.nombre_configuracion || 'Perfil no encontrado'
                         : 'Sin perfil configurado (muestra todos los componentes)'}
                     </p>
                   )}
