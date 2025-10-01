@@ -43,6 +43,13 @@ export default function AdminSchemaPage() {
       // Cargar exclusiones dinámicas
       const exclusiones = await cargarColumnasExcluidas()
 
+      // Alias para columnas con nombres no estándar (legacy)
+      const COLUMNAS_ALIAS: Record<string, { componente: string, tipo: string }> = {
+        'intervalo_cambio_aceite': { componente: 'aceite_motor', tipo: 'intervalo' },
+        'intervalo_cambio_aceite_hr': { componente: 'aceite_motor', tipo: 'intervalo' },
+        'intervalo_rotacion_neumaticos': { componente: 'rotacion_neumaticos', tipo: 'intervalo' }
+      }
+
       // Obtener las columnas de la tabla vehiculos
       const { data, error } = await supabase
         .from('vehiculos')
@@ -67,7 +74,12 @@ export default function AdminSchemaPage() {
         let nombreComponente = ''
         let tipoColumna = ''
 
-        if (col.endsWith('_km')) {
+        // Primero verificar si es un alias
+        if (COLUMNAS_ALIAS[col]) {
+          const alias = COLUMNAS_ALIAS[col]
+          nombreComponente = alias.componente
+          tipoColumna = alias.tipo
+        } else if (col.endsWith('_km')) {
           nombreComponente = col.replace('_km', '')
           tipoColumna = 'km'
         } else if (col.endsWith('_fecha')) {

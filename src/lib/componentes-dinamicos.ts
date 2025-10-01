@@ -37,6 +37,14 @@ const CATEGORIAS_CONFIG = [
   { id: 'otros', nombre: 'Otros Componentes', icono: '🔩', prefijos: [] } // Catch-all
 ]
 
+// Alias para columnas con nombres no estándar (legacy)
+// Mapea nombre real → nombre estándar esperado
+const COLUMNAS_ALIAS: Record<string, { componente: string, tipo: 'intervalo' | 'km' | 'fecha' | 'modelo' }> = {
+  'intervalo_cambio_aceite': { componente: 'aceite_motor', tipo: 'intervalo' },
+  'intervalo_cambio_aceite_hr': { componente: 'aceite_motor', tipo: 'intervalo' }, // Alias adicional para horas
+  'intervalo_rotacion_neumaticos': { componente: 'rotacion_neumaticos', tipo: 'intervalo' }
+}
+
 /**
  * Lee los componentes dinámicamente desde la tabla vehiculos
  */
@@ -66,7 +74,12 @@ export async function cargarComponentesDinamicos(): Promise<CategoriaComponentes
       let nombreComponente = ''
       let tipoColumna: 'km' | 'fecha' | 'modelo' | 'intervalo' | 'litros' | 'hr' | null = null
 
-      if (col.endsWith('_km')) {
+      // Primero verificar si es un alias
+      if (COLUMNAS_ALIAS[col]) {
+        const alias = COLUMNAS_ALIAS[col]
+        nombreComponente = alias.componente
+        tipoColumna = alias.tipo
+      } else if (col.endsWith('_km')) {
         nombreComponente = col.replace('_km', '')
         tipoColumna = 'km'
       } else if (col.endsWith('_fecha')) {
