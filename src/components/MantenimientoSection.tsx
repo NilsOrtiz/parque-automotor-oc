@@ -9,6 +9,7 @@ interface Props {
     kmField?: keyof Vehiculo
     dateField?: keyof Vehiculo
     modelField?: keyof Vehiculo
+    intervaloField?: keyof Vehiculo
     litersField?: keyof Vehiculo
     hrField?: keyof Vehiculo
   }>
@@ -166,7 +167,7 @@ export default function MantenimientoSection({
               {field.modelField && (() => {
                 const modelValue = vehiculo[field.modelField] as string
                 const isNotApplicable = modelValue && (
-                  modelValue.toUpperCase() === 'N/A' || 
+                  modelValue.toUpperCase() === 'N/A' ||
                   modelValue.toUpperCase() === 'NO APLICA'
                 )
                 return !isNotApplicable
@@ -184,6 +185,29 @@ export default function MantenimientoSection({
                   ) : (
                     <p className="text-gray-900 font-medium">
                       {vehiculo[field.modelField] as string || 'No registrado'}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Intervalo */}
+              {field.intervaloField && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Intervalo</label>
+                  {editMode ? (
+                    <input
+                      type="number"
+                      value={editedVehiculo?.[field.intervaloField] as number || ''}
+                      onChange={(e) => onUpdate({ [field.intervaloField!]: parseInt(e.target.value) || null })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                      placeholder="km"
+                    />
+                  ) : (
+                    <p className="text-gray-900 font-medium">
+                      {vehiculo[field.intervaloField]
+                        ? (vehiculo[field.intervaloField] as number).toLocaleString() + ' km'
+                        : 'No registrado'
+                      }
                     </p>
                   )}
                 </div>

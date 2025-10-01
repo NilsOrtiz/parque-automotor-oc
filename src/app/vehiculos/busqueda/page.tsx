@@ -609,6 +609,7 @@ export default function BusquedaPage() {
                     kmField: comp.columnaKm as keyof Vehiculo,
                     dateField: comp.columnaFecha as keyof Vehiculo,
                     modelField: comp.columnaModelo as keyof Vehiculo,
+                    intervaloField: comp.columnaIntervalo as keyof Vehiculo,
                     litersField: comp.columnaLitros as keyof Vehiculo,
                     hrField: comp.columnaHr as keyof Vehiculo
                   }))}
