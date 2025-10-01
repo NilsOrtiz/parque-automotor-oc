@@ -273,6 +273,13 @@ export default function AdminSchemaPage() {
                 <Settings className="h-4 w-4" />
                 Configurar Alias
               </Link>
+              <Link
+                href="/admin/categorias"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                Configurar Categorías
+              </Link>
               <button
                 onClick={cargarSchemaReal}
                 disabled={loading}

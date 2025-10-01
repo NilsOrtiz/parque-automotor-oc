@@ -66,6 +66,15 @@ export default function VehiculosPage() {
                       Alias de Columnas
                     </div>
                   </Link>
+                  <Link
+                    href="/admin/categorias"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <List className="h-4 w-4 mr-2" />
+                      Categorías
+                    </div>
+                  </Link>
                 </div>
               )}
             </div>
