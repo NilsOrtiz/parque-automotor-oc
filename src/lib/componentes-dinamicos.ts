@@ -9,6 +9,12 @@ import { cargarConfiguracionCategorias, obtenerCategoriaDeComponente } from './c
 export type ComponenteVehiculo = {
   id: string
   label: string
+  columnaKm?: string
+  columnaFecha?: string
+  columnaModelo?: string
+  columnaIntervalo?: string
+  columnaLitros?: string
+  columnaHr?: string
   fields: {
     km?: string
     fecha?: string
@@ -105,6 +111,14 @@ export async function cargarComponentesDinamicos(): Promise<CategoriaComponentes
 
       const comp = componentesMap.get(nombreComponente)!
       comp.fields[tipoColumna] = col
+
+      // También asignar a las propiedades directas
+      if (tipoColumna === 'km') comp.columnaKm = col
+      else if (tipoColumna === 'fecha') comp.columnaFecha = col
+      else if (tipoColumna === 'modelo') comp.columnaModelo = col
+      else if (tipoColumna === 'intervalo') comp.columnaIntervalo = col
+      else if (tipoColumna === 'litros') comp.columnaLitros = col
+      else if (tipoColumna === 'hr') comp.columnaHr = col
     })
 
     // Convertir a array
@@ -192,3 +206,8 @@ export function obtenerComponentePorId(categorias: CategoriaComponentes[], id: s
   }
   return undefined
 }
+
+/**
+ * Alias para cargarComponentesDinamicos (para compatibilidad)
+ */
+export const obtenerComponentesAgrupados = cargarComponentesDinamicos
