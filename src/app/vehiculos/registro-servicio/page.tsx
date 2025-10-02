@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, type Vehiculo } from '@/lib/supabase'
-import { ArrowLeft, Search, Save, AlertCircle, Droplets, Settings, Disc, Cog, Truck, Wrench, Zap, Circle } from 'lucide-react'
+import { ArrowLeft, Search, Save, AlertCircle } from 'lucide-react'
+import { obtenerComponentesAgrupados, type CategoriaComponentes } from '@/lib/componentes-dinamicos'
 
 interface OrdenCompra {
   id: number
@@ -32,6 +33,10 @@ export default function RegistroServicioPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  // Categorías dinámicas
+  const [categoriasComponentes, setCategoriasComponentes] = useState<CategoriaComponentes[]>([])
+  const [loadingCategorias, setLoadingCategorias] = useState(false)
 
   // Campos del formulario
   const [clasificacion, setClasificacion] = useState<'revision' | 'mantenimiento' | 'reparacion'>('mantenimiento')
@@ -64,6 +69,23 @@ export default function RegistroServicioPage() {
   })
   const [componentesSeleccionados, setComponentesSeleccionados] = useState<Set<string>>(new Set())
 
+  // Cargar categorías al montar el componente
+  useEffect(() => {
+    cargarCategorias()
+  }, [])
+
+  async function cargarCategorias() {
+    setLoadingCategorias(true)
+    try {
+      const categorias = await obtenerComponentesAgrupados()
+      setCategoriasComponentes(categorias)
+    } catch (error) {
+      console.error('Error cargando categorías:', error)
+    } finally {
+      setLoadingCategorias(false)
+    }
+  }
+
   // Actualizar descripción e items automáticamente cuando cambian los componentes
   useEffect(() => {
     if (clasificacion === 'mantenimiento' && seccionesSeleccionadas.size > 0) {
@@ -80,82 +102,11 @@ export default function RegistroServicioPage() {
   }, [componentesSeleccionados, seccionesSeleccionadas, clasificacion, datosGlobales, vehiculo])
 
   const subclasificaciones = [
-    'Motor', 'Transmisión', 'Frenos', 'Suspensión', 'Neumáticos', 
+    'Motor', 'Transmisión', 'Frenos', 'Suspensión', 'Neumáticos',
     'Eléctrico', 'Electrónico', 'Carrocería', 'Interior', 'Documentación',
-    'Climatización', 'Dirección', 'Filtros', 'Fluidos', 'Escape', 
+    'Climatización', 'Dirección', 'Filtros', 'Fluidos', 'Escape',
     'Combustible', 'Seguridad'
   ]
-
-  // Configuración de secciones con iconos (igual que en busqueda)
-  const secciones = [
-    { id: 'aceites-filtros', nombre: 'Aceites y Filtros', icono: Droplets, color: 'blue' },
-    { id: 'transmision-liquidos', nombre: 'Transmisión y Líquidos', icono: Settings, color: 'green' },
-    { id: 'frenos', nombre: 'Sistema de Frenos', icono: Disc, color: 'red' },
-    { id: 'motor-embrague', nombre: 'Motor y Embrague', icono: Cog, color: 'orange' },
-    { id: 'suspension', nombre: 'Suspensión', icono: Truck, color: 'purple' },
-    { id: 'correas', nombre: 'Correas', icono: Wrench, color: 'yellow' },
-    { id: 'electrico', nombre: 'Sistema Eléctrico', icono: Zap, color: 'indigo' },
-    { id: 'neumaticos', nombre: 'Neumáticos', icono: Circle, color: 'gray' }
-  ]
-
-  // Configuración de campos por sección (igual que en busqueda)
-  const camposPorSeccion: Record<string, any[]> = {
-    'aceites-filtros': [
-      { label: "Aceite de Motor", kmField: "aceite_motor_km", dateField: "aceite_motor_fecha", modelField: "aceite_motor_modelo", litersField: "aceite_motor_litros", hrField: "aceite_motor_hr" },
-      { label: "Filtro Aceite Motor", modelField: "filtro_aceite_motor_modelo" },
-      { label: "Filtro de Combustible", kmField: "filtro_combustible_km", dateField: "filtro_combustible_fecha", modelField: "filtro_combustible_modelo" },
-      { label: "Filtro de Aire", kmField: "filtro_aire_km", dateField: "filtro_aire_fecha", modelField: "filtro_aire_modelo" },
-      { label: "Filtro de Cabina", kmField: "filtro_cabina_km", dateField: "filtro_cabina_fecha", modelField: "filtro_cabina_modelo" },
-      { label: "Filtro Deshumidificador", kmField: "filtro_deshumidificador_km", dateField: "filtro_deshumidificador_fecha", modelField: "filtro_deshumidificador_modelo" },
-      { label: "Filtro Secador", kmField: "filtro_secador_km", dateField: "filtro_secador_fecha", modelField: "filtro_secador_modelo" },
-      { label: "Filtro de Aire Secundario", kmField: "filtro_aire_secundario_km", dateField: "filtro_aire_secundario_fecha", modelField: "filtro_aire_secundario_modelo" },
-      { label: "Trampa de Agua", kmField: "trampa_agua_km", dateField: "trampa_agua_fecha", modelField: "trampa_agua_modelo" }
-    ],
-    'transmision-liquidos': [
-      { label: "Aceite de Transmisión", kmField: "aceite_transmicion_km", dateField: "aceite_transmicion_fecha", modelField: "aceite_transmicion_modelo" },
-      { label: "Líquido Refrigerante", kmField: "liquido_refrigerante_km", dateField: "liquido_refrigerante_fecha", modelField: "liquido_refrigerante_modelo" },
-      { label: "Líquido de Frenos", kmField: "liquido_frenos_km", dateField: "liquido_frenos_fecha", modelField: "liquido_frenos_modelo" }
-    ],
-    'frenos': [
-      { label: "Pastillas/Cintas Freno A", kmField: "pastilla_cinta_freno_km_a", dateField: "pastilla_cinta_freno_fecha_a", modelField: "pastilla_cinta_freno_modelo_a" },
-      { label: "Pastillas/Cintas Freno B", kmField: "pastilla_cinta_freno_km_b", dateField: "pastilla_cinta_freno_fecha_b", modelField: "pastilla_cinta_freno_modelo_b" },
-      { label: "Pastillas/Cintas Freno C", kmField: "pastilla_cinta_freno_km_c", dateField: "pastilla_cinta_freno_fecha_c", modelField: "pastilla_cinta_freno_modelo_c" },
-      { label: "Pastillas/Cintas Freno D", kmField: "pastilla_cinta_freno_km_d", dateField: "pastilla_cinta_freno_fecha_d", modelField: "pastilla_cinta_freno_modelo_d" }
-    ],
-    'motor-embrague': [
-      { label: "Embrague", kmField: "embrague_km", dateField: "embrague_fecha", modelField: "embrague_modelo" }
-    ],
-    'suspension': [
-      { label: "Suspensión A", kmField: "suspencion_km_a", dateField: "suspencion_fecha_a", modelField: "suspencion_modelo_a" },
-      { label: "Suspensión B", kmField: "suspencion_km_b", dateField: "suspencion_fecha_b", modelField: "suspencion_modelo_b" },
-      { label: "Suspensión C", kmField: "suspencion_km_c", dateField: "suspencion_fecha_c", modelField: "suspencion_modelo_c" },
-      { label: "Suspensión D", kmField: "suspencion_km_d", dateField: "suspencion_fecha_d", modelField: "suspencion_modelo_d" }
-    ],
-    'correas': [
-      { label: "Correa de Distribución", kmField: "correa_distribucion_km", dateField: "correa_distribucion_fecha", modelField: "correa_distribucion_modelo" },
-      { label: "Correa de Alternador", kmField: "correa_alternador_km", dateField: "correa_alternador_fecha", modelField: "correa_alternador_modelo" },
-      { label: "Correa de Dirección", kmField: "correa_direccion_km", dateField: "correa_direccion_fecha", modelField: "correa_direccion_modelo" },
-      { label: "Correa de Aire Acondicionado", kmField: "correa_aire_acondicionado_km", dateField: "correa_aire_acondicionado_fecha", modelField: "correa_aire_acondicionado_modelo" },
-      { label: "Correa Poly-V", kmField: "correa_polyv_km", dateField: "correa_polyv_fecha", modelField: "correa_polyv_modelo" },
-      { label: "Tensor de Correa", kmField: "tensor_correa_km", dateField: "tensor_correa_fecha", modelField: "tensor_correa_modelo" },
-      { label: "Polea Tensora", kmField: "polea_tensora_correa_km", dateField: "polea_tensora_correa_fecha", modelField: "polea_tensora_correa_modelo" }
-    ],
-    'electrico': [
-      { label: "Batería", kmField: "bateria_km", dateField: "bateria_fecha", modelField: "bateria_modelo" },
-      { label: "Escobillas", kmField: "escobillas_km", dateField: "escobillas_fecha", modelField: "escobillas_modelo" }
-    ],
-    'neumaticos': [
-      { label: "Modelo/Marca General", modelField: "neumatico_modelo_marca" },
-      { label: "Neumático A", kmField: "neumatico_km_a", dateField: "neumatico_fecha_a" },
-      { label: "Neumático B", kmField: "neumatico_km_b", dateField: "neumatico_fecha_b" },
-      { label: "Neumático C", kmField: "neumatico_km_c", dateField: "neumatico_fecha_c" },
-      { label: "Neumático D", kmField: "neumatico_km_d", dateField: "neumatico_fecha_d" },
-      { label: "Neumático E", kmField: "neumatico_km_e", dateField: "neumatico_fecha_e" },
-      { label: "Neumático F", kmField: "neumatico_km_f", dateField: "neumatico_fecha_f" },
-      { label: "Alineación", kmField: "alineacion_neumaticos_km", dateField: "alineacion_neumaticos_fecha" },
-      { label: "Rotación", kmField: "rotacion_neumaticos_km", dateField: "rotacion_neumaticos_fecha" }
-    ]
-  }
 
   async function buscarVehiculo() {
     if (!busquedaVehiculo.trim()) {
@@ -543,17 +494,25 @@ export default function RegistroServicioPage() {
     return configuracionVehiculo.componentes_aplicables[numeroComponente] === true
   }
 
-  // Función para filtrar campos por configuración
+  // Función para obtener campos de una categoría
+  const obtenerCamposPorCategoria = (categoriaId: string) => {
+    const categoria = categoriasComponentes.find(cat => cat.id === categoriaId)
+    if (!categoria) return []
+
+    return categoria.componentes.map(comp => ({
+      label: comp.label,
+      kmField: comp.columnaKm,
+      dateField: comp.columnaFecha,
+      modelField: comp.columnaModelo,
+      intervaloField: comp.columnaIntervalo,
+      litersField: comp.columnaLitros,
+      hrField: comp.columnaHr
+    }))
+  }
+
+  // Función para filtrar campos por configuración (retrocompatibilidad)
   const obtenerCamposFiltrados = (seccionId: string) => {
-    if (!configuracionVehiculo?.componentes_aplicables) {
-      return camposPorSeccion[seccionId] || []
-    }
-    
-    return (camposPorSeccion[seccionId] || []).filter((campo) => {
-      // Mapear el label del campo a su clave
-      const componenteKey = mapearLabelAKey(campo.label)
-      return debeMotrarComponente(seccionId, componenteKey)
-    })
+    return obtenerCamposPorCategoria(seccionId)
   }
 
   // Función helper para mapear labels a keys
@@ -914,28 +873,27 @@ export default function RegistroServicioPage() {
 
                   {/* Iconos Permanentes como Toggles */}
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-                    {secciones.map((seccion) => {
-                      const IconoComponente = seccion.icono
-                      const estaActiva = seccionesSeleccionadas.has(seccion.id)
+                    {categoriasComponentes.map((categoria) => {
+                      const estaActiva = seccionesSeleccionadas.has(categoria.id)
 
                       return (
                         <button
-                          key={seccion.id}
-                          onClick={() => toggleSeccionMultiple(seccion.id)}
+                          key={categoria.id}
+                          onClick={() => toggleSeccionMultiple(categoria.id)}
                           className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md ${
                             estaActiva
                               ? 'border-green-500 bg-green-100 shadow-lg transform scale-105'
-                              : obtenerColorSeccion(seccion.color) + ' hover:shadow-md'
+                              : 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 hover:shadow-md'
                           }`}
-                          title={`${seccion.nombre} - ${estaActiva ? 'Activo' : 'Inactivo'}`}
+                          title={`${categoria.nombre} - ${estaActiva ? 'Activo' : 'Inactivo'}`}
                         >
-                          <IconoComponente className={`h-6 w-6 mb-2 transition-all ${
-                            estaActiva ? 'text-green-700 scale-110' : ''
-                          }`} />
+                          <span className={`text-2xl mb-2 transition-all ${
+                            estaActiva ? 'scale-110' : ''
+                          }`}>{categoria.icono}</span>
                           <span className={`text-xs font-medium text-center leading-tight transition-all ${
                             estaActiva ? 'text-green-800 font-bold' : ''
                           }`}>
-                            {seccion.nombre.split(' ').map((palabra, i) => (
+                            {categoria.nombre.split(' ').map((palabra, i) => (
                               <div key={i}>{palabra}</div>
                             ))}
                           </span>
@@ -979,14 +937,13 @@ export default function RegistroServicioPage() {
                         <div className="flex items-center gap-3">
                           <div className="flex -space-x-2">
                             {Array.from(seccionesSeleccionadas).slice(0, 3).map(seccionId => {
-                              const seccion = secciones.find(s => s.id === seccionId)
-                              const IconoComponente = seccion?.icono || Circle
+                              const categoria = categoriasComponentes.find(c => c.id === seccionId)
                               return (
                                 <div
                                   key={seccionId}
-                                  className={`p-2 rounded-lg border-2 border-white ${obtenerColorSeccion(seccion?.color || 'gray')}`}
+                                  className="p-2 rounded-lg border-2 border-white bg-gray-50"
                                 >
-                                  <IconoComponente className="h-5 w-5" />
+                                  <span className="text-xl">{categoria?.icono || '📦'}</span>
                                 </div>
                               )
                             })}
@@ -1002,7 +959,7 @@ export default function RegistroServicioPage() {
                             </h4>
                             <p className="text-sm text-gray-600">
                               {Array.from(seccionesSeleccionadas)
-                                .map(id => secciones.find(s => s.id === id)?.nombre)
+                                .map(id => categoriasComponentes.find(c => c.id === id)?.nombre)
                                 .join(', ')}
                             </p>
                           </div>
@@ -1095,16 +1052,15 @@ export default function RegistroServicioPage() {
                         <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
                           {/* Mostrar componentes agrupados por sistema */}
                           {Array.from(seccionesSeleccionadas).map(seccionId => {
-                            const seccion = secciones.find(s => s.id === seccionId)
+                            const categoria = categoriasComponentes.find(c => c.id === seccionId)
                             const campos = obtenerCamposFiltrados(seccionId)
-                            const IconoComponente = seccion?.icono || Circle
 
                             return (
                               <div key={seccionId} className="border border-gray-200 rounded-lg overflow-hidden">
-                                <div className={`p-3 ${obtenerColorSeccion(seccion?.color || 'gray')} border-b`}>
+                                <div className="p-3 bg-gray-50 border-b">
                                   <div className="flex items-center gap-2">
-                                    <IconoComponente className="h-5 w-5" />
-                                    <h6 className="font-semibold">{seccion?.nombre}</h6>
+                                    <span className="text-xl">{categoria?.icono || '📦'}</span>
+                                    <h6 className="font-semibold">{categoria?.nombre}</h6>
                                     <span className="text-xs bg-white bg-opacity-30 px-2 py-1 rounded-full">
                                       {campos.length} componentes
                                     </span>
