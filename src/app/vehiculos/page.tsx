@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle, List, Fuel, Circle, Droplets, Link2, Cog } from 'lucide-react'
+import { Search, Settings, ArrowRight, BarChart3, ClipboardCheck, FileText, AlertTriangle, List, Fuel, Circle, Droplets, Link2, Cog, Eye } from 'lucide-react'
 import { useState } from 'react'
 
 export default function VehiculosPage() {
@@ -82,6 +82,41 @@ export default function VehiculosPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {/* Ojo de Dios */}
+          <Link href="/vehiculos/ojo-de-dios" className="group">
+            <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-violet-500 group-hover:border-violet-600">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="bg-violet-100 p-3 rounded-lg mr-4">
+                    <Eye className="h-8 w-8 text-violet-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 group-hover:text-violet-600">
+                      Ojo de Dios
+                    </h2>
+                    <p className="text-gray-500">Vista completa de todos los datos</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-6 w-6 text-gray-400 group-hover:text-violet-600 transition-colors" />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-violet-400 rounded-full mr-3"></div>
+                  Tabla completa de vehículos
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-violet-400 rounded-full mr-3"></div>
+                  Todos los datos de mantenimiento
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-violet-400 rounded-full mr-3"></div>
+                  Exportar a CSV
+                </div>
+              </div>
+            </div>
+          </Link>
+
           {/* Búsqueda de Vehículo */}
           <Link href="/vehiculos/busqueda" className="group">
             <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-l-4 border-blue-500 group-hover:border-blue-600">
@@ -99,7 +134,7 @@ export default function VehiculosPage() {
                 </div>
                 <ArrowRight className="h-6 w-6 text-gray-400 group-hover:text-blue-600 transition-colors" />
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-blue-400 rounded-full mr-3"></div>
