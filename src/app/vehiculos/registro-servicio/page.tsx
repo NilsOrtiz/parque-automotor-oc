@@ -362,7 +362,7 @@ export default function RegistroServicioPage() {
   // Funciones para formularios rápidos
   const seleccionarSeccion = (seccionId: string) => {
     setSeccionSeleccionada(seccionId)
-    setSubclasificacion(secciones.find(s => s.id === seccionId)?.nombre || '')
+    setSubclasificacion(categoriasComponentes.find(c => c.id === seccionId)?.nombre || '')
   }
 
   const toggleSeccionMultiple = (seccionId: string) => {
@@ -377,7 +377,7 @@ export default function RegistroServicioPage() {
     // Actualizar subclasificación con sistemas seleccionados
     if (nuevasSecciones.size > 0) {
       const nombresSecciones = Array.from(nuevasSecciones)
-        .map(id => secciones.find(s => s.id === id)?.nombre)
+        .map(id => categoriasComponentes.find(c => c.id === id)?.nombre)
         .filter(Boolean)
         .join(', ')
       setSubclasificacion(nombresSecciones)
@@ -921,7 +921,7 @@ export default function RegistroServicioPage() {
                           </h5>
                           <p className="text-sm text-green-700">
                             {Array.from(seccionesSeleccionadas)
-                              .map(id => secciones.find(s => s.id === id)?.nombre)
+                              .map(id => categoriasComponentes.find(c => c.id === id)?.nombre)
                               .join(', ')}
                           </p>
                         </div>
