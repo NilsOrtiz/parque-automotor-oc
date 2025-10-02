@@ -177,12 +177,17 @@ export default function RegistroServicioPage() {
       historialConOrdenes?.forEach(registro => {
         if (registro.ocs_vehiculos) {
           try {
-            const ids = JSON.parse(registro.ocs_vehiculos)
-            if (Array.isArray(ids)) {
-              ids.forEach(id => ordenesUtilizadas.add(id))
+            // Validar que sea JSON válido antes de parsear
+            const value = registro.ocs_vehiculos.trim()
+            if (value.startsWith('[') || value.startsWith('{')) {
+              const ids = JSON.parse(value)
+              if (Array.isArray(ids)) {
+                ids.forEach(id => ordenesUtilizadas.add(id))
+              }
             }
+            // Si no es JSON válido, simplemente lo ignoramos silenciosamente
           } catch (e) {
-            console.error('Error parseando ocs_vehiculos:', e)
+            // Ignorar silenciosamente datos corruptos en ocs_vehiculos
           }
         }
       })

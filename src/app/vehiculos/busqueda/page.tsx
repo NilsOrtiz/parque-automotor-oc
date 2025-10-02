@@ -118,17 +118,22 @@ export default function BusquedaPage() {
         
         if (registro.ocs_vehiculos) {
           try {
-            const idsOrdenes = JSON.parse(registro.ocs_vehiculos)
-            if (Array.isArray(idsOrdenes) && idsOrdenes.length > 0) {
-              const { data: ordenes } = await supabase
-                .from('ordenes_de_compra_por_vehiculo')
-                .select('id, codigo_oc, proveedor, items, monto_vehiculo, moneda')
-                .in('id', idsOrdenes)
-              
-              ordenesRelacionadas = ordenes || []
+            // Validar que sea JSON válido antes de parsear
+            const value = registro.ocs_vehiculos.trim()
+            if (value.startsWith('[') || value.startsWith('{')) {
+              const idsOrdenes = JSON.parse(value)
+              if (Array.isArray(idsOrdenes) && idsOrdenes.length > 0) {
+                const { data: ordenes } = await supabase
+                  .from('ordenes_de_compra_por_vehiculo')
+                  .select('id, codigo_oc, proveedor, items, monto_vehiculo, moneda')
+                  .in('id', idsOrdenes)
+
+                ordenesRelacionadas = ordenes || []
+              }
             }
+            // Si no es JSON válido, simplemente lo ignoramos silenciosamente
           } catch (e) {
-            console.error('Error parseando ocs_vehiculos:', e)
+            // Ignorar silenciosamente datos corruptos en ocs_vehiculos
           }
         }
         
