@@ -7,11 +7,11 @@ import { Eye, Download, Filter, RefreshCw } from 'lucide-react'
 
 interface VehiculoCompleto {
   id: number
-  placa: string
-  numero_interno: number
-  marca: string
-  modelo: string
-  año: number
+  Placa: string
+  Nro_Interno: number
+  Marca: string
+  Modelo: string
+  Año: number
   kilometraje_actual: number
   [key: string]: any
 }
@@ -31,7 +31,7 @@ export default function OjoDeDios() {
     try {
       const [cats, { data: vehs }] = await Promise.all([
         obtenerComponentesAgrupados(),
-        supabase.from('vehiculos').select('*').order('numero_interno', { ascending: true })
+        supabase.from('vehiculos').select('*').order('Nro_Interno', { ascending: true })
       ])
 
       setCategorias(cats)
@@ -47,10 +47,10 @@ export default function OjoDeDios() {
     if (!filtroTexto) return true
     const texto = filtroTexto.toLowerCase()
     return (
-      v.placa?.toLowerCase().includes(texto) ||
-      v.numero_interno?.toString().includes(texto) ||
-      v.marca?.toLowerCase().includes(texto) ||
-      v.modelo?.toLowerCase().includes(texto)
+      v.Placa?.toLowerCase().includes(texto) ||
+      v.Nro_Interno?.toString().includes(texto) ||
+      v.Marca?.toLowerCase().includes(texto) ||
+      v.Modelo?.toLowerCase().includes(texto)
     )
   })
 
@@ -97,11 +97,11 @@ export default function OjoDeDios() {
     const allHeaders = [...headers, ...componentesHeaders].join(',')
     const rows = vehiculosFiltrados.map(v => {
       const baseData = [
-        v.placa || '',
-        v.numero_interno || '',
-        v.marca || '',
-        v.modelo || '',
-        v.año || '',
+        v.Placa || '',
+        v.Nro_Interno || '',
+        v.Marca || '',
+        v.Modelo || '',
+        v.Año || '',
         v.kilometraje_actual || ''
       ]
 
@@ -240,11 +240,11 @@ export default function OjoDeDios() {
             {vehiculosFiltrados.map((vehiculo) => (
               <tr key={vehiculo.id} className="hover:bg-blue-50 transition-colors">
                 {/* Datos básicos del vehículo */}
-                <td className="border border-gray-300 px-2 py-1 font-medium bg-white sticky left-0">{vehiculo.placa}</td>
-                <td className="border border-gray-300 px-2 py-1">{vehiculo.numero_interno}</td>
-                <td className="border border-gray-300 px-2 py-1">{vehiculo.marca}</td>
-                <td className="border border-gray-300 px-2 py-1">{vehiculo.modelo}</td>
-                <td className="border border-gray-300 px-2 py-1">{vehiculo.año}</td>
+                <td className="border border-gray-300 px-2 py-1 font-medium bg-white sticky left-0">{vehiculo.Placa}</td>
+                <td className="border border-gray-300 px-2 py-1">{vehiculo.Nro_Interno}</td>
+                <td className="border border-gray-300 px-2 py-1">{vehiculo.Marca}</td>
+                <td className="border border-gray-300 px-2 py-1">{vehiculo.Modelo}</td>
+                <td className="border border-gray-300 px-2 py-1">{vehiculo.Año}</td>
                 <td className="border border-gray-300 px-2 py-1">{vehiculo.kilometraje_actual?.toLocaleString()}</td>
 
                 {/* Datos de componentes dinámicos */}
