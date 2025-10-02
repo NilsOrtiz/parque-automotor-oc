@@ -1019,3 +1019,370 @@ Este sistema es una arquitectura de **detección dinámica con configuración en
 - Cuando la estructura es fija y conocida
 - Cuando se necesita validación estricta de tipos
 - Cuando el rendimiento es crítico (muchas queries)
+
+---
+
+## 9. Integración en Páginas del Sistema
+
+### 9.1 Búsqueda de Vehículos (`/vehiculos/busqueda`)
+
+**Implementación del Sistema Dinámico:**
+
+```typescript
+// Cargar categorías al montar
+const [componentesAgrupados, setComponentesAgrupados] = useState<CategoriaComponentes[]>([])
+
+useEffect(() => {
+  cargarComponentesAgrupados()
+}, [])
+
+async function cargarComponentesAgrupados() {
+  const categorias = await obtenerComponentesAgrupados()
+  setComponentesAgrupados(categorias)
+}
+```
+
+**Navegación Rápida Dinámica:**
+
+```tsx
+{/* Botones de navegación generados dinámicamente */}
+<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+  {componentesAgrupados.map((categoria) => (
+    <button
+      key={categoria.id}
+      onClick={() => scrollToSection(categoria.id)}
+      className="flex flex-col items-center p-3 rounded-lg"
+    >
+      <span className="text-2xl mb-2">{categoria.icono}</span>
+      <span className="text-xs font-medium">{categoria.nombre}</span>
+    </button>
+  ))}
+</div>
+```
+
+**Secciones de Mantenimiento Dinámicas:**
+
+```tsx
+{/* Mapeo dinámico de categorías a secciones de UI */}
+{componentesAgrupados.map((categoria) => (
+  <div key={categoria.id} id={categoria.id}>
+    <MantenimientoSection
+      title={categoria.nombre}
+      fields={categoria.componentes.map(comp => ({
+        label: comp.label,
+        kmField: comp.columnaKm as keyof Vehiculo,
+        dateField: comp.columnaFecha as keyof Vehiculo,
+        modelField: comp.columnaModelo as keyof Vehiculo,
+        intervaloField: comp.columnaIntervalo as keyof Vehiculo,
+        litersField: comp.columnaLitros as keyof Vehiculo,
+        hrField: comp.columnaHr as keyof Vehiculo
+      }))}
+      vehiculo={vehiculo}
+      editedVehiculo={editedVehiculo}
+      editMode={editMode}
+      onUpdate={updateVehiculo}
+    />
+  </div>
+))}
+```
+
+**Ventajas de esta implementación:**
+- ✅ No requiere actualizar código al agregar componentes
+- ✅ Iconos y nombres se cargan desde la configuración
+- ✅ Secciones se generan automáticamente
+- ✅ Se adapta al perfil del vehículo (si está implementado)
+
+### 9.2 Registro de Servicio (`/vehiculos/registro-servicio`)
+
+**Carga de Categorías Dinámicas:**
+
+```typescript
+const [categoriasComponentes, setCategoriasComponentes] = useState<CategoriaComponentes[]>([])
+
+useEffect(() => {
+  cargarCategorias()
+}, [])
+
+async function cargarCategorias() {
+  const categorias = await obtenerComponentesAgrupados()
+  setCategoriasComponentes(categorias)
+}
+```
+
+**Selección de Sistemas con Iconos Dinámicos:**
+
+```tsx
+{/* Toggles de sistemas generados desde categorías */}
+<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+  {categoriasComponentes.map((categoria) => {
+    const estaActiva = seccionesSeleccionadas.has(categoria.id)
+
+    return (
+      <button
+        key={categoria.id}
+        onClick={() => toggleSeccionMultiple(categoria.id)}
+        className={`flex flex-col items-center p-3 rounded-lg border-2 ${
+          estaActiva
+            ? 'border-green-500 bg-green-100 shadow-lg'
+            : 'border-gray-200 bg-gray-50'
+        }`}
+      >
+        <span className="text-2xl mb-2">{categoria.icono}</span>
+        <span className="text-xs font-medium">{categoria.nombre}</span>
+        {/* Indicador de estado */}
+        <div className={`mt-1 w-2 h-2 rounded-full ${
+          estaActiva ? 'bg-green-500' : 'bg-gray-300'
+        }`}></div>
+      </button>
+    )
+  })}
+</div>
+```
+
+**Función para Obtener Campos por Categoría:**
+
+```typescript
+// Obtener campos de una categoría específica
+const obtenerCamposPorCategoria = (categoriaId: string) => {
+  const categoria = categoriasComponentes.find(cat => cat.id === categoriaId)
+  if (!categoria) return []
+
+  return categoria.componentes.map(comp => ({
+    label: comp.label,
+    kmField: comp.columnaKm,
+    dateField: comp.columnaFecha,
+    modelField: comp.columnaModelo,
+    intervaloField: comp.columnaIntervalo,
+    litersField: comp.columnaLitros,
+    hrField: comp.columnaHr
+  }))
+}
+
+// Retrocompatibilidad con código existente
+const obtenerCamposFiltrados = (seccionId: string) => {
+  return obtenerCamposPorCategoria(seccionId)
+}
+```
+
+**Actualización de Subclasificaciones:**
+
+```typescript
+// Al seleccionar una categoría, actualizar subclasificación
+const toggleSeccionMultiple = (seccionId: string) => {
+  const nuevasSecciones = new Set(seccionesSeleccionadas)
+
+  if (nuevasSecciones.has(seccionId)) {
+    nuevasSecciones.delete(seccionId)
+  } else {
+    nuevasSecciones.add(seccionId)
+  }
+
+  setSeccionesSeleccionadas(nuevasSecciones)
+
+  // Actualizar subclasificación con nombres dinámicos
+  if (nuevasSecciones.size > 0) {
+    const nombresSecciones = Array.from(nuevasSecciones)
+      .map(id => categoriasComponentes.find(c => c.id === id)?.nombre)
+      .filter(Boolean)
+      .join(', ')
+    setSubclasificacion(nombresSecciones)
+  } else {
+    setSubclasificacion('')
+  }
+}
+```
+
+**Listado de Componentes para Selección:**
+
+```tsx
+{/* Componentes seleccionables por categoría */}
+{Array.from(seccionesSeleccionadas).map(seccionId => {
+  const categoria = categoriasComponentes.find(c => c.id === seccionId)
+  const campos = obtenerCamposFiltrados(seccionId)
+
+  return (
+    <div key={seccionId} className="border rounded-lg overflow-hidden">
+      <div className="p-3 bg-gray-50 border-b">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">{categoria?.icono || '📦'}</span>
+          <h6 className="font-semibold">{categoria?.nombre}</h6>
+          <span className="text-xs bg-white px-2 py-1 rounded-full">
+            {campos.length} componentes
+          </span>
+        </div>
+      </div>
+
+      <div className="p-3 space-y-2">
+        {campos.map((campo, index) => (
+          <div key={`${seccionId}-${index}`} className="p-2 border rounded-lg">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={componentesSeleccionados.has(campo.label)}
+                onChange={() => toggleComponente(campo.label)}
+                className="mr-3"
+              />
+              <span className="font-medium">{campo.label}</span>
+            </label>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+})}
+```
+
+**Ventajas de esta implementación:**
+- ✅ Formularios rápidos se adaptan automáticamente
+- ✅ Componentes se cargan desde configuración
+- ✅ Iconos personalizables por categoría
+- ✅ Estado visual dinámico (activo/inactivo)
+- ✅ Subclasificaciones automáticas
+
+### 9.3 Manejo de Errores en Datos Legacy
+
+**Problema:** Registros antiguos con datos corruptos en `ocs_vehiculos`
+
+**Solución Implementada:**
+
+```typescript
+// Validación antes de parsear JSON
+historialConOrdenes?.forEach(registro => {
+  if (registro.ocs_vehiculos) {
+    try {
+      // Validar formato JSON válido
+      const value = registro.ocs_vehiculos.trim()
+      if (value.startsWith('[') || value.startsWith('{')) {
+        const ids = JSON.parse(value)
+        if (Array.isArray(ids)) {
+          ids.forEach(id => ordenesUtilizadas.add(id))
+        }
+      }
+      // Si no es JSON válido, ignorar silenciosamente
+    } catch (e) {
+      // Ignorar silenciosamente datos corruptos
+    }
+  }
+})
+```
+
+**Errores comunes evitados:**
+- ❌ `SyntaxError: Unexpected token 'N', "NA" is not valid JSON`
+- ❌ `SyntaxError: Unexpected non-whitespace character after JSON`
+
+**Aplicado en:**
+- `/vehiculos/busqueda` (función `cargarHistorial`)
+- `/vehiculos/registro-servicio` (función `cargarOrdenesDisponibles`)
+
+### 9.4 Componente MantenimientoSection
+
+**Actualización para Soportar Todos los Campos:**
+
+```typescript
+interface Props {
+  title: string
+  fields: Array<{
+    label: string
+    kmField?: keyof Vehiculo
+    dateField?: keyof Vehiculo
+    modelField?: keyof Vehiculo
+    intervaloField?: keyof Vehiculo    // ← NUEVO
+    litersField?: keyof Vehiculo
+    hrField?: keyof Vehiculo
+  }>
+  vehiculo: Vehiculo
+  editedVehiculo: Vehiculo | null
+  editMode: boolean
+  onUpdate: (updates: Partial<Vehiculo>) => void
+}
+```
+
+**Campos Renderizados:**
+1. **Kilometraje** - Valor numérico con formato `X,XXX km`
+2. **Fecha** - Date picker con formato local
+3. **Modelo** - Campo de texto libre
+4. **Intervalo** - Valor numérico con formato `X,XXX km` (NUEVO)
+5. **Litros** - Valor decimal con formato `X.X L`
+6. **Horas** - Valor numérico con formato `X,XXX hrs`
+
+**Lógica de Ocultación:**
+- Solo muestra campos que tienen datos válidos
+- Oculta campos marcados como "N/A" o "No Aplica"
+- Oculta fechas con valor `1900-01-01`
+- Oculta valores numéricos con `-1`
+
+### 9.5 Patrón de Migración para Otras Páginas
+
+**Template para adaptar páginas al sistema dinámico:**
+
+1. **Importar dependencias:**
+```typescript
+import { obtenerComponentesAgrupados, type CategoriaComponentes } from '@/lib/componentes-dinamicos'
+```
+
+2. **Agregar estado:**
+```typescript
+const [categoriasComponentes, setCategoriasComponentes] = useState<CategoriaComponentes[]>([])
+```
+
+3. **Cargar en useEffect:**
+```typescript
+useEffect(() => {
+  async function cargar() {
+    const categorias = await obtenerComponentesAgrupados()
+    setCategoriasComponentes(categorias)
+  }
+  cargar()
+}, [])
+```
+
+4. **Reemplazar constantes hardcodeadas:**
+```typescript
+// ❌ ANTES
+const secciones = [
+  { id: 'aceites-filtros', nombre: 'Aceites y Filtros', ... },
+  // ...
+]
+
+// ✅ DESPUÉS
+{categoriasComponentes.map(categoria => (
+  // Usar categoria.id, categoria.nombre, categoria.icono
+))}
+```
+
+5. **Actualizar referencias:**
+```typescript
+// ❌ ANTES
+secciones.find(s => s.id === id)?.nombre
+
+// ✅ DESPUÉS
+categoriasComponentes.find(c => c.id === id)?.nombre
+```
+
+**Páginas pendientes de migración:**
+- `/vehiculos/mantenimientos` - Lista de mantenimientos
+- `/vehiculos/neumaticos` - Gestión de neumáticos
+- Otras páginas que muestren componentes de vehículos
+
+---
+
+## Resumen de Mejoras Recientes
+
+### Cambios en la Arquitectura
+1. ✅ Sistema completamente dinámico de categorías
+2. ✅ Integración en búsqueda de vehículos
+3. ✅ Integración en registro de servicio
+4. ✅ Soporte completo de 6 tipos de campos
+5. ✅ Manejo robusto de datos legacy corruptos
+
+### Impacto en Mantenibilidad
+- **Reducción de código:** ~550 líneas menos de código hardcodeado
+- **Flexibilidad:** Cambios en UI sin tocar código
+- **Escalabilidad:** Agregar componentes es instantáneo
+- **Debugging:** Errores silenciosos para datos legacy
+
+### Próximos Pasos Recomendados
+1. Migrar `/vehiculos/mantenimientos` al sistema dinámico
+2. Agregar filtrado por perfil en registro de servicio
+3. Implementar validaciones dinámicas por tipo de componente
+4. Crear página de reportes con categorías dinámicas
