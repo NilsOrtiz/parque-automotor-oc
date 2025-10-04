@@ -462,13 +462,14 @@ export default function OjoDeDios() {
     // Vista colapsada - solo el cuadrado con porcentaje
     return (
       <td
-        className={`border border-gray-300 p-2 cursor-pointer hover:opacity-80 transition-opacity ${colorClass}`}
+        className={`border border-gray-300 p-1 cursor-pointer hover:opacity-80 transition-opacity ${colorClass}`}
         onClick={() => toggleCelda(vehiculo.id, componente.id)}
         title="Click para expandir"
+        style={{ minWidth: '50px', maxWidth: '80px' }}
       >
         <div className="flex items-center justify-center">
-          <span className="font-bold text-sm">
-            {porcentaje !== null ? `${porcentaje.toFixed(1)}%` : 'S/D'}
+          <span className="font-bold text-[10px]">
+            {porcentaje !== null ? `${porcentaje.toFixed(0)}%` : 'S/D'}
           </span>
         </div>
       </td>
@@ -546,24 +547,66 @@ export default function OjoDeDios() {
           <thead className="sticky top-0 bg-gray-100 z-10">
             <tr>
               {/* Columnas fijas de vehículo */}
-              <th className="border border-gray-300 px-2 py-1 font-semibold text-left bg-blue-50 sticky left-0 z-20">Placa</th>
-              <th className="border border-gray-300 px-2 py-1 font-semibold text-left bg-blue-50">Int.</th>
-              <th className="border border-gray-300 px-2 py-1 font-semibold text-left bg-blue-50">Marca</th>
-              <th className="border border-gray-300 px-2 py-1 font-semibold text-left bg-blue-50">Modelo</th>
-              <th className="border border-gray-300 px-2 py-1 font-semibold text-left bg-blue-50">Año</th>
-              <th className="border border-gray-300 px-2 py-1 font-semibold text-left bg-blue-50">KM Actual</th>
+              <th className="border border-gray-300 px-1 py-1 font-semibold text-left bg-blue-50 sticky left-0 z-20" style={{ minWidth: '65px', maxWidth: '65px' }}>
+                <div className="text-[9px]">Placa</div>
+              </th>
+              <th className="border border-gray-300 px-1 py-1 font-semibold text-left bg-blue-50" style={{ minWidth: '35px', maxWidth: '35px' }}>
+                <div className="text-[9px]">Int</div>
+              </th>
+              <th className="border border-gray-300 px-1 py-1 font-semibold text-left bg-blue-50" style={{ minWidth: '50px', maxWidth: '70px' }}>
+                <div className="text-[9px]">Marca</div>
+              </th>
+              <th className="border border-gray-300 px-1 py-1 font-semibold text-left bg-blue-50" style={{ minWidth: '50px', maxWidth: '70px' }}>
+                <div className="text-[9px]">Modelo</div>
+              </th>
+              <th className="border border-gray-300 px-1 py-1 font-semibold text-left bg-blue-50" style={{ minWidth: '35px', maxWidth: '35px' }}>
+                <div className="text-[9px]">Año</div>
+              </th>
+              <th className="border border-gray-300 px-1 py-1 font-semibold text-left bg-blue-50" style={{ minWidth: '55px', maxWidth: '55px' }}>
+                <div className="text-[9px]">KM Act</div>
+              </th>
 
               {/* Columnas dinámicas de componentes */}
               {categorias.map(categoria => (
-                categoria.componentes.map(componente => (
-                  <th
-                    key={`${categoria.id}-${componente.id}`}
-                    className="border border-gray-300 px-2 py-1 font-semibold text-center whitespace-nowrap"
-                    title={componente.label}
-                  >
-                    {componente.label}
-                  </th>
-                ))
+                categoria.componentes.map(componente => {
+                  // Crear versión abreviada del nombre
+                  const nombreCorto = componente.label
+                    .replace(/Aceite/g, 'Ac')
+                    .replace(/Filtro/g, 'Flt')
+                    .replace(/Motor/g, 'Mtr')
+                    .replace(/Transmisión/g, 'Trans')
+                    .replace(/Refrigerante/g, 'Refri')
+                    .replace(/Frenos/g, 'Frn')
+                    .replace(/Combustible/g, 'Comb')
+                    .replace(/Pastilla/g, 'Past')
+                    .replace(/Cinta/g, 'Cnt')
+                    .replace(/Suspensión/g, 'Susp')
+                    .replace(/Correa/g, 'Crr')
+                    .replace(/Distribución/g, 'Dist')
+                    .replace(/Alternador/g, 'Alt')
+                    .replace(/Dirección/g, 'Dir')
+                    .replace(/Aire Acondicionado/g, 'A/C')
+                    .replace(/Tensora/g, 'Tens')
+                    .replace(/Neumático/g, 'Neum')
+                    .replace(/Alineación/g, 'Alin')
+                    .replace(/Rotación/g, 'Rot')
+                    .replace(/Secundario/g, 'Sec')
+                    .replace(/Deshumidificador/g, 'Deshum')
+                    .replace(/Modelo\/Marca/g, 'Mod')
+
+                  return (
+                    <th
+                      key={`${categoria.id}-${componente.id}`}
+                      className="border border-gray-300 px-1 py-1 font-semibold text-center"
+                      title={componente.label}
+                      style={{ minWidth: '50px', maxWidth: '80px' }}
+                    >
+                      <div className="text-[9px] leading-tight break-words">
+                        {nombreCorto}
+                      </div>
+                    </th>
+                  )
+                })
               ))}
             </tr>
           </thead>
@@ -572,12 +615,12 @@ export default function OjoDeDios() {
             {vehiculosFiltrados.map((vehiculo) => (
               <tr key={vehiculo.id} className="hover:bg-blue-50 transition-colors">
                 {/* Datos básicos del vehículo */}
-                <td className="border border-gray-300 px-2 py-1 font-medium bg-white sticky left-0">{vehiculo.Placa}</td>
-                <td className="border border-gray-300 px-2 py-1">{vehiculo.Nro_Interno}</td>
-                <td className="border border-gray-300 px-2 py-1">{vehiculo.Marca}</td>
-                <td className="border border-gray-300 px-2 py-1">{vehiculo.Modelo}</td>
-                <td className="border border-gray-300 px-2 py-1">{vehiculo.Año}</td>
-                <td className="border border-gray-300 px-2 py-1 text-right">{vehiculo.kilometraje_actual?.toLocaleString()}</td>
+                <td className="border border-gray-300 px-1 py-0.5 font-medium bg-white sticky left-0 text-[10px]">{vehiculo.Placa}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-[10px] text-center">{vehiculo.Nro_Interno}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-[10px]">{vehiculo.Marca}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-[10px]">{vehiculo.Modelo}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-[10px] text-center">{vehiculo.Año}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-right text-[10px]">{vehiculo.kilometraje_actual?.toLocaleString()}</td>
 
                 {/* Componentes agrupados */}
                 {categorias.map(categoria => (
