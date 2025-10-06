@@ -40,6 +40,7 @@ export default function AdminSchemaPage() {
   const [sqlGenerado, setSqlGenerado] = useState('')
   const [copiado, setCopiado] = useState(false)
   const [mostrarFormNuevo, setMostrarFormNuevo] = useState(false)
+  const [columnasIgnoradas, setColumnasIgnoradas] = useState<string[]>([])
 
   useEffect(() => {
     cargarSchemaReal()
@@ -176,6 +177,7 @@ export default function AdminSchemaPage() {
       }
 
       setComponentesReales(componentesArray)
+      setColumnasIgnoradas(columnasIgnoradas)
     } catch (error) {
       console.error('Error cargando schema:', error)
       alert('Error cargando el schema de la base de datos')
@@ -317,6 +319,36 @@ export default function AdminSchemaPage() {
                 <p className="text-sm text-yellow-700 mt-1">
                   Hay componentes que no tienen todas las columnas estándar (km, fecha, modelo, intervalo)
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Alert de columnas ignoradas */}
+        {columnasIgnoradas.length > 0 && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+            <div className="flex">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  {columnasIgnoradas.length} columnas ignoradas (no siguen el patrón)
+                </h3>
+                <p className="text-sm text-red-700 mt-1 mb-3">
+                  Estas columnas no están excluidas pero no siguen el patrón estándar {'{'}componente{'}_'}{'{'}tipo{'}'}.
+                  Debes configurarlas como alias en <Link href="/admin/alias" className="underline font-medium">Configurar Alias</Link>.
+                </p>
+                <details className="text-sm">
+                  <summary className="cursor-pointer font-medium text-red-800 hover:text-red-900">
+                    Ver lista completa de columnas ignoradas
+                  </summary>
+                  <div className="mt-2 bg-white rounded p-3 max-h-60 overflow-y-auto">
+                    <ul className="list-disc list-inside space-y-1">
+                      {columnasIgnoradas.map(col => (
+                        <li key={col} className="font-mono text-xs text-gray-700">{col}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </details>
               </div>
             </div>
           </div>
