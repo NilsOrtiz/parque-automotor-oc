@@ -24,11 +24,20 @@ export default function BusquedaPage() {
   const [componentesAgrupados, setComponentesAgrupados] = useState<CategoriaComponentes[]>([])
   const [loadingComponentes, setLoadingComponentes] = useState(false)
   const [perfilesDisponibles, setPerfilesDisponibles] = useState<Array<{id: number, nombre_configuracion: string}>>([])
+  const [perfilActual, setPerfilActual] = useState<{id: number, componentes_aplicables: string[]} | null>(null)
 
   useEffect(() => {
     cargarPerfilesDisponibles()
     cargarComponentesAgrupados()
   }, [])
+
+  useEffect(() => {
+    if (vehiculo?.tipo_vehiculo) {
+      cargarPerfilActual(vehiculo.tipo_vehiculo)
+    } else {
+      setPerfilActual(null)
+    }
+  }, [vehiculo?.tipo_vehiculo])
 
   async function cargarPerfilesDisponibles() {
     try {
@@ -57,6 +66,28 @@ export default function BusquedaPage() {
       console.error('Error cargando componentes agrupados:', error)
     } finally {
       setLoadingComponentes(false)
+    }
+  }
+
+  async function cargarPerfilActual(perfilId: number) {
+    try {
+      const { data, error } = await supabase
+        .from('configuraciones_vehiculo')
+        .select('id, componentes_aplicables')
+        .eq('id', perfilId)
+        .single()
+
+      if (error) throw error
+
+      if (data && Array.isArray(data.componentes_aplicables)) {
+        setPerfilActual({
+          id: data.id,
+          componentes_aplicables: data.componentes_aplicables
+        })
+      }
+    } catch (error) {
+      console.error('Error cargando perfil actual:', error)
+      setPerfilActual(null)
     }
   }
 
@@ -206,18 +237,25 @@ export default function BusquedaPage() {
 
   // Obtener componentes aplicables según perfil del vehículo
   function obtenerComponentesAplicables(): CategoriaComponentes[] {
-    if (!vehiculo?.tipo_vehiculo) {
-      // Si no tiene perfil, mostrar todas las categorías
+    if (!vehiculo?.tipo_vehiculo || !perfilActual) {
+      // Si no tiene perfil, mostrar todas las categorías con todos los componentes
       return componentesAgrupados
     }
 
-    // Si tiene perfil, filtrar solo los componentes seleccionados
-    const perfil = perfilesDisponibles.find(p => p.id === vehiculo.tipo_vehiculo)
-    if (!perfil) return componentesAgrupados
+    // Filtrar componentes según el perfil
+    const componentesDelPerfil = perfilActual.componentes_aplicables
 
-    // Cargar componentes_aplicables del perfil (necesitamos hacer fetch)
-    // Por ahora mostramos todos si tiene perfil
-    return componentesAgrupados
+    // Filtrar las categorías y sus componentes
+    const categoriasFiltradas = componentesAgrupados
+      .map(categoria => ({
+        ...categoria,
+        componentes: categoria.componentes.filter(comp =>
+          componentesDelPerfil.includes(comp.id)
+        )
+      }))
+      .filter(categoria => categoria.componentes.length > 0) // Solo mostrar categorías que tengan al menos 1 componente
+
+    return categoriasFiltradas
   }
 
   // Función para scroll automático a secciones
@@ -586,7 +624,7 @@ export default function BusquedaPage() {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Navegación Rápida</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                {componentesAgrupados.map((categoria) => (
+                {obtenerComponentesAplicables().map((categoria) => (
                   <button
                     key={categoria.id}
                     onClick={() => scrollToSection(categoria.id)}
@@ -605,7 +643,7 @@ export default function BusquedaPage() {
             </div>
 
             {/* Secciones Dinámicas de Mantenimiento */}
-            {componentesAgrupados.map((categoria) => (
+            {obtenerComponentesAplicables().map((categoria) => (
               <div key={categoria.id} id={categoria.id}>
                 <MantenimientoSection
                   title={categoria.nombre}
