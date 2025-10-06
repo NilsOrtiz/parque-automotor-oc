@@ -241,6 +241,86 @@ export default function AdminSchemaPage() {
     setSqlGenerado(sql)
   }
 
+  // Analizar columnas ignoradas y sugerir renombrados
+  function analizarColumnasIgnoradas() {
+    const sugerencias: Array<{
+      columnaActual: string
+      sugerencia: string
+      tipo: 'km' | 'fecha' | 'modelo' | 'intervalo' | 'litros' | 'hr' | 'desconocido'
+      componente: string
+    }> = []
+
+    columnasIgnoradas.forEach(col => {
+      let tipo: any = 'desconocido'
+      let componente = col
+
+      // Intentar detectar el tipo por el nombre
+      if (col.includes('kilometraje') || col.includes('km') || col.endsWith('_kms')) {
+        tipo = 'km'
+        componente = col.replace(/(_?kilometraje|_?km|_?kms)$/i, '')
+      } else if (col.includes('fecha') || col.includes('date')) {
+        tipo = 'fecha'
+        componente = col.replace(/(_?fecha|_?date)$/i, '')
+      } else if (col.includes('modelo') || col.includes('marca') || col.includes('model')) {
+        tipo = 'modelo'
+        componente = col.replace(/(_?modelo|_?marca|_?model)$/i, '')
+      } else if (col.includes('intervalo') || col.includes('interval')) {
+        tipo = 'intervalo'
+        componente = col.replace(/(_?intervalo|_?interval)$/i, '')
+      } else if (col.includes('litros') || col.includes('liters')) {
+        tipo = 'litros'
+        componente = col.replace(/(_?litros|_?liters)$/i, '')
+      } else if (col.includes('hora') || col.includes('hr') || col.includes('hours')) {
+        tipo = 'hr'
+        componente = col.replace(/(_?hora|_?hr|_?hours)$/i, '')
+      }
+
+      // Generar sugerencia de nombre estándar
+      const sugerencia = tipo !== 'desconocido'
+        ? `${componente}_${tipo}`
+        : `${col}_km` // Por defecto sugerir como campo km
+
+      sugerencias.push({
+        columnaActual: col,
+        sugerencia,
+        tipo,
+        componente
+      })
+    })
+
+    return sugerencias
+  }
+
+  function generarSQLRenombrado() {
+    const sugerencias = analizarColumnasIgnoradas()
+
+    let sql = `-- SQL para renombrar columnas que no siguen el patrón estándar\n`
+    sql += `-- Ejecutar en Supabase SQL Editor\n`
+    sql += `-- ADVERTENCIA: Esto renombrará columnas en la base de datos\n`
+    sql += `-- Revisa cada línea antes de ejecutar\n\n`
+
+    sugerencias.forEach(sug => {
+      sql += `-- ${sug.columnaActual} → ${sug.sugerencia} (${sug.tipo})\n`
+      sql += `ALTER TABLE public.vehiculos RENAME COLUMN "${sug.columnaActual}" TO "${sug.sugerencia}";\n\n`
+    })
+
+    sql += `\n-- Total de columnas a renombrar: ${sugerencias.length}\n`
+
+    return sql
+  }
+
+  function generarJSONAlias() {
+    const sugerencias = analizarColumnasIgnoradas()
+
+    const aliases = sugerencias.map(sug => ({
+      nombre_real: sug.columnaActual,
+      componente: sug.componente,
+      tipo: sug.tipo !== 'desconocido' ? sug.tipo : 'km'
+    }))
+
+    return JSON.stringify(aliases, null, 2)
+  }
+
   async function copiarSQL(sql: string) {
     await navigator.clipboard.writeText(sql)
     setCopiado(true)
@@ -324,34 +404,156 @@ export default function AdminSchemaPage() {
           </div>
         )}
 
-        {/* Alert de columnas ignoradas */}
+        {/* Columnas ignoradas - Soluciones */}
         {columnasIgnoradas.length > 0 && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-            <div className="flex">
-              <AlertTriangle className="h-5 w-5 text-red-400" />
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">
-                  {columnasIgnoradas.length} columnas ignoradas (no siguen el patrón)
-                </h3>
-                <p className="text-sm text-red-700 mt-1 mb-3">
-                  Estas columnas no están excluidas pero no siguen el patrón estándar {'{'}componente{'}_'}{'{'}tipo{'}'}.
-                  Debes configurarlas como alias en <Link href="/admin/alias" className="underline font-medium">Configurar Alias</Link>.
-                </p>
-                <details className="text-sm">
-                  <summary className="cursor-pointer font-medium text-red-800 hover:text-red-900">
-                    Ver lista completa de columnas ignoradas
-                  </summary>
-                  <div className="mt-2 bg-white rounded p-3 max-h-60 overflow-y-auto">
-                    <ul className="list-disc list-inside space-y-1">
-                      {columnasIgnoradas.map(col => (
-                        <li key={col} className="font-mono text-xs text-gray-700">{col}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </details>
+          <>
+            {/* Alert de columnas ignoradas */}
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+              <div className="flex">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">
+                    {columnasIgnoradas.length} columnas ignoradas (no siguen el patrón)
+                  </h3>
+                  <p className="text-sm text-red-700 mt-1 mb-3">
+                    Estas columnas no están excluidas pero no siguen el patrón estándar {'{'}componente{'}_'}{'{'}tipo{'}'}.
+                    Usa las opciones de abajo para solucionarlo.
+                  </p>
+                  <details className="text-sm">
+                    <summary className="cursor-pointer font-medium text-red-800 hover:text-red-900">
+                      Ver lista completa de columnas ignoradas
+                    </summary>
+                    <div className="mt-2 bg-white rounded p-3 max-h-60 overflow-y-auto">
+                      <ul className="list-disc list-inside space-y-1">
+                        {columnasIgnoradas.map(col => (
+                          <li key={col} className="font-mono text-xs text-gray-700">{col}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </details>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Tabla de sugerencias */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Análisis y Sugerencias de Renombrado
+              </h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Revisa cada columna y decide si quieres renombrarla (datos no sensibles) o crear un alias (datos sensibles/legacy).
+              </p>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Columna Actual
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Tipo Detectado
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Nombre Sugerido
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Componente
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {analizarColumnasIgnoradas().map((sug, idx) => (
+                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-4 py-3 text-sm font-mono text-gray-900">
+                          {sug.columnaActual}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            sug.tipo === 'desconocido'
+                              ? 'bg-gray-200 text-gray-700'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {sug.tipo}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-mono text-green-700">
+                          {sug.sugerencia}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-mono text-gray-600">
+                          {sug.componente}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* SQL de Renombrado */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Opción 1: SQL para Renombrar Columnas
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Usa esto si las columnas NO tienen datos sensibles y puedes cambiar los nombres
+                  </p>
+                </div>
+                <button
+                  onClick={() => copiarSQL(generarSQLRenombrado())}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  {copiado ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiado ? 'Copiado!' : 'Copiar SQL'}
+                </button>
+              </div>
+
+              <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm font-mono max-h-96">
+                {generarSQLRenombrado()}
+              </pre>
+
+              <div className="mt-4 bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>⚠️ ADVERTENCIA:</strong> Esto modificará los nombres de las columnas en la base de datos.
+                  Asegúrate de que ningún código externo dependa de estos nombres antes de ejecutar.
+                </p>
+              </div>
+            </div>
+
+            {/* JSON de Alias */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Opción 2: JSON para Configurar Alias
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Usa esto si las columnas tienen datos sensibles o son legacy (no puedes renombrar)
+                  </p>
+                </div>
+                <button
+                  onClick={() => copiarSQL(generarJSONAlias())}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  {copiado ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiado ? 'Copiado!' : 'Copiar JSON'}
+                </button>
+              </div>
+
+              <pre className="bg-gray-900 text-blue-400 p-4 rounded-lg overflow-x-auto text-sm font-mono max-h-96">
+                {generarJSONAlias()}
+              </pre>
+
+              <div className="mt-4 bg-blue-50 border-l-4 border-blue-400 p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>ℹ️ Instrucciones:</strong> Ve a <Link href="/admin/alias" className="underline font-medium">Configurar Alias</Link>,
+                  pega este JSON y revisa cada alias antes de guardar.
+                </p>
+              </div>
+            </div>
+          </>
         )}
 
         {/* SQL para completar existentes */}
