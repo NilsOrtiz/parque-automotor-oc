@@ -1366,6 +1366,122 @@ categoriasComponentes.find(c => c.id === id)?.nombre
 
 ---
 
+### 9.6 Ojo de Dios - Vista Completa con % de Vida Útil
+
+**Propósito:** Vista tipo Excel de todos los vehículos y componentes con indicadores visuales de estado
+
+**Ruta:** `/vehiculos/ojo-de-dios`
+
+**Características Principales:**
+
+1. **Celdas Agrupadas con Código de Colores:**
+```typescript
+// Cada componente se agrupa en una celda con 4 campos:
+// - km (último cambio)
+// - fecha (último cambio)
+// - modelo (pieza instalada)
+// - intervalo (km entre cambios)
+
+// Cálculo de % de vida útil:
+function calcularPorcentajeVida(kmActual, kmUltimoCambio, intervalo) {
+  const kmRecorridos = kmActual - kmUltimoCambio
+  const kmFaltantes = intervalo - kmRecorridos
+  return (kmFaltantes / intervalo) * 100
+}
+
+// Sistema de colores por porcentaje:
+// 🟢 Verde: 100%-15% → OK, componente en buen estado
+// 🟡 Amarillo: 15%-5% → Atención, próximo a mantenimiento
+// 🔴 Rojo: 5%-0% → Crítico, requiere mantenimiento urgente
+// ⚪ Gris: Sin datos → No hay suficiente información
+```
+
+2. **Interacción Expandible/Colapsable:**
+```tsx
+{/* Vista colapsada - muestra solo % */}
+<td className="bg-green-500 text-white cursor-pointer">
+  <span>85%</span>
+</td>
+
+{/* Vista expandida - muestra los 4 campos */}
+<td className="p-1">
+  <div className="bg-green-500">85%</div>
+  <div className="space-y-1">
+    <div>KM: 45,000</div>        {/* Click para editar */}
+    <div>Fecha: 15/08/24</div>   {/* Click para editar */}
+    <div>Modelo: Castrol 5W30</div> {/* Click para editar */}
+    <div>Int: 10,000</div>       {/* Click para editar */}
+  </div>
+</td>
+```
+
+3. **Edición Inline:**
+- Click en celda → Expande y muestra campos
+- Click en campo → Activa modo edición
+- Enter → Guarda cambios
+- Escape → Cancela edición
+- Los cambios se guardan automáticamente en Supabase
+
+4. **Optimización de Espacio:**
+```typescript
+// Headers abreviados automáticamente:
+const nombreCorto = componente.label
+  .replace(/Aceite/g, 'Ac')
+  .replace(/Filtro/g, 'Flt')
+  .replace(/Motor/g, 'Mtr')
+  .replace(/Transmisión/g, 'Trans')
+  .replace(/Refrigerante/g, 'Refri')
+  // ... más abreviaciones
+
+// Anchos optimizados:
+// - Placa: 65px (sticky)
+// - Interno: 35px
+// - Componentes: 50-80px
+// - Texto: 9-10px
+// - Padding mínimo: px-1 py-0.5
+```
+
+5. **Exportación CSV:**
+```csv
+Placa,Interno,Marca,Modelo,Año,KM Actual,Ac Mtr_%Vida,Ac Mtr_KM,Ac Mtr_Fecha,...
+ABC123,101,Mercedes,Sprinter,2020,45000,85%,45000,2024-08-15,Castrol,10000
+```
+
+6. **Leyenda Visual:**
+```tsx
+<div className="flex gap-4">
+  <div className="bg-green-500">100%-15% (OK)</div>
+  <div className="bg-yellow-500">15%-5% (Atención)</div>
+  <div className="bg-red-500">5%-0% (Crítico)</div>
+  <div className="bg-gray-200">Sin datos</div>
+</div>
+```
+
+**Ventajas de esta implementación:**
+- ✅ Vista general de toda la flota en una pantalla
+- ✅ Identificación visual inmediata de vehículos críticos
+- ✅ Edición rápida de múltiples campos
+- ✅ Máxima densidad de información
+- ✅ Perfecto para crear y validar perfiles
+- ✅ Ideal para auditorías de mantenimiento
+- ✅ Exportación completa para análisis externo
+
+**Casos de Uso:**
+1. **Auditoría Rápida:** Ver toda la flota y detectar vehículos en rojo/amarillo
+2. **Creación de Perfiles:** Identificar qué componentes usar por tipo de vehículo
+3. **Validación de Datos:** Detectar campos vacíos o inconsistencias
+4. **Planificación de Mantenimiento:** Priorizar vehículos según % de vida útil
+5. **Actualización Masiva:** Editar múltiples campos rápidamente
+
+**Tecnologías:**
+- React hooks para estado de celdas expandidas
+- Supabase para guardado en tiempo real
+- CSS con colores semáforo
+- Exportación nativa a CSV
+- Tipado TypeScript completo
+
+---
+
 ## Resumen de Mejoras Recientes
 
 ### Cambios en la Arquitectura
@@ -1374,15 +1490,22 @@ categoriasComponentes.find(c => c.id === id)?.nombre
 3. ✅ Integración en registro de servicio
 4. ✅ Soporte completo de 6 tipos de campos
 5. ✅ Manejo robusto de datos legacy corruptos
+6. ✅ **Ojo de Dios con % de vida útil y código de colores**
+7. ✅ **Celdas agrupadas expandibles/colapsables**
+8. ✅ **Optimización extrema de espacios (9-10px fonts)**
 
 ### Impacto en Mantenibilidad
 - **Reducción de código:** ~550 líneas menos de código hardcodeado
 - **Flexibilidad:** Cambios en UI sin tocar código
 - **Escalabilidad:** Agregar componentes es instantáneo
 - **Debugging:** Errores silenciosos para datos legacy
+- **Visibilidad:** Vista 360° de toda la flota en una pantalla
+- **Productividad:** Edición inline ultra-rápida
 
 ### Próximos Pasos Recomendados
 1. Migrar `/vehiculos/mantenimientos` al sistema dinámico
 2. Agregar filtrado por perfil en registro de servicio
 3. Implementar validaciones dinámicas por tipo de componente
 4. Crear página de reportes con categorías dinámicas
+5. **Agregar alertas automáticas por % de vida útil bajo**
+6. **Implementar vista de calendario de mantenimientos proyectados**
