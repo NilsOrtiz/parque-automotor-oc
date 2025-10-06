@@ -37,6 +37,7 @@ export default function RegistroServicioPage() {
   // Categorías dinámicas
   const [categoriasComponentes, setCategoriasComponentes] = useState<CategoriaComponentes[]>([])
   const [loadingCategorias, setLoadingCategorias] = useState(false)
+  const [perfilActual, setPerfilActual] = useState<{id: number, componentes_aplicables: string[]} | null>(null)
 
   // Campos del formulario
   const [clasificacion, setClasificacion] = useState<'revision' | 'mantenimiento' | 'reparacion'>('mantenimiento')
@@ -74,6 +75,15 @@ export default function RegistroServicioPage() {
     cargarCategorias()
   }, [])
 
+  // Cargar perfil cuando cambia el vehículo
+  useEffect(() => {
+    if (vehiculo?.tipo_vehiculo) {
+      cargarPerfilActual(vehiculo.tipo_vehiculo)
+    } else {
+      setPerfilActual(null)
+    }
+  }, [vehiculo?.tipo_vehiculo])
+
   async function cargarCategorias() {
     setLoadingCategorias(true)
     try {
@@ -83,6 +93,28 @@ export default function RegistroServicioPage() {
       console.error('Error cargando categorías:', error)
     } finally {
       setLoadingCategorias(false)
+    }
+  }
+
+  async function cargarPerfilActual(perfilId: number) {
+    try {
+      const { data, error } = await supabase
+        .from('configuraciones_vehiculo')
+        .select('id, componentes_aplicables')
+        .eq('id', perfilId)
+        .single()
+
+      if (error) throw error
+
+      if (data && Array.isArray(data.componentes_aplicables)) {
+        setPerfilActual({
+          id: data.id,
+          componentes_aplicables: data.componentes_aplicables
+        })
+      }
+    } catch (error) {
+      console.error('Error cargando perfil actual:', error)
+      setPerfilActual(null)
     }
   }
 
@@ -362,7 +394,7 @@ export default function RegistroServicioPage() {
   // Funciones para formularios rápidos
   const seleccionarSeccion = (seccionId: string) => {
     setSeccionSeleccionada(seccionId)
-    setSubclasificacion(categoriasComponentes.find(c => c.id === seccionId)?.nombre || '')
+    setSubclasificacion(obtenerComponentesAplicables().find(c => c.id === seccionId)?.nombre || '')
   }
 
   const toggleSeccionMultiple = (seccionId: string) => {
@@ -377,7 +409,7 @@ export default function RegistroServicioPage() {
     // Actualizar subclasificación con sistemas seleccionados
     if (nuevasSecciones.size > 0) {
       const nombresSecciones = Array.from(nuevasSecciones)
-        .map(id => categoriasComponentes.find(c => c.id === id)?.nombre)
+        .map(id => obtenerComponentesAplicables().find(c => c.id === id)?.nombre)
         .filter(Boolean)
         .join(', ')
       setSubclasificacion(nombresSecciones)
@@ -499,9 +531,33 @@ export default function RegistroServicioPage() {
     return configuracionVehiculo.componentes_aplicables[numeroComponente] === true
   }
 
+  // Obtener componentes aplicables según perfil del vehículo
+  function obtenerComponentesAplicables(): CategoriaComponentes[] {
+    if (!vehiculo?.tipo_vehiculo || !perfilActual) {
+      // Si no tiene perfil, mostrar todas las categorías con todos los componentes
+      return categoriasComponentes
+    }
+
+    // Filtrar componentes según el perfil
+    const componentesDelPerfil = perfilActual.componentes_aplicables
+
+    // Filtrar las categorías y sus componentes
+    const categoriasFiltradas = categoriasComponentes
+      .map(categoria => ({
+        ...categoria,
+        componentes: categoria.componentes.filter(comp =>
+          componentesDelPerfil.includes(comp.id)
+        )
+      }))
+      .filter(categoria => categoria.componentes.length > 0) // Solo mostrar categorías que tengan al menos 1 componente
+
+    return categoriasFiltradas
+  }
+
   // Función para obtener campos de una categoría
   const obtenerCamposPorCategoria = (categoriaId: string) => {
-    const categoria = categoriasComponentes.find(cat => cat.id === categoriaId)
+    const categoriasAplicables = obtenerComponentesAplicables()
+    const categoria = categoriasAplicables.find(cat => cat.id === categoriaId)
     if (!categoria) return []
 
     return categoria.componentes.map(comp => ({
@@ -878,7 +934,7 @@ export default function RegistroServicioPage() {
 
                   {/* Iconos Permanentes como Toggles */}
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-                    {categoriasComponentes.map((categoria) => {
+                    {obtenerComponentesAplicables().map((categoria) => {
                       const estaActiva = seccionesSeleccionadas.has(categoria.id)
 
                       return (
@@ -921,7 +977,7 @@ export default function RegistroServicioPage() {
                           </h5>
                           <p className="text-sm text-green-700">
                             {Array.from(seccionesSeleccionadas)
-                              .map(id => categoriasComponentes.find(c => c.id === id)?.nombre)
+                              .map(id => obtenerComponentesAplicables().find(c => c.id === id)?.nombre)
                               .join(', ')}
                           </p>
                         </div>
@@ -942,7 +998,7 @@ export default function RegistroServicioPage() {
                         <div className="flex items-center gap-3">
                           <div className="flex -space-x-2">
                             {Array.from(seccionesSeleccionadas).slice(0, 3).map(seccionId => {
-                              const categoria = categoriasComponentes.find(c => c.id === seccionId)
+                              const categoria = obtenerComponentesAplicables().find(c => c.id === seccionId)
                               return (
                                 <div
                                   key={seccionId}
@@ -964,7 +1020,7 @@ export default function RegistroServicioPage() {
                             </h4>
                             <p className="text-sm text-gray-600">
                               {Array.from(seccionesSeleccionadas)
-                                .map(id => categoriasComponentes.find(c => c.id === id)?.nombre)
+                                .map(id => obtenerComponentesAplicables().find(c => c.id === id)?.nombre)
                                 .join(', ')}
                             </p>
                           </div>
@@ -1057,7 +1113,7 @@ export default function RegistroServicioPage() {
                         <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
                           {/* Mostrar componentes agrupados por sistema */}
                           {Array.from(seccionesSeleccionadas).map(seccionId => {
-                            const categoria = categoriasComponentes.find(c => c.id === seccionId)
+                            const categoria = obtenerComponentesAplicables().find(c => c.id === seccionId)
                             const campos = obtenerCamposFiltrados(seccionId)
 
                             return (
