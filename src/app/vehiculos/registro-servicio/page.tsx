@@ -649,6 +649,12 @@ export default function RegistroServicioPage() {
       (vehiculo?.kilometraje_actual || '') :
       (datosGlobales.kilometraje ? parseInt(datosGlobales.kilometraje) : '')
 
+    // Construir mapa de campos por sección
+    const camposPorSeccion: Record<string, any[]> = {}
+    seccionesSeleccionadas.forEach(seccionId => {
+      camposPorSeccion[seccionId] = obtenerCamposPorCategoria(seccionId)
+    })
+
     componentesSeleccionados.forEach(componenteKey => {
       // Buscar la definición del campo en todas las secciones activas
       let definicionCampo: any = null
