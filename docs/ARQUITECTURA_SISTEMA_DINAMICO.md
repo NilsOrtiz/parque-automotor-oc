@@ -1042,12 +1042,75 @@ async function cargarComponentesAgrupados() {
 }
 ```
 
+**Filtrado por Perfil del Vehículo:**
+
+```typescript
+// Estado para perfil actual
+const [perfilActual, setPerfilActual] = useState<{
+  id: number
+  componentes_aplicables: string[]
+} | null>(null)
+
+// Cargar perfil cuando cambia el vehículo
+useEffect(() => {
+  if (vehiculo?.tipo_vehiculo) {
+    cargarPerfilActual(vehiculo.tipo_vehiculo)
+  } else {
+    setPerfilActual(null)
+  }
+}, [vehiculo?.tipo_vehiculo])
+
+// Función para cargar perfil completo
+async function cargarPerfilActual(perfilId: number) {
+  try {
+    const { data, error } = await supabase
+      .from('configuraciones_vehiculo')
+      .select('id, componentes_aplicables')
+      .eq('id', perfilId)
+      .single()
+
+    if (error) throw error
+
+    if (data && Array.isArray(data.componentes_aplicables)) {
+      setPerfilActual({
+        id: data.id,
+        componentes_aplicables: data.componentes_aplicables
+      })
+    }
+  } catch (error) {
+    console.error('Error cargando perfil actual:', error)
+    setPerfilActual(null)
+  }
+}
+
+// Función para filtrar componentes aplicables
+function obtenerComponentesAplicables(): CategoriaComponentes[] {
+  if (!vehiculo?.tipo_vehiculo || !perfilActual) {
+    return componentesAgrupados // Mostrar todo si no hay perfil
+  }
+
+  const componentesDelPerfil = perfilActual.componentes_aplicables
+
+  const categoriasFiltradas = componentesAgrupados
+    .map(categoria => ({
+      ...categoria,
+      componentes: categoria.componentes.filter(comp =>
+        componentesDelPerfil.includes(comp.id)
+      )
+    }))
+    .filter(categoria => categoria.componentes.length > 0)
+
+  return categoriasFiltradas
+}
+```
+
 **Navegación Rápida Dinámica:**
 
 ```tsx
 {/* Botones de navegación generados dinámicamente */}
+{/* IMPORTANTE: Usa obtenerComponentesAplicables() para respetar el perfil */}
 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-  {componentesAgrupados.map((categoria) => (
+  {obtenerComponentesAplicables().map((categoria) => (
     <button
       key={categoria.id}
       onClick={() => scrollToSection(categoria.id)}
@@ -1064,7 +1127,8 @@ async function cargarComponentesAgrupados() {
 
 ```tsx
 {/* Mapeo dinámico de categorías a secciones de UI */}
-{componentesAgrupados.map((categoria) => (
+{/* IMPORTANTE: Usa obtenerComponentesAplicables() para respetar el perfil */}
+{obtenerComponentesAplicables().map((categoria) => (
   <div key={categoria.id} id={categoria.id}>
     <MantenimientoSection
       title={categoria.nombre}
@@ -1090,7 +1154,8 @@ async function cargarComponentesAgrupados() {
 - ✅ No requiere actualizar código al agregar componentes
 - ✅ Iconos y nombres se cargan desde la configuración
 - ✅ Secciones se generan automáticamente
-- ✅ Se adapta al perfil del vehículo (si está implementado)
+- ✅ **Filtrado por perfil de vehículo** - Solo muestra componentes aplicables
+- ✅ **Sincronizado con registro-servicio** - Mismo comportamiento en ambas páginas
 
 ### 9.2 Registro de Servicio (`/vehiculos/registro-servicio`)
 
@@ -1109,12 +1174,77 @@ async function cargarCategorias() {
 }
 ```
 
+**Filtrado por Perfil del Vehículo:**
+
+```typescript
+// Estado para perfil actual
+const [perfilActual, setPerfilActual] = useState<{
+  id: number
+  componentes_aplicables: string[]
+} | null>(null)
+
+// Cargar perfil cuando cambia el vehículo
+useEffect(() => {
+  if (vehiculo?.tipo_vehiculo) {
+    cargarPerfilActual(vehiculo.tipo_vehiculo)
+  } else {
+    setPerfilActual(null)
+  }
+}, [vehiculo?.tipo_vehiculo])
+
+// Función para cargar perfil completo
+async function cargarPerfilActual(perfilId: number) {
+  try {
+    const { data, error } = await supabase
+      .from('configuraciones_vehiculo')
+      .select('id, componentes_aplicables')
+      .eq('id', perfilId)
+      .single()
+
+    if (error) throw error
+
+    if (data && Array.isArray(data.componentes_aplicables)) {
+      setPerfilActual({
+        id: data.id,
+        componentes_aplicables: data.componentes_aplicables
+      })
+    }
+  } catch (error) {
+    console.error('Error cargando perfil actual:', error)
+    setPerfilActual(null)
+  }
+}
+
+// Función para filtrar componentes aplicables
+function obtenerComponentesAplicables(): CategoriaComponentes[] {
+  if (!vehiculo?.tipo_vehiculo || !perfilActual) {
+    // Si no tiene perfil, mostrar todas las categorías
+    return categoriasComponentes
+  }
+
+  const componentesDelPerfil = perfilActual.componentes_aplicables
+
+  // Filtrar categorías y sus componentes
+  const categoriasFiltradas = categoriasComponentes
+    .map(categoria => ({
+      ...categoria,
+      componentes: categoria.componentes.filter(comp =>
+        componentesDelPerfil.includes(comp.id)
+      )
+    }))
+    .filter(categoria => categoria.componentes.length > 0)
+
+  return categoriasFiltradas
+}
+```
+
 **Selección de Sistemas con Iconos Dinámicos:**
 
 ```tsx
 {/* Toggles de sistemas generados desde categorías */}
+{/* IMPORTANTE: Usa obtenerComponentesAplicables() en lugar de categoriasComponentes */}
 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-  {categoriasComponentes.map((categoria) => {
+  {obtenerComponentesAplicables().map((categoria) => {
     const estaActiva = seccionesSeleccionadas.has(categoria.id)
 
     return (
@@ -1143,8 +1273,10 @@ async function cargarCategorias() {
 
 ```typescript
 // Obtener campos de una categoría específica
+// IMPORTANTE: Usa obtenerComponentesAplicables() para respetar el perfil
 const obtenerCamposPorCategoria = (categoriaId: string) => {
-  const categoria = categoriasComponentes.find(cat => cat.id === categoriaId)
+  const categoriasAplicables = obtenerComponentesAplicables()
+  const categoria = categoriasAplicables.find(cat => cat.id === categoriaId)
   if (!categoria) return []
 
   return categoria.componentes.map(comp => ({
@@ -1180,9 +1312,10 @@ const toggleSeccionMultiple = (seccionId: string) => {
   setSeccionesSeleccionadas(nuevasSecciones)
 
   // Actualizar subclasificación con nombres dinámicos
+  // IMPORTANTE: Usa obtenerComponentesAplicables() para respetar el perfil
   if (nuevasSecciones.size > 0) {
     const nombresSecciones = Array.from(nuevasSecciones)
-      .map(id => categoriasComponentes.find(c => c.id === id)?.nombre)
+      .map(id => obtenerComponentesAplicables().find(c => c.id === id)?.nombre)
       .filter(Boolean)
       .join(', ')
     setSubclasificacion(nombresSecciones)
@@ -1196,8 +1329,9 @@ const toggleSeccionMultiple = (seccionId: string) => {
 
 ```tsx
 {/* Componentes seleccionables por categoría */}
+{/* IMPORTANTE: Usa obtenerComponentesAplicables() para respetar el perfil */}
 {Array.from(seccionesSeleccionadas).map(seccionId => {
-  const categoria = categoriasComponentes.find(c => c.id === seccionId)
+  const categoria = obtenerComponentesAplicables().find(c => c.id === seccionId)
   const campos = obtenerCamposFiltrados(seccionId)
 
   return (
@@ -1238,6 +1372,8 @@ const toggleSeccionMultiple = (seccionId: string) => {
 - ✅ Iconos personalizables por categoría
 - ✅ Estado visual dinámico (activo/inactivo)
 - ✅ Subclasificaciones automáticas
+- ✅ **Filtrado por perfil de vehículo** - Solo muestra componentes aplicables
+- ✅ **Sincronizado con búsqueda** - Mismo comportamiento en ambas páginas
 
 ### 9.3 Manejo de Errores en Datos Legacy
 
@@ -1504,8 +1640,9 @@ ABC123,101,Mercedes,Sprinter,2020,45000,85%,45000,2024-08-15,Castrol,10000
 
 ### Próximos Pasos Recomendados
 1. Migrar `/vehiculos/mantenimientos` al sistema dinámico
-2. Agregar filtrado por perfil en registro de servicio
-3. Implementar validaciones dinámicas por tipo de componente
-4. Crear página de reportes con categorías dinámicas
-5. **Agregar alertas automáticas por % de vida útil bajo**
-6. **Implementar vista de calendario de mantenimientos proyectados**
+2. ✅ ~~Agregar filtrado por perfil en registro de servicio~~ **COMPLETADO**
+3. ✅ ~~Agregar filtrado por perfil en búsqueda~~ **COMPLETADO**
+4. Implementar validaciones dinámicas por tipo de componente
+5. Crear página de reportes con categorías dinámicas
+6. **Agregar alertas automáticas por % de vida útil bajo**
+7. **Implementar vista de calendario de mantenimientos proyectados**
