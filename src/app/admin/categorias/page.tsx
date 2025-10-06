@@ -49,13 +49,27 @@ export default function CategoriasPage() {
       todasColumnas.forEach(col => {
         if (exclusiones.includes(col)) return
 
-        // Detectar patrón y extraer componente base
-        if (col.endsWith('_km')) componentesSet.add(col.replace('_km', ''))
-        else if (col.endsWith('_fecha')) componentesSet.add(col.replace('_fecha', ''))
-        else if (col.endsWith('_modelo')) componentesSet.add(col.replace('_modelo', ''))
-        else if (col.endsWith('_intervalo')) componentesSet.add(col.replace('_intervalo', ''))
-        else if (col.endsWith('_litros')) componentesSet.add(col.replace('_litros', ''))
-        else if (col.endsWith('_hr')) componentesSet.add(col.replace('_hr', ''))
+        let nombreComponente = ''
+
+        // Detectar patrón con sufijo de letra: {componente}_{tipo}_{a-z}
+        if (/_(km|fecha|modelo|intervalo|litros|hr)_[a-z]$/i.test(col)) {
+          const match = col.match(/^(.+)_(km|fecha|modelo|intervalo|litros|hr)_([a-z])$/i)
+          if (match) {
+            const [, componente, , letra] = match
+            nombreComponente = `${componente}_${letra}`
+          }
+        }
+        // Detectar patrón estándar sin sufijo
+        else if (col.endsWith('_km')) nombreComponente = col.replace('_km', '')
+        else if (col.endsWith('_fecha')) nombreComponente = col.replace('_fecha', '')
+        else if (col.endsWith('_modelo')) nombreComponente = col.replace('_modelo', '')
+        else if (col.endsWith('_intervalo')) nombreComponente = col.replace('_intervalo', '')
+        else if (col.endsWith('_litros')) nombreComponente = col.replace('_litros', '')
+        else if (col.endsWith('_hr')) nombreComponente = col.replace('_hr', '')
+
+        if (nombreComponente) {
+          componentesSet.add(nombreComponente)
+        }
       })
 
       setComponentesDisponibles(Array.from(componentesSet).sort())
