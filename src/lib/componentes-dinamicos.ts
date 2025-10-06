@@ -64,7 +64,7 @@ export async function cargarComponentesDinamicos(): Promise<CategoriaComponentes
     columnas.forEach(col => {
       if (columnasExcluidas.includes(col)) return
 
-      // Detectar patrón: {componente}_{tipo}
+      // Detectar patrón: {componente}_{tipo} o {componente}_{tipo}_{letra}
       let nombreComponente = ''
       let tipoColumna: 'km' | 'fecha' | 'modelo' | 'intervalo' | 'litros' | 'hr' | null = null
 
@@ -73,7 +73,18 @@ export async function cargarComponentesDinamicos(): Promise<CategoriaComponentes
         const alias = COLUMNAS_ALIAS[col]
         nombreComponente = alias.componente
         tipoColumna = alias.tipo
-      } else if (col.endsWith('_km')) {
+      }
+      // Detectar patrón con sufijo de letra: {componente}_{tipo}_{a-z}
+      else if (/_(km|fecha|modelo|intervalo|litros|hr)_[a-z]$/i.test(col)) {
+        const match = col.match(/^(.+)_(km|fecha|modelo|intervalo|litros|hr)_([a-z])$/i)
+        if (match) {
+          const [, componente, tipo, letra] = match
+          nombreComponente = `${componente}_${letra}`
+          tipoColumna = tipo as 'km' | 'fecha' | 'modelo' | 'intervalo' | 'litros' | 'hr'
+        }
+      }
+      // Detectar patrón estándar sin sufijo
+      else if (col.endsWith('_km')) {
         nombreComponente = col.replace('_km', '')
         tipoColumna = 'km'
       } else if (col.endsWith('_fecha')) {
@@ -99,6 +110,9 @@ export async function cargarComponentesDinamicos(): Promise<CategoriaComponentes
         // Columna que no sigue el patrón estándar
         return
       }
+
+      // Validar que tipoColumna no sea null
+      if (!tipoColumna) return
 
       // Crear o actualizar componente en el map
       if (!componentesMap.has(nombreComponente)) {

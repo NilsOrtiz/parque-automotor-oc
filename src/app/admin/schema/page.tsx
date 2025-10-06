@@ -83,7 +83,7 @@ export default function AdminSchemaPage() {
           return
         }
 
-        // Detectar patrón: {componente}_{tipo}
+        // Detectar patrón: {componente}_{tipo} o {componente}_{tipo}_{letra}
         let nombreComponente = ''
         let tipoColumna = ''
 
@@ -93,7 +93,19 @@ export default function AdminSchemaPage() {
           nombreComponente = alias.componente
           tipoColumna = alias.tipo
           console.log('🔍 Alias detectado:', col, '→', nombreComponente, tipoColumna)
-        } else if (col.endsWith('_km')) {
+        }
+        // Detectar patrón con sufijo de letra: {componente}_{tipo}_{a-z}
+        else if (/_(km|fecha|modelo|intervalo|litros|hr)_[a-z]$/i.test(col)) {
+          const match = col.match(/^(.+)_(km|fecha|modelo|intervalo|litros|hr)_([a-z])$/i)
+          if (match) {
+            const [, componente, tipo, letra] = match
+            nombreComponente = `${componente}_${letra}`
+            tipoColumna = tipo
+            console.log('🔤 Detectado con sufijo:', col, '→', nombreComponente, '(', tipoColumna, ')')
+          }
+        }
+        // Detectar patrón estándar sin sufijo
+        else if (col.endsWith('_km')) {
           nombreComponente = col.replace('_km', '')
           tipoColumna = 'km'
         } else if (col.endsWith('_fecha')) {
