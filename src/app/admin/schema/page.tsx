@@ -642,7 +642,7 @@ export default function AdminSchemaPage() {
                           <div className="flex flex-col items-center gap-1">
                             <CheckCircle className="h-5 w-5 text-green-600" />
                             <span className="text-xs font-mono text-green-700">{comp.columnaKm || `${comp.nombre}_km`}</span>
-                            {comp.columnaKm && comp.columnaKm !== `${comp.nombre}_km` && (
+                            {comp.columnaKm && comp.columnaKm !== `${comp.nombre}_km` && !comp.columnaKm.match(/_(km)_[a-z]$/i) && (
                               <span className="text-xs text-blue-600 font-semibold">📌 Alias</span>
                             )}
                           </div>
@@ -658,7 +658,7 @@ export default function AdminSchemaPage() {
                           <div className="flex flex-col items-center gap-1">
                             <CheckCircle className="h-5 w-5 text-green-600" />
                             <span className="text-xs font-mono text-green-700">{comp.columnaFecha || `${comp.nombre}_fecha`}</span>
-                            {comp.columnaFecha && comp.columnaFecha !== `${comp.nombre}_fecha` && (
+                            {comp.columnaFecha && comp.columnaFecha !== `${comp.nombre}_fecha` && !comp.columnaFecha.match(/_(fecha)_[a-z]$/i) && (
                               <span className="text-xs text-blue-600 font-semibold">📌 Alias</span>
                             )}
                           </div>
@@ -674,7 +674,7 @@ export default function AdminSchemaPage() {
                           <div className="flex flex-col items-center gap-1">
                             <CheckCircle className="h-5 w-5 text-green-600" />
                             <span className="text-xs font-mono text-green-700">{comp.columnaModelo || `${comp.nombre}_modelo`}</span>
-                            {comp.columnaModelo && comp.columnaModelo !== `${comp.nombre}_modelo` && (
+                            {comp.columnaModelo && comp.columnaModelo !== `${comp.nombre}_modelo` && !comp.columnaModelo.match(/_(modelo)_[a-z]$/i) && (
                               <span className="text-xs text-blue-600 font-semibold">📌 Alias</span>
                             )}
                           </div>
@@ -690,7 +690,7 @@ export default function AdminSchemaPage() {
                           <div className="flex flex-col items-center gap-1">
                             <CheckCircle className="h-5 w-5 text-green-600" />
                             <span className="text-xs font-mono text-green-700">{comp.columnaIntervalo || `${comp.nombre}_intervalo`}</span>
-                            {comp.columnaIntervalo && comp.columnaIntervalo !== `${comp.nombre}_intervalo` && (
+                            {comp.columnaIntervalo && comp.columnaIntervalo !== `${comp.nombre}_intervalo` && !comp.columnaIntervalo.match(/_(intervalo)_[a-z]$/i) && (
                               <span className="text-xs text-blue-600 font-semibold">📌 Alias</span>
                             )}
                           </div>
