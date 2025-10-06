@@ -71,6 +71,11 @@ export default function AdminSchemaPage() {
       const componentesMap = new Map<string, ComponenteSchema>()
 
       // Procesar columnas y agrupar por componente
+      console.log('📊 Total columnas en BD:', columnas.length)
+      console.log('🚫 Columnas excluidas:', exclusiones.length)
+
+      const columnasIgnoradas: string[] = []
+
       columnas.forEach(col => {
         // Ignorar columnas excluidas dinámicamente
         if (exclusiones.includes(col)) {
@@ -107,9 +112,11 @@ export default function AdminSchemaPage() {
           tipoColumna = 'hr'
         } else if (col === 'intervalo_cambio_aceite' || col === 'intervalo_cambio_aceite_hr' || col === 'intervalo_rotacion_neumaticos') {
           // Casos especiales
+          columnasIgnoradas.push(col)
           return
         } else {
           // Columna que no sigue el patrón estándar
+          columnasIgnoradas.push(col)
           return
         }
 
@@ -161,6 +168,12 @@ export default function AdminSchemaPage() {
       // Convertir a array y ordenar
       const componentesArray = Array.from(componentesMap.values())
         .sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+      console.log('✅ Componentes detectados:', componentesArray.length)
+      console.log('⚠️ Columnas ignoradas (no siguen patrón):', columnasIgnoradas.length)
+      if (columnasIgnoradas.length > 0) {
+        console.log('📋 Lista de columnas ignoradas:', columnasIgnoradas)
+      }
 
       setComponentesReales(componentesArray)
     } catch (error) {
