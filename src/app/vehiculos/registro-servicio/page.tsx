@@ -357,7 +357,7 @@ export default function RegistroServicioPage() {
       }
 
       setSuccess('Servicio registrado correctamente' + (pendienteSeleccionado ? ' y problema resuelto' : ''))
-      
+
       // Limpiar formulario
       setClasificacion('mantenimiento')
       setSubclasificacion('')
@@ -370,10 +370,11 @@ export default function RegistroServicioPage() {
       setSeccionesSeleccionadas(new Set())
       setDatosSeccion({})
       limpiarFormularioMejorado()
-      
-      // Recargar pendientes para actualizar la lista
+
+      // Recargar datos para actualizar las listas
       if (vehiculo) {
         await cargarPendientesDisponibles(vehiculo.id)
+        await cargarOrdenesDisponibles(vehiculo.id)
       }
     } catch (error) {
       console.error('Error guardando servicio:', error)
